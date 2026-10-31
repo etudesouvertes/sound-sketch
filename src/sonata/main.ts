@@ -19,6 +19,10 @@ import { keepRandom, type MovementContext, type MovementRun, seedRandom, type So
 
 const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow];
 const GAP_BETWEEN = 4; // 楽章のあいだの沈黙（秒）
+const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあいだの沈黙（秒）
+
+// ?continuous を付けると、ソナタが終わっても止まらず、次の作曲家のソナタへ順に移り続ける（最後の作曲家のあとは最初に戻る）
+const CONTINUOUS = new URLSearchParams(location.search).has("continuous");
 
 // 試すとき用: ?short を付けると、どの楽章も 5 分の 1 の長さになる（終わり方をすぐ確かめられる）
 if (new URLSearchParams(location.search).has("short"))
@@ -348,6 +352,7 @@ let run: MovementRun | null = null;
 let startedAt = 0;
 let nextAt = Infinity; // 楽章のあいだの沈黙が明ける時刻
 let ended = false;
+let nextIndex = 0; // 沈黙が明けたら始める楽章
 
 function startMovement(i: number) {
   run?.stop();
@@ -386,12 +391,16 @@ function request(i: number, fresh = false) {
 // 始める前は選ぶだけ。鳴っている（または頼まれている）ときは、選んだところから鳴らし直す
 const playing = () => run !== null || requested !== null || nextAt !== Infinity || ended;
 
-composerEl.addEventListener("change", () => {
-  sonata = SONATAS.find((s) => s.id === composerEl.value) ?? SONATAS[0];
+// 作曲家を移す（音階と調律も、その作曲家に合わせる）
+function switchSonata(next: Sonata) {
+  sonata = next;
   movementEl.value = "0";
   fillSelects();
   page.refreshScale();
   applyTuning();
+}
+composerEl.addEventListener("change", () => {
+  switchSonata(SONATAS.find((s) => s.id === composerEl.value) ?? SONATAS[0]);
   if (playing()) request(0, true);
 });
 movementEl.addEventListener("change", () => {
@@ -414,10 +423,19 @@ page.transport.scheduleRepeat(() => {
     run.stop();
     run = null;
     if (listening) listening.finishedAt = Tone.now();
-    if (index < sonata.movements.length - 1) nextAt = Tone.now() + GAP_BETWEEN;
-    else ended = true;
+    if (index < sonata.movements.length - 1) {
+      nextIndex = index + 1;
+      nextAt = Tone.now() + GAP_BETWEEN;
+    } else if (CONTINUOUS) {
+      // 次の作曲家へ。沈黙のあいだ、右下には次に鳴るソナタの I を出しておく
+      switchSonata(SONATAS[(SONATAS.indexOf(sonata) + 1) % SONATAS.length]);
+      if (!fixedSeed()) seed = newSeed();
+      index = 0;
+      nextIndex = 0;
+      nextAt = Tone.now() + GAP_BETWEEN_SONATAS;
+    } else ended = true;
   }
-  if (!run && requested === null && Tone.now() >= nextAt) startMovement(index + 1);
+  if (!run && requested === null && Tone.now() >= nextAt) startMovement(nextIndex);
 }, 0.25);
 
 // --- 画面 ---
