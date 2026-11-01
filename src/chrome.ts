@@ -72,12 +72,15 @@ export function setupChrome() {
     restart();
   });
 
-  // 最初の演奏（キャンバスのクリック）から数え始める
-  canvas.addEventListener("pointerdown", () => {
+  // 最初の演奏（キャンバスのクリック）から数え始める。キャンバス以外（Sonata の再生のボタンなど）で演奏を始めたときは、
+  // ページが document に "performance-start" を送る
+  const start = () => {
     if (started) return;
     started = true;
     restart();
-  });
+  };
+  canvas.addEventListener("pointerdown", start);
+  document.addEventListener("performance-start", start);
 
   window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") setOpen(false);

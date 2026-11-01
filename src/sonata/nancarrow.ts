@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // コンロン・ナンカロウがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // ナンカロウは自動ピアノのために、人の手では弾けない速さと、テンポの違う声部の重なりを書いた。
@@ -8,24 +8,6 @@ import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pending
 // II.  ブギウギの層: 左手のブギウギの型に、テンポの違う右手の型（3:2、5:4、7:4）が重なっていき、また抜けていく
 // III. 収束するカノン: 同じ旋律を 4 つの声部が違う速さ（1・√2・2・2√2 倍）で弾く。遅い声部から先に始め、最後の音で全員がそろう
 // 時刻はすべて音の時計で持つ
-
-// 今の音高の並びでの、主音の位置と 1 オクターブの音の数
-function layout(ctx: MovementContext) {
-  const pitches = ctx.pitches();
-  const count = pitches.length;
-  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
-  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : 7;
-  const lowRoot = roots[0] ?? 0;
-  const centre = roots.reduce((best, r) => (Math.abs(r - count / 2) < Math.abs(best - count / 2) ? r : best), roots[0] ?? Math.floor(count / 2));
-  // 7 音の音階の度数（0〜）を、今の音階の段数に直す（5 音の音階でも和音の形がおおよそ保たれる）
-  const degree = (d: number) => Math.round((d * perOctave) / 7);
-  // 画面の外の音は、オクターブを指定して鳴らす
-  const place = (index: number) => {
-    const octave = index < 0 ? -Math.ceil(-index / perOctave) : index >= count ? Math.ceil((index - count + 1) / perOctave) : 0;
-    return { index: index - octave * perOctave, octave };
-  };
-  return { count, perOctave, lowRoot, centre, degree, place };
-}
 
 // --- 画面: 鳴った音が右端から左へ流れる。声部ごとに色を変える ---
 

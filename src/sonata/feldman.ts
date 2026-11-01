@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // モートン・フェルドマンがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // フェルドマンの後期の作品は、ごく弱い音で、短い型を何度か繰り返しては少しだけ変え、別の型へ移る。盛り上がりも展開もなく、
@@ -10,22 +10,8 @@ import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pending
 // III. 記憶の層: 左手が近い音どうしの小さな型を刻み続け、その上に、右手の型が長さを違えて現れては消える
 // 時刻はすべて音の時計で持ち、テンポの設定で 1 拍の長さが決まる。音はどれもごく弱い
 
-// 今の音高の並びでの、1 オクターブの音の数と真ん中の位置
-function layout(ctx: MovementContext) {
-  const pitches = ctx.pitches();
-  const count = pitches.length;
-  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
-  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : 12;
-  // 画面の外の音は、オクターブを指定して鳴らす
-  const place = (index: number) => {
-    const octave = index < 0 ? -Math.ceil(-index / perOctave) : index >= count ? Math.ceil((index - count + 1) / perOctave) : 0;
-    return { index: index - octave * perOctave, octave };
-  };
-  return { count, perOctave, middle: Math.floor(count / 2), place };
-}
-
 // 半音階での音程を、今の音階の段数に直す（半音階以外を選んだときも、音域の広がりがおおよそ保たれる）
-const steps = (ctx: MovementContext, semitones: number) => Math.round((semitones * layout(ctx).perOctave) / 12);
+const steps = (ctx: MovementContext, semitones: number) => Math.round((semitones * layout(ctx, 12).perOctave) / 12);
 
 // --- 画面: 音は、型（小節）の中の位置を横に、高さを縦にして置く。同じ型を繰り返すと、同じ場所が重なって明るくなる ---
 
@@ -59,7 +45,7 @@ function markView(ctx: MovementContext) {
 
 // クリック: その高さに、ごく弱い音を 1 つと、長 7 度上の音を少し遅れて置く
 function softAt(ctx: MovementContext, queue: ReturnType<typeof pendingQueue>, view: ReturnType<typeof markView>, x: number, y: number, width: number, height: number) {
-  const h = layout(ctx);
+  const h = layout(ctx, 12);
   const index = Math.min(Math.max(pitchIndexAt(y, height, h.count), 0), h.count - 1);
   const time = Tone.now() + 0.02;
   const fx = Math.min(Math.max((x - MARGIN_LEFT) / (width - MARGIN_LEFT - MARGIN_RIGHT), 0), 1);
@@ -99,7 +85,7 @@ function vary(ctx: MovementContext, p: Pattern): Pattern {
   } else if (roll < 0.8) e.at = Math.min(Math.max(e.at + (rand() < 0.5 ? -0.5 : 0.5), 0), p.length - 0.5);
   else {
     const i = Math.floor(rand() * e.notes.length);
-    e.notes[i] += (rand() < 0.5 ? -1 : 1) * layout(ctx).perOctave;
+    e.notes[i] += (rand() < 0.5 ? -1 : 1) * layout(ctx, 12).perOctave;
   }
   return { length: p.length, events };
 }
@@ -115,7 +101,7 @@ function playPattern(
   velocity: number,
   layer: number,
 ) {
-  const h = layout(ctx);
+  const h = layout(ctx, 12);
   for (const e of p.events) {
     const time = at + e.at * beat;
     e.notes.forEach((n, i) => {
@@ -140,7 +126,7 @@ const repetitions: Movement = {
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
     const beat = () => 60 / ctx.bpm();
-    const h0 = layout(ctx);
+    const h0 = layout(ctx, 12);
     const memory: Pattern[] = [newPattern(ctx, h0.middle, h0.perOctave)]; // 一度鳴らした型（変える前の形）
     let playing = memory[0];
     let repeatsLeft = 2 + Math.floor(rand() * 4);
@@ -168,7 +154,7 @@ const repetitions: Movement = {
           if (rand() < 0.3) nextAt += (b * random(2, 5)) / Math.sqrt(ctx.density());
           // 前に聞いた型が戻ってくる割合は、時間がたつにつれて少しずつ上がる
           const recall = memory.length > 1 && rand() < 0.15 + 0.3 * progress;
-          const h = layout(ctx);
+          const h = layout(ctx, 12);
           playing = recall ? memory[Math.floor(rand() * (memory.length - 1))] : newPattern(ctx, h.middle + Math.round(random(-0.5, 0.5) * h.perOctave), h.perOctave);
           if (!recall) memory.push(playing);
           repeatsLeft = 2 + Math.floor(rand() * 4);
@@ -216,7 +202,7 @@ const shadedChords: Movement = {
 
     // 和音の音の数は、5 音から始めて少しずつ減り、終わり近くでは 2 音になる
     const newChord = (size: number) => {
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
       const notes = [Math.round(random(0.05, 0.3) * h.count)];
       while (notes.length < size) notes.push(notes.at(-1)! + steps(ctx, CHORD_SPACING[Math.floor(rand() * CHORD_SPACING.length)]));
       return notes;
@@ -227,7 +213,7 @@ const shadedChords: Movement = {
       if (ending || nextAt >= time + TICK) return;
       const progress = (nextAt - startAt) / shadedChords.duration;
       const b = beat();
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
       const x = ((nextAt - startAt) % 40) / 40;
 
       // 終わり: 低い 1 音を長く置く
@@ -291,7 +277,7 @@ const memoryLayers: Movement = {
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
     const step = () => 30 / ctx.bpm(); // 左手は 8 分音符
-    const h0 = layout(ctx);
+    const h0 = layout(ctx, 12);
 
     // 左手: 近い音どうしの 3〜4 音の小さな型。何周かするたびに 1 音を半音ずらし、ときどき型の長さを変える
     const low = Math.round(0.3 * h0.count);
@@ -310,7 +296,7 @@ const memoryLayers: Movement = {
     const loop = scheduler(ctx, (time) => {
       queue.flush(time);
       if (ending) return;
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
 
       while (leftAt < time + TICK) {
         const progress = (leftAt - startAt) / memoryLayers.duration;

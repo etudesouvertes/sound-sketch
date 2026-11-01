@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // テリー・ライリーがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   歩みの違う奏者: 短い型（モジュール）を並べた譜面を、4 人の奏者がそれぞれの歩みで進む。どの型を何回繰り返すかは奏者まかせで、
@@ -8,25 +8,6 @@ import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pending
 // II.  純正の響き: 平均律でなく純正律（主音からの整数比）に調律し直したピアノで、ゆっくりした分散和音を、1 音ずつ伸ばしては縮める
 // III. 持続音と旋法: 低い持続音の上で、右手の速い型が音を足したり移したりしながら繰り返され、熱を帯びて駆け上がって終わる
 // 時刻はすべて音の時計で持つ
-
-// 今の音高の並びでの、主音の位置と 1 オクターブの音の数
-function layout(ctx: MovementContext) {
-  const pitches = ctx.pitches();
-  const count = pitches.length;
-  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
-  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : 7;
-  const lowRoot = roots[0] ?? 0;
-  const centre = roots.reduce((best, r) => (Math.abs(r - count / 2) < Math.abs(best - count / 2) ? r : best), roots[0] ?? Math.floor(count / 2));
-  const topRoot = roots.at(-1) ?? count - 1;
-  // 7 音の音階の度数（0〜）を、今の音階の段数に直す
-  const degree = (d: number) => Math.round((d * perOctave) / 7);
-  // 画面の外の音は、オクターブを指定して鳴らす
-  const place = (index: number) => {
-    const octave = index < 0 ? -Math.ceil(-index / perOctave) : index >= count ? Math.ceil((index - count + 1) / perOctave) : 0;
-    return { index: index - octave * perOctave, octave };
-  };
-  return { count, perOctave, lowRoot, centre, topRoot, degree, place, pitches };
-}
 
 // --- 画面: 鳴った音が右端から左へ流れる。声部ごとに色を変える ---
 

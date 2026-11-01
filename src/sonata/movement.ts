@@ -45,6 +45,31 @@ export function yOf(index: number, height: number, count: number): number {
   return height - (index + 0.5) * (height / count);
 }
 
+// 今の音高の並びでの、主音の位置と 1 オクターブの音の数。
+// 主音が 1 つしか見えないときの 1 オクターブの音の数は、楽章が決める（半音階を前提にした楽章は 12、7 音の音階なら 7）
+export function layout(ctx: MovementContext, fallbackPerOctave = 7) {
+  const pitches = ctx.pitches();
+  const count = pitches.length;
+  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
+  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : fallbackPerOctave;
+  const lowRoot = roots[0] ?? 0;
+  const topRoot = roots.at(-1) ?? count - 1;
+  const middle = Math.floor(count / 2);
+  const centre = roots.reduce((best, r) => (Math.abs(r - count / 2) < Math.abs(best - count / 2) ? r : best), roots[0] ?? middle);
+  // 7 音の音階の度数（0〜）を、今の音階の段数に直す（5 音の音階でも和音の形がおおよそ保たれる）
+  const degree = (d: number) => Math.round((d * perOctave) / 7);
+  // 音の位置ごとの、主音からの半音の数（0〜11）
+  const rootFreq = pitches[lowRoot]?.freq ?? 261.63;
+  const semitone = (i: number) => ((Math.round(12 * Math.log2(pitches[i].freq / rootFreq)) % 12) + 12) % 12;
+  // 画面の外の音は、オクターブを指定して鳴らす
+  const place = (index: number) => {
+    const octave = index < 0 ? -Math.ceil(-index / perOctave) : index >= count ? Math.ceil((index - count + 1) / perOctave) : 0;
+    return { index: index - octave * perOctave, octave };
+  };
+  return { pitches, count, perOctave, lowRoot, topRoot, middle, centre, degree, semitone, place };
+}
+export type Layout = ReturnType<typeof layout>;
+
 // 楽章が使う乱数。種から決まる並びなので、同じ種・同じ設定なら同じ演奏になる（ページが楽章ごとに種を入れる）。
 // 楽章の中では Math.random でなく、rand と random を使う
 let state = 1;
@@ -87,16 +112,24 @@ export type Pending = { time: number; index: number; velocity: number; seconds: 
 // 先の時刻の音を貯めておき、時刻が近づいたら鳴らす
 export function pendingQueue(ctx: MovementContext) {
   let queue: Pending[] = [];
+  // 楽章は、刻みの頭で queue を流してから、その刻みの幅の音を足す。流し終えた幅に入る音は、待たせずにすぐ鳴らす
+  // （次の刻みまで待たせると、どの音も刻みの頭に寄って、0.1 秒の格子に揃ってしまう）
+  let flushedAt = -Infinity;
+  const play = (p: Pending) => {
+    const at = Math.max(p.time, flushedAt);
+    ctx.piano.triggerAttackRelease(pitchAt(ctx.pitches(), p.index).freq * 2 ** ((p.octave ?? 0) + (p.cents ?? 0) / 1200), p.seconds, at, p.velocity);
+    if (p.onPlay) Tone.getDraw().schedule(p.onPlay, at);
+  };
   return {
-    add: (p: Pending) => queue.push(p),
+    add(p: Pending) {
+      if (p.time < flushedAt + TICK) play(p);
+      else queue.push(p);
+    },
     flush(time: number) {
+      flushedAt = time;
       const due = queue.filter((p) => p.time < time + TICK);
       queue = queue.filter((p) => p.time >= time + TICK);
-      const pitches = ctx.pitches();
-      for (const p of due) {
-        ctx.piano.triggerAttackRelease(pitchAt(pitches, p.index).freq * 2 ** ((p.octave ?? 0) + (p.cents ?? 0) / 1200), p.seconds, Math.max(p.time, time), p.velocity);
-        if (p.onPlay) Tone.getDraw().schedule(p.onPlay, Math.max(p.time, time));
-      }
+      for (const p of due) play(p);
     },
     clear: () => (queue = []),
   };

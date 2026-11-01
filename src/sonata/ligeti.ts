@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { t } from "../i18n";
 import { pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // ジェルジ・リゲティがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   一音から: 最初は 1 つの音名だけで、区切りごとに使える音名を 1 つずつ増やす。だんだん速くなり、最後の音名は最後の 1 音まで取っておく
@@ -9,24 +9,6 @@ import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pending
 // III. 無秩序: 右手は白鍵、左手は黒鍵だけで、休まず同じ速さで刻み、強い音で旋律を浮かべる。右手はときどき 1 拍縮んで左手とずれていき、
 //      両手とも高いほうへ登りつめて、突然終わる
 // 時刻はすべて音の時計で持つ
-
-// 今の音高の並びでの、主音の位置と 1 オクターブの音の数
-function layout(ctx: MovementContext) {
-  const pitches = ctx.pitches();
-  const count = pitches.length;
-  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
-  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : 12;
-  const lowRoot = roots[0] ?? 0;
-  // 音の位置ごとの、主音からの半音の数（0〜11）
-  const rootFreq = pitches[lowRoot]?.freq ?? 261.63;
-  const semitone = (i: number) => ((Math.round(12 * Math.log2(pitches[i].freq / rootFreq)) % 12) + 12) % 12;
-  // 画面の外の音は、オクターブを指定して鳴らす
-  const place = (index: number) => {
-    const octave = index < 0 ? -Math.ceil(-index / perOctave) : index >= count ? Math.ceil((index - count + 1) / perOctave) : 0;
-    return { index: index - octave * perOctave, octave };
-  };
-  return { count, perOctave, lowRoot, semitone, place };
-}
 
 // --- 画面: 鳴った音が右端から左へ流れる。強い音ほど大きい ---
 
@@ -68,7 +50,7 @@ const repeatedNote: Movement = {
     let endAt = Infinity;
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
-    const h0 = layout(ctx);
+    const h0 = layout(ctx, 12);
     // 音名（主音からの段数）を加える順番。最初は 5 度、最後は主音で、そのあいだはくじで決める
     const fifth = Math.round((7 * h0.perOctave) / 12);
     const middle = Array.from({ length: h0.perOctave }, (_, i) => i).filter((c) => c !== 0 && c !== fifth).sort(() => rand() - 0.5);
@@ -84,7 +66,7 @@ const repeatedNote: Movement = {
 
     // 音名 c の、画面上の音の位置
     const indicesOf = (c: number) => {
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
       return Array.from({ length: h.count }, (_, i) => i).filter((i) => (((i - h.lowRoot) % h.perOctave) + h.perOctave) % h.perOctave === c);
     };
 
@@ -109,7 +91,7 @@ const repeatedNote: Movement = {
         // 終わり: 少し間を置き、取っておいた主音を、低い所でオクターブを重ねて鳴らす
         if (progress >= 0.92) {
           ending = true;
-          const h = layout(ctx);
+          const h = layout(ctx, 12);
           const final = at + eighth * 3;
           for (const octave of [-1, 0]) {
             const index = h.lowRoot;
@@ -157,7 +139,7 @@ const repeatedNote: Movement = {
       pointer(_x, y, height) {
         if (ending) return;
         // その高さに近い、もう使える音名の音を鳴らす
-        const h = layout(ctx);
+        const h = layout(ctx, 12);
         const clicked = pitchIndexAt(y, height, h.count);
         const candidates = order.slice(0, unlocked).flatMap(indicesOf);
         const index = candidates.reduce((best, i) => (Math.abs(i - clicked) < Math.abs(best - clicked) ? i : best), candidates[0] ?? 0);
@@ -195,7 +177,7 @@ const metronomes: Movement = {
     let endAt = Infinity;
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
-    const h = layout(ctx);
+    const h = layout(ctx, 12);
     const tempo = 132 / ctx.bpm();
     // メトロノームの数は密度で決まる。止まる時刻はばらばらで、最後の 1 つだけが終わり近くまで残る
     const total = Math.min(40, Math.max(8, Math.round(20 * Math.sqrt(ctx.density()))));
@@ -303,17 +285,17 @@ const disorder: Movement = {
 
     // 手ごとの音の集まり（画面の外へも、オクターブを足して続く）
     const setOf = (white: boolean) => {
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
       const all = Array.from({ length: h.count }, (_, i) => i);
       const picked = all.filter((i) => WHITE.includes(h.semitone(i)) === white);
       return picked.length >= 3 ? picked : all; // 半音階でない音階で集まりが小さすぎるときは、どちらの手も全部の音を使う
     };
     const member = (notes: number[], k: number) => {
-      const per = notes.filter((i) => i - notes[0] < layout(ctx).perOctave).length;
+      const per = notes.filter((i) => i - notes[0] < layout(ctx, 12).perOctave).length;
       const octave = Math.floor(k / per);
-      return notes[((k % per) + per) % per] + octave * layout(ctx).perOctave;
+      return notes[((k % per) + per) % per] + octave * layout(ctx, 12).perOctave;
     };
-    const perOf = (notes: number[]) => notes.filter((i) => i - notes[0] < layout(ctx).perOctave).length;
+    const perOf = (notes: number[]) => notes.filter((i) => i - notes[0] < layout(ctx, 12).perOctave).length;
     const contour = () => Array.from({ length: 6 + Math.floor(rand() * 5) }, () => Math.floor(rand() * 4));
     // 旋律の始まり: 右手は真ん中から 2 オクターブ、左手は低い所から 3 オクターブ登る
     const whites = setOf(true);
@@ -324,7 +306,7 @@ const disorder: Movement = {
       hand.base + Math.round(hand.climb * Math.min(progress, 1) ** 1.5) + hand.contour[hand.accents % hand.contour.length];
 
     const play = (hand: Hand, at: number, progress: number) => {
-      const h = layout(ctx);
+      const h = layout(ctx, 12);
       const energy = 0.6 + 0.6 * Math.min(progress, 1);
       // 強拍（周期の頭と 4 つ目）で旋律の音を、オクターブを重ねて強く鳴らす。ほかの拍は旋律の下（上）を細かく埋める
       const accent = hand.position === 0 || hand.position === 3;
@@ -361,7 +343,7 @@ const disorder: Movement = {
         // 終わり: 両手を鍵盤の両端で強く打って、突然終える
         if (progress >= 0.96) {
           ending = true;
-          const h = layout(ctx);
+          const h = layout(ctx, 12);
           for (const [index, octave] of [
             [h.count - 1, 1],
             [h.count - 1, 0],
@@ -385,7 +367,7 @@ const disorder: Movement = {
       pointer(_x, y, height) {
         if (ending) return;
         // その高さに、オクターブを重ねた強い音を 1 つ打ち込む
-        const h = layout(ctx);
+        const h = layout(ctx, 12);
         const index = Math.min(Math.max(pitchIndexAt(y, height, h.count), 0), h.count - 1);
         const time = Tone.now() + 0.02;
         queue.add({ time, index, velocity: 0.55, seconds: 1, onPlay: view.add({ time, index, hue: 0, seconds: 1, velocity: 0.55 }) });

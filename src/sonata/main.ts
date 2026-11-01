@@ -28,11 +28,11 @@ const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあ
 // 続け方。once はソナタが終わると止まる。repeat（ずっと再生）は次の作曲家のソナタへ順に移り続け（最後の作曲家のあとは最初に戻る）、
 // shuffle（シャッフル再生）は作曲家を選ばずに混ぜた順で移り続ける。URL の ?continuous で repeat、?shuffle で shuffle から始まる
 type PlayMode = "once" | "repeat" | "shuffle";
-const params = new URLSearchParams(location.search);
-let mode: PlayMode = params.has("shuffle") ? "shuffle" : params.has("continuous") ? "repeat" : "once";
+const query = new URLSearchParams(location.search);
+let mode: PlayMode = query.has("shuffle") ? "shuffle" : query.has("continuous") ? "repeat" : "once";
 
 // 試すとき用: ?short を付けると、どの楽章も 5 分の 1 の長さになる（終わり方をすぐ確かめられる）
-if (new URLSearchParams(location.search).has("short"))
+if (query.has("short"))
   for (const s of SONATAS) for (const m of s.movements) m.duration /= 5;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -211,7 +211,7 @@ swayFactor = SWAY_FACTORS[swayLevel - 1];
 
 // 調律の選択は、ほかの設定と同じく URL (?tuning=…) に残す。選べるのは tunable の作曲家だけで、
 // ほかの作曲家では設定を隠し、ぴったりで鳴らす（選んだ値は残しておき、戻ったときに使う）
-const tuningFromUrl = new URLSearchParams(location.search).get("tuning");
+const tuningFromUrl = query.get("tuning");
 if (tuningFromUrl && tuningFromUrl in TUNINGS) tuningEl.value = tuningFromUrl;
 const applyTuning = () => {
   tuningEl.closest("label")!.hidden = !sonata.tunable;
@@ -259,7 +259,7 @@ onLangChange(fillSelects);
 const newSeed = () => String(10000 + Math.floor(Math.random() * 90000));
 let seed = newSeed();
 const fixedSeed = () => (/^\d{1,5}$/.test(seedEl.value) ? seedEl.value : null);
-const seedFromUrl = new URLSearchParams(location.search).get("seed");
+const seedFromUrl = query.get("seed");
 if (seedFromUrl && /^\d{1,5}$/.test(seedFromUrl)) seedEl.value = seedFromUrl;
 const writeSeed = () => {
   const url = new URL(location.href);
@@ -374,6 +374,7 @@ function startMovement(i: number) {
   startedAt = Tone.now();
   nextAt = Infinity;
   ended = false;
+  markComposers();
 }
 
 // 鳴らすよう頼まれた楽章。音を出せる状態になり、ピアノの録音を読み終えたところで始める（null なら頼まれていない）。
@@ -394,6 +395,7 @@ function request(i: number, fresh = false) {
   requested = i;
   movementEl.value = String(i);
   void page.ensureStarted();
+  document.dispatchEvent(new Event("performance-start")); // バーが隠れるまでの時間を数え始める
 }
 // 始める前は選ぶだけ。鳴っている（または頼まれている）ときは、選んだところから鳴らし直す
 const active = () => run !== null || requested !== null || nextAt !== Infinity;
@@ -413,9 +415,12 @@ function stop() {
   run?.stop();
   run = null;
   piano.releaseAll();
+  // 楽章のあいだの沈黙で止めたときは、再生で次の楽章から始める
+  if (nextAt !== Infinity) movementEl.value = String(nextIndex);
   requested = null;
   nextAt = Infinity;
   ended = false;
+  markComposers();
 }
 
 // 次に鳴らす作曲家。シャッフルでは、混ぜた順に全員を 1 回ずつ鳴らしてから混ぜ直す（今の作曲家がすぐには続かないようにする）
@@ -434,12 +439,12 @@ function nextSonata(): Sonata {
 }
 
 // ずっと再生・シャッフル再生: 押すと入り、もう一度押すと切れる（どちらか一方だけ）。
-// 止まっているときに入れると、すぐ鳴らし始める（シャッフルは、混ぜた順の最初の作曲家の I から）
+// 止まっているときに入れると、すぐ鳴らし始める（シャッフルと、ソナタが終わったあとは、次の作曲家の I から）
 function setMode(next: PlayMode) {
   mode = mode === next ? "once" : next;
   showMode();
   if (mode === "once" || active()) return;
-  if (mode === "shuffle") {
+  if (mode === "shuffle" || ended) {
     switchSonata(nextSonata());
     request(0, true);
   } else play();
@@ -449,6 +454,8 @@ function showMode() {
   shuffleEl.setAttribute("aria-pressed", String(mode === "shuffle"));
 }
 showMode();
+// ?shuffle で開いたときは、最初の作曲家も混ぜて選ぶ
+if (mode === "shuffle") switchSonata(SONATAS[Math.floor(Math.random() * SONATAS.length)]);
 
 // 作曲家を移す（音階と調律も、その作曲家に合わせる）
 function switchSonata(next: Sonata) {
@@ -466,7 +473,7 @@ function fillComposers() {
     ...SONATAS.map((s) => {
       const card = document.createElement("div");
       card.className = "composer-card";
-      if (s === sonata) card.setAttribute("aria-current", "true");
+      card.dataset.sonata = s.id;
       const name = document.createElement("button");
       name.type = "button";
       name.className = "composer-name";
@@ -482,7 +489,7 @@ function fillComposers() {
           const button = document.createElement("button");
           button.type = "button";
           button.textContent = t(m.title);
-          if (s === sonata && i === index && run) button.setAttribute("aria-current", "true");
+          button.dataset.movement = String(i);
           button.addEventListener("click", () => choose(s, i));
           item.append(button);
           return item;
@@ -492,11 +499,26 @@ function fillComposers() {
       return card;
     }),
   );
+  markComposers();
 }
+// 今の作曲家と、鳴っている楽章に印を付ける。パネルを開いたまま楽章が移っても付け直す
+function markComposers() {
+  const markCurrent = (el: Element, on: boolean) => (on ? el.setAttribute("aria-current", "true") : el.removeAttribute("aria-current"));
+  for (const card of composersEl.querySelectorAll<HTMLElement>(".composer-card")) {
+    const current = card.dataset.sonata === sonata.id;
+    markCurrent(card, current);
+    for (const b of card.querySelectorAll<HTMLElement>("[data-movement]")) markCurrent(b, current && run !== null && Number(b.dataset.movement) === index);
+  }
+}
+// パネルはバーのすぐ下に開く（スマホでバーが折り返すと高さが変わるので、開くときと画面の大きさが変わったときに合わせる）
+const placeComposers = () => (composersEl.style.top = `${document.querySelector(".bar")!.getBoundingClientRect().bottom + 4}px`);
+window.addEventListener("resize", () => {
+  if (!composersEl.hidden) placeComposers();
+});
 const setComposersOpen = (open: boolean) => {
   if (open) {
     fillComposers();
-    composersEl.style.top = `${document.querySelector(".bar")!.getBoundingClientRect().bottom + 4}px`;
+    placeComposers();
   }
   composersEl.hidden = !open;
   composerEl.setAttribute("aria-expanded", String(open));
@@ -506,13 +528,19 @@ function choose(next: Sonata, i: number) {
   setComposersOpen(false);
   const changed = next !== sonata;
   if (changed) switchSonata(next);
-  request(i, changed || !playing());
+  request(i, changed || !active());
 }
 composerEl.addEventListener("click", () => setComposersOpen(composersEl.hidden));
-document.addEventListener("pointerdown", (e) => {
-  if (composersEl.hidden || composersEl.contains(e.target as Node) || composerEl.contains(e.target as Node)) return;
-  setComposersOpen(false);
-});
+// 閉じるためのクリックは、キャンバスに届けない（演奏が始まったり、音が加わったりしないように）
+document.addEventListener(
+  "pointerdown",
+  (e) => {
+    if (composersEl.hidden || composersEl.contains(e.target as Node) || composerEl.contains(e.target as Node)) return;
+    setComposersOpen(false);
+    if (e.target === canvas) e.stopPropagation();
+  },
+  true,
+);
 window.addEventListener("keydown", (e) => {
   if (e.key === "Escape") setComposersOpen(false);
 });
@@ -540,6 +568,7 @@ page.transport.scheduleRepeat(() => {
     run.stop();
     run = null;
     if (listening) listening.finishedAt = Tone.now();
+    markComposers();
     if (index < sonata.movements.length - 1) {
       nextIndex = index + 1;
       nextAt = Tone.now() + GAP_BETWEEN;
