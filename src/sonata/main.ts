@@ -25,8 +25,11 @@ const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman, ri
 const GAP_BETWEEN = 4; // 楽章のあいだの沈黙（秒）
 const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあいだの沈黙（秒）
 
-// ?continuous を付けると、ソナタが終わっても止まらず、次の作曲家のソナタへ順に移り続ける（最後の作曲家のあとは最初に戻る）
-const CONTINUOUS = new URLSearchParams(location.search).has("continuous");
+// 続け方。once はソナタが終わると止まる。repeat（ずっと再生）は次の作曲家のソナタへ順に移り続け（最後の作曲家のあとは最初に戻る）、
+// shuffle（シャッフル再生）は作曲家を選ばずに混ぜた順で移り続ける。URL の ?continuous で repeat、?shuffle で shuffle から始まる
+type PlayMode = "once" | "repeat" | "shuffle";
+const params = new URLSearchParams(location.search);
+let mode: PlayMode = params.has("shuffle") ? "shuffle" : params.has("continuous") ? "repeat" : "once";
 
 // 試すとき用: ?short を付けると、どの楽章も 5 分の 1 の長さになる（終わり方をすぐ確かめられる）
 if (new URLSearchParams(location.search).has("short"))
@@ -37,6 +40,10 @@ const composerEl = document.querySelector<HTMLButtonElement>("#composer")!;
 const composersEl = document.querySelector<HTMLDivElement>("#composers")!;
 const movementEl = document.querySelector<HTMLSelectElement>("#movement")!;
 const restartEl = document.querySelector<HTMLButtonElement>("#restart")!;
+const playEl = document.querySelector<HTMLButtonElement>("#play")!;
+const stopEl = document.querySelector<HTMLButtonElement>("#stop")!;
+const repeatEl = document.querySelector<HTMLButtonElement>("#repeat")!;
+const shuffleEl = document.querySelector<HTMLButtonElement>("#shuffle")!;
 const reverbEl = document.querySelector<HTMLInputElement>("#reverb")!;
 const reverbValueEl = document.querySelector<HTMLOutputElement>("#reverb-value")!;
 const swayEl = document.querySelector<HTMLInputElement>("#sway")!;
@@ -389,7 +396,59 @@ function request(i: number, fresh = false) {
   void page.ensureStarted();
 }
 // 始める前は選ぶだけ。鳴っている（または頼まれている）ときは、選んだところから鳴らし直す
-const playing = () => run !== null || requested !== null || nextAt !== Infinity || ended;
+const active = () => run !== null || requested !== null || nextAt !== Infinity;
+const playing = () => active() || ended;
+
+// 再生: 止まっていれば、選んでいる楽章から新しい演奏として始める。終わったあとは I から
+function play() {
+  if (run) return;
+  if (ended) request(0, true);
+  else if (requested === null && nextAt === Infinity) request(Number(movementEl.value), true);
+  else void page.ensureStarted(); // 頼んであるが、まだ音を出せていない
+}
+
+// 停止: 楽章のあいだの沈黙や、頼んである楽章も取りやめる。評価のボタンは残す（止めたあとも、その楽章を評価できる）
+function stop() {
+  if (run && listening) listening.stoppedAt = Tone.now();
+  run?.stop();
+  run = null;
+  piano.releaseAll();
+  requested = null;
+  nextAt = Infinity;
+  ended = false;
+}
+
+// 次に鳴らす作曲家。シャッフルでは、混ぜた順に全員を 1 回ずつ鳴らしてから混ぜ直す（今の作曲家がすぐには続かないようにする）
+let shuffled: Sonata[] = [];
+function nextSonata(): Sonata {
+  if (mode !== "shuffle") return SONATAS[(SONATAS.indexOf(sonata) + 1) % SONATAS.length];
+  shuffled = shuffled.filter((s) => s !== sonata);
+  if (shuffled.length === 0) {
+    shuffled = SONATAS.filter((s) => s !== sonata);
+    for (let i = shuffled.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+  }
+  return shuffled.pop()!;
+}
+
+// ずっと再生・シャッフル再生: 押すと入り、もう一度押すと切れる（どちらか一方だけ）。
+// 止まっているときに入れると、すぐ鳴らし始める（シャッフルは、混ぜた順の最初の作曲家の I から）
+function setMode(next: PlayMode) {
+  mode = mode === next ? "once" : next;
+  showMode();
+  if (mode === "once" || active()) return;
+  if (mode === "shuffle") {
+    switchSonata(nextSonata());
+    request(0, true);
+  } else play();
+}
+function showMode() {
+  repeatEl.setAttribute("aria-pressed", String(mode === "repeat"));
+  shuffleEl.setAttribute("aria-pressed", String(mode === "shuffle"));
+}
+showMode();
 
 // 作曲家を移す（音階と調律も、その作曲家に合わせる）
 function switchSonata(next: Sonata) {
@@ -460,6 +519,10 @@ window.addEventListener("keydown", (e) => {
 movementEl.addEventListener("change", () => {
   if (playing()) request(Number(movementEl.value));
 });
+playEl.addEventListener("click", play);
+stopEl.addEventListener("click", stop);
+repeatEl.addEventListener("click", () => setMode("repeat"));
+shuffleEl.addEventListener("click", () => setMode("shuffle"));
 restartEl.addEventListener("click", () => {
   if (playing()) request(0, true);
   else movementEl.value = "0";
@@ -480,9 +543,9 @@ page.transport.scheduleRepeat(() => {
     if (index < sonata.movements.length - 1) {
       nextIndex = index + 1;
       nextAt = Tone.now() + GAP_BETWEEN;
-    } else if (CONTINUOUS) {
+    } else if (mode !== "once") {
       // 次の作曲家へ。沈黙のあいだ、右下には次に鳴るソナタの I を出しておく
-      switchSonata(SONATAS[(SONATAS.indexOf(sonata) + 1) % SONATAS.length]);
+      switchSonata(nextSonata());
       if (!fixedSeed()) seed = newSeed();
       index = 0;
       nextIndex = 0;
@@ -532,6 +595,9 @@ function draw() {
 
 function frame() {
   draw();
+  // 鳴っているあいだは再生を、何もしていないときは停止を押せなくする
+  playEl.disabled = run !== null || nextAt !== Infinity;
+  stopEl.disabled = !playing();
   requestAnimationFrame(frame);
 }
 
@@ -544,9 +610,7 @@ canvas.addEventListener("pointerdown", (e) => {
     if (listening) listening.clicks++;
     return;
   }
-  if (ended) request(0, true);
-  else if (requested === null && nextAt === Infinity) request(Number(movementEl.value), true);
-  else void page.ensureStarted(); // 頼んであるが、まだ音を出せていない
+  play();
 });
 
 requestAnimationFrame(frame);

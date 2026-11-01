@@ -112,3 +112,20 @@
 .composer-card li button[aria-current="true"] {
   color: var(--accent);
 }
+
+/* バーの再生のボタン（再生・停止・ずっと再生・シャッフル再生）。ずっと再生とシャッフル再生は、押すと入りっぱなしになる */
+
+.transport {
+  display: flex;
+  gap: 4px;
+}
+
+.transport button {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+
+.transport button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}

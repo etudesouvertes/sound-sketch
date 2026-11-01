@@ -16,6 +16,12 @@
         <a href="./sonata.html" aria-current="page">Sonata</a>
       </nav>
       <div class="bar-actions">
+        <div class="transport" role="group" aria-label="再生" data-i18n-aria="transport">
+          <button id="play" type="button" aria-label="再生" data-i18n-aria="play">▶</button>
+          <button id="stop" type="button" aria-label="停止" data-i18n-aria="playStop">■</button>
+          <button id="repeat" type="button" aria-pressed="false" aria-label="ずっと再生" data-i18n-aria="playRepeat">↻</button>
+          <button id="shuffle" type="button" aria-pressed="false" aria-label="シャッフル再生" data-i18n-aria="playShuffle">⇄</button>
+        </div>
         <button id="composer" type="button" aria-expanded="false" aria-controls="composers" aria-haspopup="dialog" aria-label="作曲家" data-i18n-aria="composer"></button>
         <select id="movement" autocomplete="off" aria-label="楽章" data-i18n-aria="movement"></select>
         <button id="restart" type="button" data-i18n="restart">最初から</button>

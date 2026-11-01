@@ -305,6 +305,34 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "The random seed that picks the material of a performance (patterns, melodies, the order of chords and so on). When empty, a new seed is drawn each time the sonata starts from movement I. The current seed is shown at the bottom right. Enter the seed of a performance you liked (or press \"Use this performance's seed\") to hear the same performance again. Weather, Drift, register, density and tempo still change it. The seed is kept in the URL.",
       },
     },
+    "#play": {
+      title: { ja: "再生", en: "Play" },
+      text: {
+        ja: "選んでいる楽章から鳴らします。ソナタが終わったあとは I から鳴らします。画面をクリックしても同じです。",
+        en: "Plays from the selected movement, or from movement I once the sonata has finished. Clicking the screen does the same.",
+      },
+    },
+    "#stop": {
+      title: { ja: "停止", en: "Stop" },
+      text: {
+        ja: "演奏を止めます。止めたあとも、その楽章を評価できます。",
+        en: "Stops playing. You can still rate the movement afterwards.",
+      },
+    },
+    "#repeat": {
+      title: { ja: "ずっと再生", en: "Keep playing" },
+      text: {
+        ja: "入れると、ソナタが終わっても止まらず、次の作曲家のソナタへ順に移り続けます。もう一度押すと切れます。止まっているときに入れると、すぐ鳴り始めます。",
+        en: "When on, playback doesn't stop after a sonata but moves on to the next composer's sonata in order. Press again to turn it off. Turning it on while stopped starts playing.",
+      },
+    },
+    "#shuffle": {
+      title: { ja: "シャッフル再生", en: "Shuffle" },
+      text: {
+        ja: "入れると、作曲家を混ぜた順で、ソナタを止まらずに鳴らし続けます。全員を 1 回ずつ鳴らしてから、また混ぜ直します。もう一度押すと切れます。止まっているときに入れると、最初の作曲家の I から鳴り始めます。",
+        en: "When on, sonatas keep playing with the composers in shuffled order; everyone plays once before it shuffles again. Press again to turn it off. Turning it on while stopped starts the first composer's movement I.",
+      },
+    },
     "#restart": {
       title: { ja: "最初から", en: "From the top" },
       text: { ja: "ソナタを I 楽章の始めから鳴らし直します。", en: "Plays the sonata again from the start of movement I." },

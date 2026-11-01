@@ -16,6 +16,7 @@ export type Listening = {
   planned: number; // 楽章の目安の長さ（秒）
   startedAt: number; // 音の時計の時刻
   finishedAt: number | null;
+  stoppedAt?: number; // 停止で途中で止めた時刻（聴いた長さはここまで。最後まで聴いたことにはしない）
   notes: Note[];
   clicks: number;
   previous: string | null; // 直前に聴いた楽章（"reich:0" の形）
@@ -85,7 +86,7 @@ export function nextPlayIndex(): number {
 
 // 評価を記録する。同じ楽章（runId）を評価し直したときは、前の評価を置き換える
 export function rate(listening: Listening, rating: Rating, now: number): RatingRecord {
-  const listened = (listening.finishedAt ?? now) - listening.startedAt;
+  const listened = (listening.finishedAt ?? listening.stoppedAt ?? now) - listening.startedAt;
   const date = new Date();
   const record: RatingRecord = {
     runId: listening.runId,
