@@ -58,6 +58,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "tuning.exact": { ja: "ぴったり", en: "In tune" },
   "tuning.loose": { ja: "少しずれ", en: "Slightly off" },
   "tuning.old": { ja: "古いピアノ", en: "Old piano" },
+  prepared: { ja: "プリペアド・ピアノ", en: "Prepared piano" },
   mode: { ja: "種類", en: "Type" },
   "mode.note": { ja: "単音", en: "Single note" },
   "mode.phrase": { ja: "フレーズ", en: "Phrase" },

@@ -28,8 +28,9 @@ export type Movement = {
 
 // scale は、設定のスケールで「指定しない」を選んだときに使う、その作曲家の音階
 // initials は、作曲家のプルダウンに出す頭文字（右下の表示とヘルプはフルネーム）
-// tunable を付けた作曲家だけ、設定の「調律」を選べる（ほかの作曲家は常にぴったり）
-export type Sonata = { id: string; composer: L; initials: string; scale: Scale; movements: Movement[]; tunable?: boolean };
+// tuning と prepared は、その作曲家を選んだときの設定の「調律」と「プリペアド・ピアノ」の初めの値（書かなければ、ぴったり・切）
+export type Sonata = { id: string; composer: L; initials: string; scale: Scale; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
+export type Tuning = "exact" | "loose" | "old";
 
 // Transport の上で、今から seconds 秒後の位置（ティックで指定する）。
 // transport.seconds + seconds と書くと、Tone.js はその秒を今のテンポで拍に換算する。経過秒はテンポの変化の履歴で

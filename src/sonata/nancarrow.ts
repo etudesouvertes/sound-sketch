@@ -342,6 +342,6 @@ export const nancarrow: Sonata = {
   // ミクソリディアン（長音階の 7 の音を半音下げた音階）。ブギウギの左手と、ブルースの和音になじむ
   scale: { id: "mixolydian", group: "", name: { ja: "ミクソリディアン", en: "Mixolydian" }, steps: [0, 2, 4, 5, 7, 9, 10] },
   movements: [acceleration, boogie, convergence],
-  // ナンカロウの自動ピアノは、鳴りを硬く変えた古い楽器だった。ここだけ調律の狂いを選べる
-  tunable: true,
+  // ナンカロウの自動ピアノは、鳴りを硬く変えた古い楽器だった。調律は初めから「古いピアノ」にしておく
+  tuning: "old",
 };

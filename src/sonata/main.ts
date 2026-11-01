@@ -6,6 +6,7 @@ import { reverbWet, setupCanvas, setupGenerativePage, type SoundParams } from ".
 import { onLangChange, t } from "../i18n";
 import { setupLevel } from "../levels";
 import { syncNavQuery } from "../nav";
+import { cage } from "./cage";
 import { eno } from "./eno";
 import { feldman } from "./feldman";
 import { ichiyanagi } from "./ichiyanagi";
@@ -16,12 +17,12 @@ import { reich } from "./reich";
 import { riley } from "./riley";
 import { satie } from "./satie";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
-import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata } from "./movement";
+import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
 
-const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman, riley, ligeti, satie];
+const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman, riley, ligeti, satie, cage];
 const GAP_BETWEEN = 4; // 楽章のあいだの沈黙（秒）
 const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあいだの沈黙（秒）
 
@@ -49,6 +50,7 @@ const reverbValueEl = document.querySelector<HTMLOutputElement>("#reverb-value")
 const swayEl = document.querySelector<HTMLInputElement>("#sway")!;
 const swayValueEl = document.querySelector<HTMLOutputElement>("#sway-value")!;
 const tuningEl = document.querySelector<HTMLSelectElement>("#tuning")!;
+const preparedEl = document.querySelector<HTMLInputElement>("#prepared")!;
 const seedEl = document.querySelector<HTMLInputElement>("#seed")!;
 const ratingEl = document.querySelector<HTMLDivElement>("#rating")!;
 const ratingCountEl = document.querySelector<HTMLOutputElement>("#rating-count")!;
@@ -120,6 +122,39 @@ const keyOffset = (freq: number) => {
 };
 const cents = (freq: number, amount: number) => freq * 2 ** (amount / 1200);
 
+// プリペアド・ピアノ: 弦のあいだにボルトやゴムを挟んだように、鍵ごとに決まった音色に変える。どの鍵に何を挟むかは決まった表で、
+// 同じ鍵はいつも同じ音色になる（ページを開き直しても同じ）
+// - そのまま: 何も挟まない鍵
+// - ボルト: 音が短くなり、音程の定まらない金属的な鳴りが重なる（低い鍵では銅鑼のよう）
+// - ゴム: すぐに止まる鈍い音で、音程も少し下がる（木を打つような音）
+// - ねじ: 1 つの鍵の弦どうしの音程が大きくずれ、うなりのある鐘のような音になる
+let prepared = false;
+type Preparation = { kind: "none" | "bolt" | "rubber" | "screw"; amount: number; ratio: number };
+const preparationOf = (freq: number): Preparation => {
+  const key = Math.round(12 * Math.log2(freq / 440) + 69);
+  const hash = (salt: number) => {
+    const x = Math.sin(key * 47.853 + salt) * 43758.5453;
+    return x - Math.floor(x);
+  };
+  const r = hash(1.7);
+  const kind = r < 0.15 ? "none" : r < 0.5 ? "bolt" : r < 0.8 ? "rubber" : "screw";
+  return { kind, amount: hash(5.3), ratio: [0.5, 0.71, 1, 1.41][Math.floor(hash(9.1) * 4)] };
+};
+const metal = new Tone.PolySynth(Tone.FMSynth, {
+  harmonicity: 3.53,
+  modulationIndex: 9,
+  envelope: { attack: 0.001, decay: 0.9, sustain: 0, release: 0.4 },
+  modulationEnvelope: { attack: 0.001, decay: 0.35, sustain: 0, release: 0.2 },
+});
+metal.maxPolyphony = 24;
+metal.volume.value = -24;
+const thud = new Tone.PolySynth(Tone.Synth, {
+  oscillator: { type: "triangle" },
+  envelope: { attack: 0.002, decay: 0.16, sustain: 0, release: 0.06 },
+});
+thud.maxPolyphony = 24;
+thud.volume.value = -14;
+
 type Strike = { freq: number; seconds: number; at: number; velocity?: number };
 
 // 楽章が指定した音の長さに、空模様による倍率を掛け、時刻に揺らぎを足して鳴らす（雨で短く、雪で長く）。
@@ -161,17 +196,44 @@ class Piano extends Tone.Sampler {
         const at = s.at + swayAt(s.at, s.freq, s.velocity ?? 1) + i * roll;
         const freq = cents(s.freq, tuning.spread * keyOffset(s.freq));
         const velocity = s.velocity ?? 1;
-        if (tuning.unison === 0) super.triggerAttackRelease(freq, s.seconds, at, velocity);
-        else {
-          super.triggerAttackRelease(freq, s.seconds, at, velocity * 0.85);
-          super.triggerAttackRelease(cents(freq, tuning.unison), s.seconds, at, velocity * 0.6);
-        }
+        if (prepared) this.strikePrepared(s.freq, freq, s.seconds, at, velocity);
+        else this.strike(freq, s.seconds, at, velocity);
       });
+    }
+  }
+
+  private strike(freq: number, seconds: number, at: number, velocity: number) {
+    if (tuning.unison === 0) super.triggerAttackRelease(freq, seconds, at, velocity);
+    else {
+      super.triggerAttackRelease(freq, seconds, at, velocity * 0.85);
+      super.triggerAttackRelease(cents(freq, tuning.unison), seconds, at, velocity * 0.6);
+    }
+  }
+
+  // 仕掛けは、楽章が頼んだ鍵（調律でずらす前の音）で決める
+  private strikePrepared(original: number, freq: number, seconds: number, at: number, velocity: number) {
+    const p = preparationOf(original);
+    if (p.kind === "none") this.strike(freq, seconds, at, velocity);
+    else if (p.kind === "bolt") {
+      this.strike(freq, Math.min(seconds, 0.4 + 1.2 * p.amount), at, velocity * 0.75);
+      let ring = freq * p.ratio;
+      while (ring > 3000) ring /= 2;
+      metal.triggerAttackRelease(ring, 0.3 + 0.9 * p.amount, at, velocity * 0.8);
+    } else if (p.kind === "rubber") {
+      const low = cents(freq, -20 - 50 * p.amount);
+      this.strike(low, Math.min(seconds, 0.12), at, velocity * 0.7);
+      thud.triggerAttackRelease(low > 1000 ? low / 2 : low, 0.1, at, velocity);
+    } else {
+      const length = Math.min(seconds, 1.5);
+      this.strike(cents(freq, -25 - 40 * p.amount), length, at, velocity * 0.6);
+      this.strike(cents(freq, 30 + 50 * p.amount), length, at, velocity * 0.5);
     }
   }
 }
 const piano = new Piano({ urls, baseUrl: `${import.meta.env.BASE_URL}samples/piano/`, release: 0.6 }).connect(filter);
 piano.volume.value = -4;
+metal.connect(filter);
+thud.connect(filter);
 
 // 天気: 空模様で音色の明るさと音の長さ、気温で刻みのある楽章のテンポ、雨（と密度）で音の変わる頻度、雲でリバーブが変わる。
 // 変化: 天気で決まった値を中心に、音域・音色の明るさ・リバーブがゆっくり揺れ、20 分ごとに 5 度上へ転調する
@@ -209,20 +271,30 @@ const { transport } = page;
 const swayLevel = setupLevel(swayEl, swayValueEl, "sway", (level) => (swayFactor = SWAY_FACTORS[level - 1]));
 swayFactor = SWAY_FACTORS[swayLevel - 1];
 
-// 調律の選択は、ほかの設定と同じく URL (?tuning=…) に残す。選べるのは tunable の作曲家だけで、
-// ほかの作曲家では設定を隠し、ぴったりで鳴らす（選んだ値は残しておき、戻ったときに使う）
-const tuningFromUrl = query.get("tuning");
-if (tuningFromUrl && tuningFromUrl in TUNINGS) tuningEl.value = tuningFromUrl;
-const applyTuning = () => {
-  tuningEl.closest("label")!.hidden = !sonata.tunable;
-  tuning = sonata.tunable ? (TUNINGS[tuningEl.value] ?? TUNINGS.exact) : TUNINGS.exact;
+// 調律とプリペアド・ピアノは、作曲家ごとに初めの値がある（ナンカロウは古いピアノ、ケージはプリペアド・ピアノ。ほかはぴったり・切）。
+// 作曲家を移すと、その作曲家の値に切り替わる。変えた値は、ページを開いているあいだ作曲家ごとに覚えておき、戻ったときに使う
+const soundChoices = new Map<string, { tuning: Tuning; prepared: boolean }>();
+const applySound = () => {
+  const choice = soundChoices.get(sonata.id) ?? { tuning: sonata.tuning ?? "exact", prepared: sonata.prepared ?? false };
+  tuningEl.value = choice.tuning;
+  preparedEl.checked = choice.prepared;
+  tuning = TUNINGS[choice.tuning];
+  prepared = choice.prepared;
+};
+const chooseSound = () => {
+  soundChoices.set(sonata.id, { tuning: tuningEl.value as Tuning, prepared: preparedEl.checked });
+  applySound();
+};
+tuningEl.addEventListener("change", chooseSound);
+preparedEl.addEventListener("change", chooseSound);
+applySound();
+// 前は調律を URL (?tuning=…) に残していた。作曲家ごとの値になったので、残っていれば消す
+if (query.has("tuning")) {
   const url = new URL(location.href);
-  url.searchParams.set("tuning", tuningEl.value);
+  url.searchParams.delete("tuning");
   history.replaceState(null, "", url);
   syncNavQuery();
-};
-tuningEl.addEventListener("change", applyTuning);
-applyTuning();
+}
 
 tempoEl.addEventListener("input", () => (tempoValueEl.value = tempoEl.value));
 tempoValueEl.value = tempoEl.value;
@@ -312,7 +384,8 @@ function newListening(i: number): Listening {
       density: Number(value("density")),
       reverb: Number(value("reverb")),
       sway: Number(value("sway")),
-      tuning: sonata.tunable ? value("tuning") : "exact",
+      tuning: value("tuning"),
+      prepared: checked("prepared"),
       tempo: Number(value("tempo")),
       weather: checked("weather"),
       drift: checked("drift"),
@@ -457,13 +530,13 @@ showMode();
 // ?shuffle で開いたときは、最初の作曲家も混ぜて選ぶ
 if (mode === "shuffle") switchSonata(SONATAS[Math.floor(Math.random() * SONATAS.length)]);
 
-// 作曲家を移す（音階と調律も、その作曲家に合わせる）
+// 作曲家を移す（音階と、調律・プリペアド・ピアノも、その作曲家に合わせる）
 function switchSonata(next: Sonata) {
   sonata = next;
   movementEl.value = "0";
   fillSelects();
   page.refreshScale();
-  applyTuning();
+  applySound();
 }
 
 // 作曲家のパネル: バーの作曲家のボタンで、バーの下に開く。作曲家ごとに名前と 3 つの楽章を並べ、
