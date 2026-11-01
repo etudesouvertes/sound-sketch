@@ -55,5 +55,8 @@ The development server also serves a Keyboard page (`/keyboard.html`) for trying
 コードを使ったり参考にしたりしたときは、名前（Tomonori Yoshida）やこのリポジトリへのリンクを添えてもらえるとうれしいです。
 If you use or build on this code, I'd appreciate a mention of my name (Tomonori Yoshida) or a link to this repository.
 
+各作品が鳴らす音楽（録音を含む）は [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) で使えます。「Music: Tomonori Yoshida / sound-sketch」のように名前を添えてください。ピアノの音を使う作品の録音には「Piano: Salamander Grand Piano by Alexander Holm (CC BY 3.0)」も添えてください。
+The music the pieces play, including recordings of it, is licensed under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). Please credit it as, for example, “Music: Tomonori Yoshida / sound-sketch”. Recordings of pieces that use the piano should also credit “Piano: Salamander Grand Piano by Alexander Holm (CC BY 3.0)”.
+
 本作はブライアン・イーノ氏、スティーヴ・ライヒ氏および関係者とは関係のない、個人の作品です。
 This is a personal project, not affiliated with Brian Eno, Steve Reich or their representatives.
