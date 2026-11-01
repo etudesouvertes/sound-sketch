@@ -9,8 +9,10 @@ import { syncNavQuery } from "../nav";
 import { cage } from "./cage";
 import { eno } from "./eno";
 import { feldman } from "./feldman";
+import { glass } from "./glass";
 import { ichiyanagi } from "./ichiyanagi";
 import { ligeti } from "./ligeti";
+import { messiaen } from "./messiaen";
 import { nancarrow } from "./nancarrow";
 import { paert } from "./paert";
 import { reich } from "./reich";
@@ -22,7 +24,9 @@ import { keepRandom, type MovementContext, type MovementRun, seedRandom, type So
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
 
-const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman, riley, ligeti, satie, cage];
+// 並びは、作曲家の生まれた年の順（古い人から）。同じ年に生まれた人は、ここで借りている作り方が出来上がった年の順
+// （ケージのプリペアド・ピアノ 1940 年代 → ナンカロウの自動ピアノの習作 1948 年〜、ライリーの In C 1964 年 → ペルトのティンティナブリ 1976 年）
+const SONATAS: Sonata[] = [satie, messiaen, cage, nancarrow, ligeti, feldman, ichiyanagi, riley, paert, reich, glass, eno];
 const GAP_BETWEEN = 4; // 楽章のあいだの沈黙（秒）
 const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあいだの沈黙（秒）
 
