@@ -12,13 +12,14 @@ import { ichiyanagi } from "./ichiyanagi";
 import { nancarrow } from "./nancarrow";
 import { paert } from "./paert";
 import { reich } from "./reich";
+import { riley } from "./riley";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
 import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata } from "./movement";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
 
-const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman];
+const SONATAS: Sonata[] = [ichiyanagi, reich, eno, paert, nancarrow, feldman, riley];
 const GAP_BETWEEN = 4; // 楽章のあいだの沈黙（秒）
 const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあいだの沈黙（秒）
 

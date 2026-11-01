@@ -81,7 +81,8 @@ export function scheduler(ctx: MovementContext, tick: (time: number) => void) {
   return new Tone.Loop((time) => tick(time), TICK).start(after(ctx.transport, 0.05));
 }
 
-export type Pending = { time: number; index: number; velocity: number; seconds: number; octave?: number; onPlay?: () => void };
+// cents は、平均律からのずれ（半音の 100 分の 1。純正律などで使う）
+export type Pending = { time: number; index: number; velocity: number; seconds: number; octave?: number; cents?: number; onPlay?: () => void };
 
 // 先の時刻の音を貯めておき、時刻が近づいたら鳴らす
 export function pendingQueue(ctx: MovementContext) {
@@ -93,7 +94,7 @@ export function pendingQueue(ctx: MovementContext) {
       queue = queue.filter((p) => p.time >= time + TICK);
       const pitches = ctx.pitches();
       for (const p of due) {
-        ctx.piano.triggerAttackRelease(pitchAt(pitches, p.index).freq * 2 ** (p.octave ?? 0), p.seconds, Math.max(p.time, time), p.velocity);
+        ctx.piano.triggerAttackRelease(pitchAt(pitches, p.index).freq * 2 ** ((p.octave ?? 0) + (p.cents ?? 0) / 1200), p.seconds, Math.max(p.time, time), p.velocity);
         if (p.onPlay) Tone.getDraw().schedule(p.onPlay, Math.max(p.time, time));
       }
     },
