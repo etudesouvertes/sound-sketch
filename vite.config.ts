@@ -25,7 +25,7 @@ function cloudflareAnalytics(): Plugin {
 }
 
 export default defineConfig(({ command }) => ({
-  // GitHub Pages では https://tomonoriyoshida.github.io/sound-sketch/ で公開する
+  // GitHub Pages では https://etudes-ouvertes.github.io/sound-sketch/ で公開する
   base: command === "build" ? "/sound-sketch/" : "/",
   plugins: [cloudflareAnalytics()],
   server: {
