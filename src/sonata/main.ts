@@ -32,7 +32,8 @@ if (new URLSearchParams(location.search).has("short"))
   for (const s of SONATAS) for (const m of s.movements) m.duration /= 5;
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
-const composerEl = document.querySelector<HTMLSelectElement>("#composer")!;
+const composerEl = document.querySelector<HTMLButtonElement>("#composer")!;
+const composersEl = document.querySelector<HTMLDivElement>("#composers")!;
 const movementEl = document.querySelector<HTMLSelectElement>("#movement")!;
 const restartEl = document.querySelector<HTMLButtonElement>("#restart")!;
 const reverbEl = document.querySelector<HTMLInputElement>("#reverb")!;
@@ -231,15 +232,10 @@ const context: MovementContext = {
 // 選択の表示は、いま鳴らしているソナタ（sonata）に合わせる。
 // ブラウザが再読み込みや「戻る」で選択だけを前の値に戻すことがあるので、autocomplete="off" でも防いでいる
 function fillSelects() {
-  // 頭文字で出し、フルネームは選択肢に重ねたときの表示（title）に残す
-  composerEl.replaceChildren(
-    ...SONATAS.map((s) => {
-      const option = new Option(s.initials, s.id);
-      option.title = t(s.composer);
-      return option;
-    }),
-  );
-  composerEl.value = sonata.id;
+  // バーのボタンには頭文字を出し、フルネームは重ねたときの表示（title）に残す
+  composerEl.textContent = `${sonata.initials} ▾`;
+  composerEl.title = t(sonata.composer);
+  if (!composersEl.hidden) fillComposers();
   const movement = movementEl.value || "0";
   movementEl.replaceChildren(...sonata.movements.map((m, i) => new Option(t(m.title), String(i))));
   movementEl.value = movement;
@@ -402,9 +398,63 @@ function switchSonata(next: Sonata) {
   page.refreshScale();
   applyTuning();
 }
-composerEl.addEventListener("change", () => {
-  switchSonata(SONATAS.find((s) => s.id === composerEl.value) ?? SONATAS[0]);
-  if (playing()) request(0, true);
+
+// 作曲家のパネル: バーの作曲家のボタンで、バーの下に開く。作曲家ごとに名前と 3 つの楽章を並べ、
+// 名前を押すとその作曲家の I から、楽章を押すとその楽章から鳴らす。Esc や、パネルの外を押すと閉じる
+function fillComposers() {
+  composersEl.replaceChildren(
+    ...SONATAS.map((s) => {
+      const card = document.createElement("div");
+      card.className = "composer-card";
+      if (s === sonata) card.setAttribute("aria-current", "true");
+      const name = document.createElement("button");
+      name.type = "button";
+      name.className = "composer-name";
+      const initials = document.createElement("span");
+      initials.className = "composer-initials";
+      initials.textContent = s.initials;
+      name.append(t(s.composer), initials);
+      name.addEventListener("click", () => choose(s, 0));
+      const list = document.createElement("ol");
+      list.append(
+        ...s.movements.map((m, i) => {
+          const item = document.createElement("li");
+          const button = document.createElement("button");
+          button.type = "button";
+          button.textContent = t(m.title);
+          if (s === sonata && i === index && run) button.setAttribute("aria-current", "true");
+          button.addEventListener("click", () => choose(s, i));
+          item.append(button);
+          return item;
+        }),
+      );
+      card.append(name, list);
+      return card;
+    }),
+  );
+}
+const setComposersOpen = (open: boolean) => {
+  if (open) {
+    fillComposers();
+    composersEl.style.top = `${document.querySelector(".bar")!.getBoundingClientRect().bottom + 4}px`;
+  }
+  composersEl.hidden = !open;
+  composerEl.setAttribute("aria-expanded", String(open));
+};
+// 選んだら鳴らす（まだ始めていなければ、ここから始める）。作曲家が変わるときは新しい演奏として種を引き直す
+function choose(next: Sonata, i: number) {
+  setComposersOpen(false);
+  const changed = next !== sonata;
+  if (changed) switchSonata(next);
+  request(i, changed || !playing());
+}
+composerEl.addEventListener("click", () => setComposersOpen(composersEl.hidden));
+document.addEventListener("pointerdown", (e) => {
+  if (composersEl.hidden || composersEl.contains(e.target as Node) || composerEl.contains(e.target as Node)) return;
+  setComposersOpen(false);
+});
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") setComposersOpen(false);
 });
 movementEl.addEventListener("change", () => {
   if (playing()) request(Number(movementEl.value));

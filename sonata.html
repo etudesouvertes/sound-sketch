@@ -16,12 +16,13 @@
         <a href="./sonata.html" aria-current="page">Sonata</a>
       </nav>
       <div class="bar-actions">
-        <select id="composer" autocomplete="off" aria-label="作曲家" data-i18n-aria="composer"></select>
+        <button id="composer" type="button" aria-expanded="false" aria-controls="composers" aria-haspopup="dialog" aria-label="作曲家" data-i18n-aria="composer"></button>
         <select id="movement" autocomplete="off" aria-label="楽章" data-i18n-aria="movement"></select>
         <button id="restart" type="button" data-i18n="restart">最初から</button>
         <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings" data-i18n="settings">⚙ 設定</button>
       </div>
     </header>
+    <div id="composers" class="composer-panel" role="dialog" aria-label="作曲家" data-i18n-aria="composer" hidden></div>
     <aside id="settings" class="settings" aria-label="設定" data-i18n-aria="settingsPanel" hidden>
       <button id="settings-close" class="settings-close" type="button" aria-label="設定を閉じる" data-i18n-aria="settingsClose">×</button>
       <section data-section="sound">
