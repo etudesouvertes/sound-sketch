@@ -680,16 +680,26 @@ const g = setupCanvas(canvas, (w, h) => {
 
 const clock = (seconds: number) => `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
 
+// 左下の天気・変化の表示（HTML）。スマホの縦向きでは右下まで届くので、重なるときは右下の表示をその上に上げる
+const statusSpans = [...document.querySelectorAll<HTMLElement>(".status-line > span")];
+// 右下の表示の左端（left）より右まで届いている左下の表示の、いちばん上の位置。届いていなければ画面の下の端
+function freeBottom(left: number): number {
+  let bottom = height;
+  for (const span of statusSpans) {
+    if (!span.textContent) continue;
+    const r = span.getBoundingClientRect();
+    if (r.right > left - 8) bottom = Math.min(bottom, r.top + 16);
+  }
+  return bottom;
+}
+
 function draw() {
   g.fillStyle = "rgba(27, 29, 35, 0.35)";
   g.fillRect(0, 0, width, height);
   drawPitchGuides(g, width, height, page.pitches());
   run?.draw(g, width, height);
 
-  // 右下: 作曲家・楽章・経過時間
-  g.font = "13px system-ui, sans-serif";
-  g.textAlign = "right";
-  g.fillStyle = "rgba(255, 255, 255, 0.55)";
+  // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種（設定の「種」に入れると、同じ演奏をもう一度聴ける）
   const movement = sonata.movements[index];
   const status = requested !== null
     ? t({ ja: "準備中…", en: "Getting ready…" })
@@ -698,18 +708,20 @@ function draw() {
     : run
       ? `${clock(Tone.now() - startedAt)} / ${clock(movement.duration)}`
       : "";
+  g.textAlign = "right";
+  g.font = "13px system-ui, sans-serif";
   // 1 行に収まらない狭い画面（スマホ）では、作曲家を 1 段上に分ける
   const line = `${t(sonata.composer)}  ${t(movement.title)}  ${status}`;
-  if (g.measureText(line).width <= width - 48) g.fillText(line, width - 24, height - 40);
-  else {
-    g.fillText(t(sonata.composer), width - 24, height - 58);
-    g.fillText(`${t(movement.title)}  ${status}`, width - 24, height - 40);
-  }
-  // その下に、今の演奏の種（設定の「種」に入れると、同じ演奏をもう一度聴ける）
-  if (run || ended) {
+  const lines = g.measureText(line).width <= width - 48 ? [line] : [t(sonata.composer), `${t(movement.title)}  ${status}`];
+  const seedText = run || ended ? `${t({ ja: "種", en: "seed" })} ${seed}` : "";
+  const widest = Math.max(...lines.map((l) => g.measureText(l).width), seedText.length * 7);
+  const bottom = freeBottom(width - 24 - widest);
+  g.fillStyle = "rgba(255, 255, 255, 0.55)";
+  lines.forEach((l, i) => g.fillText(l, width - 24, bottom - 40 - 18 * (lines.length - 1 - i)));
+  if (seedText) {
     g.font = "11px system-ui, sans-serif";
     g.fillStyle = "rgba(255, 255, 255, 0.35)";
-    g.fillText(`${t({ ja: "種", en: "seed" })} ${seed}`, width - 24, height - 22);
+    g.fillText(seedText, width - 24, bottom - 22);
   }
 }
 
