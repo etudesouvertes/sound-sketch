@@ -3,7 +3,7 @@
 ブラウザだけで鳴る、ジェネレーティブ音楽のスケッチ集です。
 A collection of generative music sketches that play right in your browser.
 
-**https://etudes-ouvertes.github.io/sound-sketch/**
+**https://etudesouvertes.github.io/sound-sketch/**
 
 ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。
 Made with deep respect for the music and ideas of Brian Eno and Steve Reich.
