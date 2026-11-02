@@ -164,10 +164,14 @@ export function setupCanvas(
   onResize: (width: number, height: number) => void,
 ): CanvasRenderingContext2D {
   const g = canvas.getContext("2d")!;
+  // 表示の大きさも、描く大きさ（innerWidth・innerHeight）に合わせる。CSS の 100vh は、スマホではブラウザのツールバーを
+  // 隠したときの高さになり、見えている高さより大きい。そのままだと絵が縦に引き伸ばされ、下の端がツールバーの裏に隠れる
   const resize = () => {
     const dpr = window.devicePixelRatio || 1;
     canvas.width = window.innerWidth * dpr;
     canvas.height = window.innerHeight * dpr;
+    canvas.style.width = `${window.innerWidth}px`;
+    canvas.style.height = `${window.innerHeight}px`;
     g.setTransform(dpr, 0, 0, dpr, 0, 0);
     onResize(window.innerWidth, window.innerHeight);
   };

@@ -698,7 +698,13 @@ function draw() {
     : run
       ? `${clock(Tone.now() - startedAt)} / ${clock(movement.duration)}`
       : "";
-  g.fillText(`${t(sonata.composer)}  ${t(movement.title)}  ${status}`, width - 24, height - 40);
+  // 1 行に収まらない狭い画面（スマホ）では、作曲家を 1 段上に分ける
+  const line = `${t(sonata.composer)}  ${t(movement.title)}  ${status}`;
+  if (g.measureText(line).width <= width - 48) g.fillText(line, width - 24, height - 40);
+  else {
+    g.fillText(t(sonata.composer), width - 24, height - 58);
+    g.fillText(`${t(movement.title)}  ${status}`, width - 24, height - 40);
+  }
   // その下に、今の演奏の種（設定の「種」に入れると、同じ演奏をもう一度聴ける）
   if (run || ended) {
     g.font = "11px system-ui, sans-serif";
