@@ -44,12 +44,13 @@ export default defineConfig(({ command }) => ({
   },
   build: {
     rollupOptions: {
-      // Keyboard（keyboard.html）と、試作中の Sonata（sonata.html）は公開しない。開発サーバーでは開ける
+      // Keyboard（keyboard.html）は公開しない。開発サーバーでは開ける
       input: {
         main: page("./index.html"),
         ripples: page("./ripples.html"),
         phase: page("./phase.html"),
         loops: page("./loops.html"),
+        sonata: page("./sonata.html"),
       },
     },
   },
