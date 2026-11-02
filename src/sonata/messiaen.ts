@@ -1,54 +1,28 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { clamp, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, note, pendingQueue, pick, type Queue, rand, random, scheduler, type Sonata, TICK } from "./movement";
 
 // オリヴィエ・メシアンがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   鳥の歌: 鳥ごとに決まった鳴き方（同じ音の連打、トリル、前打音つきのさえずり、駆け下り、跳ねる呼び声）があり、
 //      夜明けのように 1 羽ずつ加わって鳴き交わし、やがて去っていく。ときどき低い所で、森のような柔らかい和音が響く
 // II.  リズムの登場人物: 逆から読んでも同じになるリズム（例えば 3 2 5 2 3）を、3 人の登場人物が同時に繰り返す。
-//      1 人は真ん中の音が 1 つずつ伸び、1 人は縮み、1 人は変わらない。しばらくごとに、全員の和音が 1 段ずれる
+//      1 人は真ん中の音が 1 つずつ伸び、1 人は縮み、1 人は変わらない。しばらくごとに、全員の和音が短 3 度ずつずれ、最後は元の高さに戻る
 // III. 音価と強さの旋法: 鍵ごとに長さと強さと弾き方が決まっていて、どの鍵もいつも同じ長さ・強さで鳴る。
 //      高・中・低の 3 つの声が、自分の音域の鍵を選び続けるだけで、リズムと強弱が音の高さから生まれる
 
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（鳥・リズム・鍵ごとの値）を出す ---
 
-type Mark = { time: number; index: number; hue: number; seconds: number; velocity: number };
 const WINDOW = 10;
 
-function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
-  return {
-    add: (m: Mark) => () => marks.push(m),
-    clear: () => (marks = []),
-    draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        g.fillStyle = `hsla(${m.hue}, 65%, ${60 + 18 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-        g.beginPath();
-        g.arc(x, y, 1.5 + 5 * m.velocity + 2 * ringing, 0, Math.PI * 2);
-        g.fill();
-      }
-    },
-  };
-}
+const markView = (ctx: MovementContext) =>
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+    g.fillStyle = `hsla(${m.hue}, 65%, ${60 + 18 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
+    g.beginPath();
+    g.arc(x, y, 1.5 + 5 * m.velocity + 2 * ringing, 0, Math.PI * 2);
+    g.fill();
+  });
 
-type Queue = ReturnType<typeof pendingQueue>;
 type View = ReturnType<typeof markView>;
-
-function note(h: Layout, queue: Queue, view: View, index: number, time: number, velocity: number, seconds: number, hue: number) {
-  queue.add({ time, ...h.place(index), velocity, seconds, onPlay: view.add({ time, index, hue, seconds, velocity }) });
-}
-
-const pick = <T>(list: T[]): T => list[Math.floor(rand() * list.length)];
-const clamp = (x: number, min: number, max: number) => Math.min(Math.max(x, min), max);
 
 // 和音の形（音階の段で数える）。移調の限られた旋法の第 2 番では、7 の和音に短 9 度が乗ったような、きらびやかな響きになる
 const SHAPES = [
@@ -207,8 +181,25 @@ const birdsong: Movement = {
 
 // --- II. リズムの登場人物 ---
 
-// 登場人物: 逆から読んでも同じリズム（16 分音符いくつ分かの並び）を繰り返す。grow は真ん中が 1 つずつ伸び、shrink は縮み、keep は変わらない
-type Character = { mode: "grow" | "shrink" | "keep"; first: number[]; cell: number[]; position: number; at: number; base: number; shape: number[]; hue: number; velocity: number };
+// 登場人物: 逆から読んでも同じリズム（16 分音符いくつ分かの並び）を繰り返す。grow は真ん中が 1 つずつ伸び、shrink は縮み、keep は変わらない。
+// base は和音のいちばん下の音の位置。音階を途中で変えても音域が保たれるよう、今の音の並びから決める。step は鳴らした和音の数
+type Character = {
+  mode: "grow" | "shrink" | "keep";
+  first: number[];
+  cell: number[];
+  position: number;
+  step: number;
+  at: number;
+  base: (h: Layout) => number;
+  shape: number[];
+  hue: number;
+  velocity: number;
+};
+// しばらくごとの移調（短 3 度いくつ分か）。第 2 番の旋法は短 3 度ずらしても同じ音の並びなので、和音の形が保たれる。
+// 上がっていき、最後は元の高さに戻る
+const SHIFTS = [0, 1, 2, 1, 0];
+const SHIFT_EVERY = 45; // 秒
+const KEEP_MELODY = [0, 1, 2, 1, 0, -1]; // keep の和音が 1 段ずつ上下する旋律
 
 const characters: Movement = {
   title: { ja: "II. リズムの登場人物", en: "II. Rhythmic characters" },
@@ -219,12 +210,12 @@ const characters: Movement = {
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
     const unit = () => 15 / ctx.bpm();
-    const h0 = layout(ctx, 8);
-    const make = (mode: Character["mode"], first: number[], base: number, shape: number[], hue: number, velocity: number): Character => ({
+    const make = (mode: Character["mode"], first: number[], base: Character["base"], shape: number[], hue: number, velocity: number): Character => ({
       mode,
       first,
       cell: [...first],
       position: 0,
+      step: 0,
       at: startAt + 0.5,
       base,
       shape,
@@ -232,9 +223,9 @@ const characters: Movement = {
       velocity,
     });
     const cast = [
-      make("grow", pick([[3, 2, 5, 2, 3], [2, 3, 4, 3, 2], [3, 1, 4, 1, 3]]), h0.centre + Math.floor(h0.perOctave * 0.6), pick(SHAPES).slice(0, 4), 45, 0.28),
-      make("shrink", pick([[4, 1, 9, 1, 4], [3, 2, 8, 2, 3], [5, 2, 7, 2, 5]]), h0.lowRoot, [0, 5, 9], 230, 0.3),
-      make("keep", pick([[2, 3, 2], [3, 1, 3], [2, 1, 2, 1, 2]]), h0.centre - 2, [0, 2], 320, 0.22),
+      make("grow", pick([[3, 2, 5, 2, 3], [2, 3, 4, 3, 2], [3, 1, 4, 1, 3]]), (h) => h.centre + Math.floor(h.perOctave * 0.6), pick(SHAPES).slice(0, 4), 45, 0.28),
+      make("shrink", pick([[4, 1, 9, 1, 4], [3, 2, 8, 2, 3], [5, 2, 7, 2, 5]]), (h) => h.lowRoot, [0, 5, 9], 230, 0.3),
+      make("keep", pick([[2, 3, 2], [3, 1, 3], [2, 1, 2, 1, 2]]), (h) => h.centre - 2, [0, 2], 320, 0.22),
     ];
     let ending = false;
 
@@ -250,16 +241,17 @@ const characters: Movement = {
             // 終わり: 全員がそろうのを待たず、最後に 3 人の和音を重ねて長く置く
             ending = true;
             const at = Math.max(...cast.map((x) => x.at));
-            for (const x of cast) chord(h, queue, view, x.base, x.shape, at, x.velocity * 1.2, 6, x.hue);
+            for (const x of cast) chord(h, queue, view, x.base(h), x.shape, at, x.velocity * 1.2, 6, x.hue);
             endAt = at + 7;
             return;
           }
-          // しばらくごとに、全員の和音が 1 段ずれる（旋法の移調）
-          const shift = Math.floor(elapsed / 45);
+          // しばらくごとに、全員の和音が短 3 度ずつずれる（旋法の移調）
+          const shift = SHIFTS[Math.min(Math.floor(elapsed / SHIFT_EVERY), SHIFTS.length - 1)] * Math.round((3 * h.perOctave) / 12);
           const value = c.cell[c.position];
-          // keep は、同じ形のまま 1 段ずつ上下する短い旋律
-          const move = c.mode === "keep" ? [0, 1, 2, 1, 0, -1][c.position % 6] : 0;
-          chord(h, queue, view, c.base + shift + move, c.shape, c.at, c.velocity * (c.position === Math.floor(c.cell.length / 2) ? 1.2 : 1), value * u * 1.1, c.hue);
+          // keep は、同じ形のまま 1 段ずつ上下する短い旋律（リズムの区切りとは別に数える）
+          const move = c.mode === "keep" ? KEEP_MELODY[c.step % KEEP_MELODY.length] : 0;
+          c.step++;
+          chord(h, queue, view, c.base(h) + shift + move, c.shape, c.at, c.velocity * (c.position === Math.floor(c.cell.length / 2) ? 1.2 : 1), value * u * 1.1, c.hue);
           c.at += value * u;
           c.position++;
           if (c.position < c.cell.length) continue;
@@ -322,24 +314,37 @@ const valuesMode: Movement = {
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
     const unit = () => 15 / ctx.bpm();
-    // 鍵ごとの長さ（16 分音符 1〜12 個）・強さ・弾き方。画面の外（下と上に 1 オクターブずつ）の鍵にも決めておく
-    const h0 = layout(ctx, 8);
-    const from = -h0.perOctave;
-    const to = h0.count + h0.perOctave;
+    // 鍵ごとの長さ（16 分音符 1〜12 個）・強さ・弾き方。画面の外（下と上に 1 オクターブずつ）の鍵にも決めておく。
+    // 演奏中に音階が変わって鍵の数が変わったら、範囲を合わせ直す（もう決めてある鍵の値はそのまま）
     const values = new Map<number, KeyValue>();
-    for (let i = from; i < to; i++) values.set(i, { units: 1 + Math.floor(rand() * 12), velocity: pick(INTENSITIES), staccato: rand() < 0.3 });
+    let from = 0;
+    let to = 0;
+    let fitted = { count: 0, perOctave: 0 };
+    const fit = (h: Layout) => {
+      if (h.count === fitted.count && h.perOctave === fitted.perOctave) return;
+      fitted = { count: h.count, perOctave: h.perOctave };
+      from = -h.perOctave;
+      to = h.count + h.perOctave;
+      for (let i = from; i < to; i++)
+        if (!values.has(i)) values.set(i, { units: 1 + Math.floor(rand() * 12), velocity: pick(INTENSITIES), staccato: rand() < 0.3 });
+      const third = (to - from) / 3;
+      voices.forEach((voice, v) => {
+        voice.low = Math.round(from + v * third);
+        voice.high = Math.round(from + (v + 1) * third);
+      });
+    };
     const valueOf = (index: number) => values.get(clamp(index, from, to - 1))!;
     // 3 つの声: 音域を低・中・高に 3 つに分け、それぞれ自分の音域の鍵だけを選ぶ。高い声から始まり、低い声から去る
-    const third = (to - from) / 3;
     const voices = [0, 1, 2].map((v) => ({
-      low: Math.round(from + v * third),
-      high: Math.round(from + (v + 1) * third),
+      low: 0,
+      high: 0,
       enter: [0.25, 0.12, 0][v],
       leave: [0.75, 0.88, 1][v],
       at: startAt + 0.5,
       last: NaN,
       hue: VOICE_HUES[v],
     }));
+    fit(layout(ctx, 8));
     const lit = new Map<number, number>(); // 鍵ごとの、最後に鳴った時刻（画面のため）
     let ending = false;
 
@@ -354,6 +359,7 @@ const valuesMode: Movement = {
       queue.flush(time);
       if (ending) return;
       const h = layout(ctx, 8);
+      fit(h);
       const u = unit();
       for (const voice of voices) {
         while (voice.at < time + TICK) {
@@ -385,6 +391,7 @@ const valuesMode: Movement = {
         if (ending) return;
         // クリック: その鍵を、決まった長さと強さで鳴らす
         const h = layout(ctx, 8);
+        fit(h);
         play(h, clickIndex(h, y, height), Tone.now() + 0.02, 60);
       },
       draw: (g, width, height) => {

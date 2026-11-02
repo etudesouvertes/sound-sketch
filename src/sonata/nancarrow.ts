@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { type FlowMark, flowView, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK } from "./movement";
 
 // コンロン・ナンカロウがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // ナンカロウは自動ピアノのために、人の手では弾けない速さと、テンポの違う声部の重なりを書いた。
@@ -12,32 +12,15 @@ import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext,
 // --- 画面: 鳴った音が右端から左へ流れる。声部ごとに色を変える ---
 
 const HUES = [25, 190, 310, 95];
-type Mark = { time: number; index: number; voice: number; seconds: number; velocity: number };
+type VoiceMark = FlowMark & { voice: number };
 const WINDOW = 12;
 
-function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
-  return {
-    add: (m: Mark) => () => marks.push(m),
-    clear: () => (marks = []),
-    draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        const length = Math.max(2, (m.seconds / WINDOW) * span * 0.6);
-        g.fillStyle = m.voice < 0 ? `rgba(255, 255, 255, ${(0.3 + 0.6 * ringing) * fade})` : `hsla(${HUES[m.voice % HUES.length]}, 70%, ${55 + 25 * ringing}%, ${(0.3 + 0.6 * ringing) * fade})`;
-        g.fillRect(x, y - 1.5 - 2 * m.velocity, length, 3 + 4 * m.velocity);
-      }
-    },
-  };
-}
+const markView = (ctx: MovementContext) =>
+  flowView<VoiceMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, span) => {
+    const length = Math.max(2, (m.seconds / WINDOW) * span * 0.6);
+    g.fillStyle = m.voice < 0 ? `rgba(255, 255, 255, ${(0.3 + 0.6 * ringing) * fade})` : `hsla(${HUES[m.voice % HUES.length]}, 70%, ${55 + 25 * ringing}%, ${(0.3 + 0.6 * ringing) * fade})`;
+    g.fillRect(x, y - 1.5 - 2 * m.velocity, length, 3 + 4 * m.velocity);
+  });
 
 // クリック: その高さから、自動ピアノのような速い駆け上がりを鳴らす
 function runAt(ctx: MovementContext, queue: ReturnType<typeof pendingQueue>, view: ReturnType<typeof markView>, y: number, height: number) {

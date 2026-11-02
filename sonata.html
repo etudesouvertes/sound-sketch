@@ -71,12 +71,14 @@
           <input id="seed" type="text" inputmode="numeric" maxlength="5" size="6" autocomplete="off" />
         </label>
         <button id="seed-keep" type="button" data-i18n="seedKeep">今の演奏の種を使う</button>
+        <!-- unpublished -->
         <label><span data-i18n="ratingCount">評価の記録（件）</span> <output id="rating-count">0</output></label>
         <div class="rating-export">
           <button id="rating-json" type="button" data-i18n="ratingJson">JSON で書き出す</button>
           <button id="rating-csv" type="button" data-i18n="ratingCsv">CSV で書き出す</button>
           <button id="rating-clear" type="button" data-i18n="ratingClear">消す</button>
         </div>
+        <!-- /unpublished -->
       </section>
       <section data-section="repeat">
         <h2 data-i18n="sec.repeat">反復</h2>
@@ -109,12 +111,14 @@
       <span id="drift-status"></span>
     </footer>
     <canvas id="canvas"></canvas>
+    <!-- unpublished -->
     <div id="rating" class="rating" hidden>
       <span data-i18n="ratingPrompt">この楽章は</span>
       <button type="button" data-rating="good" aria-pressed="false" data-i18n="rating.good">良い</button>
       <button type="button" data-rating="ok" aria-pressed="false" data-i18n="rating.ok">普通</button>
       <button type="button" data-rating="bad" aria-pressed="false" data-i18n="rating.bad">ダメ</button>
     </div>
+    <!-- /unpublished -->
     <p id="hint" class="hint" data-i18n="hint.sonata">
       クリックすると、ソナタが I 楽章から始まります。3 つの楽章が続けて鳴り、III が終わるとソナタも終わります<br />
       演奏中にクリックすると、その高さの音が音楽に加わります

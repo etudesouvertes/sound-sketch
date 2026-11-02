@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { CHROMATIC, clamp, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, note, pendingQueue, pick, rand, random, scheduler, type Sonata, TICK } from "./movement";
 
 // ジョン・ケージがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   平方根の形: 全体と部分が同じ比でできている。比（例えば 2:1:2:2）の数の和を S とすると、S 小節の単位が S 回並び、
@@ -14,44 +14,16 @@ import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type Mov
 
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（比・表・枠）を出す ---
 
-type Mark = { time: number; index: number; hue: number; seconds: number; velocity: number };
 const WINDOW = 14;
 
-function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
-  return {
-    add: (m: Mark) => () => marks.push(m),
-    clear: () => (marks = []),
-    draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        g.fillStyle = `hsla(${m.hue}, 50%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-        g.fillRect(x - 1.5, y - 2 - 5 * m.velocity, 3 + 4 * ringing, 4 + 10 * m.velocity);
-      }
-    },
-  };
-}
-
-type Queue = ReturnType<typeof pendingQueue>;
-type View = ReturnType<typeof markView>;
+const markView = (ctx: MovementContext) =>
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+    g.fillStyle = `hsla(${m.hue}, 50%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
+    g.fillRect(x - 1.5, y - 2 - 5 * m.velocity, 3 + 4 * ringing, 4 + 10 * m.velocity);
+  });
 
 // 半音の数を、今の音階の段数に直す（半音階以外を選んだときも、音域の広がりがおおよそ保たれる）
 const steps = (h: Layout, semitones: number) => Math.round((semitones * h.perOctave) / 12);
-
-function note(h: Layout, queue: Queue, view: View, index: number, time: number, velocity: number, seconds: number, hue: number) {
-  queue.add({ time, ...h.place(index), velocity, seconds, onPlay: view.add({ time, index, hue, seconds, velocity }) });
-}
-
-const pick = <T>(list: T[]): T => list[Math.floor(rand() * list.length)];
-const clamp = (x: number, min: number, max: number) => Math.min(Math.max(x, min), max);
 
 // --- I. 平方根の形 ---
 
@@ -480,7 +452,7 @@ export const cage: Sonata = {
   composer: { ja: "ジョン・ケージ", en: "John Cage" },
   initials: "J.C.",
   // 半音階。音の手持ちや偶然で選ぶ音は、調や和音にとらわれない
-  scale: { id: "chromatic", group: "", name: { ja: "半音階", en: "Chromatic" }, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  scale: CHROMATIC,
   movements: [squareRoot, chance, brackets],
   prepared: true,
 };

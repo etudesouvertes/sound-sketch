@@ -56,8 +56,6 @@ const swayValueEl = document.querySelector<HTMLOutputElement>("#sway-value")!;
 const tuningEl = document.querySelector<HTMLSelectElement>("#tuning")!;
 const preparedEl = document.querySelector<HTMLInputElement>("#prepared")!;
 const seedEl = document.querySelector<HTMLInputElement>("#seed")!;
-const ratingEl = document.querySelector<HTMLDivElement>("#rating")!;
-const ratingCountEl = document.querySelector<HTMLOutputElement>("#rating-count")!;
 const seedKeepEl = document.querySelector<HTMLButtonElement>("#seed-keep")!;
 const tempoEl = document.querySelector<HTMLInputElement>("#tempo")!;
 const tempoValueEl = document.querySelector<HTMLOutputElement>("#tempo-value")!;
@@ -164,7 +162,9 @@ type Strike = { freq: number; seconds: number; at: number; velocity?: number };
 // 楽章が指定した音の長さに、空模様による倍率を掛け、時刻に揺らぎを足して鳴らす（雨で短く、雪で長く）。
 // 和音を崩すには同時に鳴る音がそろっている必要があるので、同じ処理の中で頼まれた音をいったん貯め、まとめて鳴らす
 let sustain = 1;
-// 今聴いている楽章の記録（評価のため）。楽章を始めるたびに作り直す
+// 評価（良い・普通・ダメ）は、作品を調整するための開発用の道具。公開版では評価のボタンを出さず、何も記録しない
+const RATINGS = import.meta.env.DEV;
+// 今聴いている楽章の記録（評価のため）。楽章を始めるたびに作り直す（公開版ではいつも null）
 let listening: Listening | null = null;
 class Piano extends Tone.Sampler {
   private batch: Strike[] = [];
@@ -399,9 +399,12 @@ function newListening(i: number): Listening {
   };
 }
 
-// 評価のボタンは、楽章を始めてから次の楽章を始めるまで出す（楽章のあいだの沈黙や、終わったあとも評価できる）
-const ratingButtons = [...ratingEl.querySelectorAll<HTMLButtonElement>("button[data-rating]")];
+// 評価のボタンは、楽章を始めてから次の楽章を始めるまで出す（楽章のあいだの沈黙や、終わったあとも評価できる）。
+// 公開版のビルドでは、評価のボタンと記録の書き出しを HTML から外している
+const ratingEl = document.querySelector<HTMLDivElement>("#rating");
+const ratingButtons = [...(ratingEl?.querySelectorAll<HTMLButtonElement>("button[data-rating]") ?? [])];
 function showRating() {
+  if (!ratingEl) return;
   ratingEl.hidden = listening === null;
   for (const b of ratingButtons) b.setAttribute("aria-pressed", "false");
 }
@@ -412,23 +415,27 @@ function rateNow(rating: Rating) {
   updateRatingCount();
 }
 for (const b of ratingButtons) b.addEventListener("click", () => rateNow(b.dataset.rating as Rating));
-// キーの 1・2・3 でも評価できる（入力欄や選択にいるときは除く）
-window.addEventListener("keydown", (e) => {
-  if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
-  const rating = ({ "1": "good", "2": "ok", "3": "bad" } as const)[e.key as "1" | "2" | "3"];
-  if (rating) rateNow(rating);
-});
-
-const updateRatingCount = () => (ratingCountEl.value = String(loadRecords().length));
-updateRatingCount();
-document.querySelector("#rating-json")!.addEventListener("click", exportJson);
-document.querySelector("#rating-csv")!.addEventListener("click", exportCsv);
-document.querySelector("#rating-clear")!.addEventListener("click", () => {
-  if (!confirm(t({ ja: "評価の記録をすべて消します。よろしいですか？", en: "Delete all ratings?" }))) return;
-  clearRecords();
+const ratingCountEl = document.querySelector<HTMLOutputElement>("#rating-count");
+const updateRatingCount = () => {
+  if (ratingCountEl) ratingCountEl.value = String(loadRecords().length);
+};
+if (RATINGS) {
+  // キーの 1・2・3 でも評価できる（入力欄や選択にいるときは除く）
+  window.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) return;
+    const rating = ({ "1": "good", "2": "ok", "3": "bad" } as const)[e.key as "1" | "2" | "3"];
+    if (rating) rateNow(rating);
+  });
   updateRatingCount();
-  for (const b of ratingButtons) b.setAttribute("aria-pressed", "false");
-});
+  document.querySelector("#rating-json")!.addEventListener("click", exportJson);
+  document.querySelector("#rating-csv")!.addEventListener("click", exportCsv);
+  document.querySelector("#rating-clear")!.addEventListener("click", () => {
+    if (!confirm(t({ ja: "評価の記録をすべて消します。よろしいですか？", en: "Delete all ratings?" }))) return;
+    clearRecords();
+    updateRatingCount();
+    for (const b of ratingButtons) b.setAttribute("aria-pressed", "false");
+  });
+}
 
 // 今の楽章。null のときは、始まる前か、ソナタが終わったあと
 let index = 0;
@@ -445,7 +452,7 @@ function startMovement(i: number) {
   movementEl.value = String(i);
   seed = fixedSeed() ?? seed;
   seedRandom(`${seed}:${sonata.id}:${i}`);
-  listening = newListening(i);
+  listening = RATINGS ? newListening(i) : null;
   showRating();
   run = sonata.movements[i].start(context);
   startedAt = Tone.now();
@@ -492,8 +499,9 @@ function stop() {
   run?.stop();
   run = null;
   piano.releaseAll();
-  // 楽章のあいだの沈黙で止めたときは、再生で次の楽章から始める
+  // 楽章のあいだの沈黙で止めたときは、再生で次の楽章から始める。ソナタが終わったあとに止めたときは I から
   if (nextAt !== Infinity) movementEl.value = String(nextIndex);
+  else if (ended) movementEl.value = "0";
   requested = null;
   nextAt = Infinity;
   ended = false;

@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { pitchAt, pitchIndexAt } from "../scales";
 import { t } from "../i18n";
-import { after, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
+import { after, DORIAN, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
 
 // スティーヴ・ライヒがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.  フェイズ: 両手が同じ 12 音の型を弾き、片方の手だけがほんの少し速くなって 1 音ずつ前へずれ、また重なる。12 回ずれると、元のそろった形に戻る。
@@ -426,6 +426,6 @@ export const reich: Sonata = {
   composer: { ja: "スティーヴ・ライヒ", en: "Steve Reich" },
   initials: "S.R.",
   // 長調とも短調ともつかない、教会旋法の響き
-  scale: { id: "dorian", group: "", name: { ja: "ドリアン", en: "Dorian" }, steps: [0, 2, 3, 5, 7, 9, 10] },
+  scale: DORIAN,
   movements: [phase, pulses, buildUp],
 };

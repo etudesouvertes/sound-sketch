@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { CHROMATIC, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // モートン・フェルドマンがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // フェルドマンの後期の作品は、ごく弱い音で、短い型を何度か繰り返しては少しだけ変え、別の型へ移る。盛り上がりも展開もなく、
@@ -366,6 +366,6 @@ export const feldman: Sonata = {
   composer: { ja: "モートン・フェルドマン", en: "Morton Feldman" },
   initials: "M.F.",
   // 半音階。柔らかくぶつかる音程（短 2 度・長 7 度・短 9 度）を自由に使う
-  scale: { id: "chromatic", group: "", name: { ja: "半音階", en: "Chromatic" }, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  scale: CHROMATIC,
   movements: [repetitions, shadedChords, memoryLayers],
 };

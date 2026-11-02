@@ -32,6 +32,11 @@ export type Movement = {
 export type Sonata = { id: string; composer: L; initials: string; scale: Scale; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
 export type Tuning = "exact" | "loose" | "old";
 
+// 作曲家の音階のうち、何人かで共有するもの
+export const CHROMATIC: Scale = { id: "chromatic", group: "", name: { ja: "半音階", en: "Chromatic" }, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] };
+export const DORIAN: Scale = { id: "dorian", group: "", name: { ja: "ドリアン", en: "Dorian" }, steps: [0, 2, 3, 5, 7, 9, 10] };
+export const AEOLIAN: Scale = { id: "aeolian", group: "", name: { ja: "エオリアン（自然短音階）", en: "Aeolian (natural minor)" }, steps: [0, 2, 3, 5, 7, 8, 10] };
+
 // Transport の上で、今から seconds 秒後の位置（ティックで指定する）。
 // transport.seconds + seconds と書くと、Tone.js はその秒を今のテンポで拍に換算する。経過秒はテンポの変化の履歴で
 // 積み上がっているので、テンポを変えてきたあと（一柳慧の III は加速する）では、何分も先の位置になってしまう
@@ -96,6 +101,66 @@ export function keepRandom(action: () => void) {
 
 export function random(min: number, max: number): number {
   return min + rand() * (max - min);
+}
+
+export const pick = <T>(list: T[]): T => list[Math.floor(rand() * list.length)];
+export const clamp = (x: number, min: number, max: number) => Math.min(Math.max(x, min), max);
+
+// --- 画面: 鳴った音の印が、右端から左へ流れる（windowSeconds 秒で左端に着いて消える） ---
+
+// 印に共通の項目。楽章ごとに、色を決める項目（hue や voice など）を足す
+export type FlowMark = { time: number; index: number; seconds: number; velocity: number };
+// 1 つの印を描く。ringing は鳴り残り（1 → 0）、fade は消えるまでの残り（1 → 0）、span は流れる幅（px）
+export type PaintMark<M extends FlowMark> = (g: CanvasRenderingContext2D, m: M, x: number, y: number, ringing: number, fade: number, span: number) => void;
+export type FlowView<M extends FlowMark> = {
+  add: (m: M) => () => void; // 音が鳴る時刻に印を足す関数を返す（Pending の onPlay に渡す）
+  clear: () => void;
+  draw: (g: CanvasRenderingContext2D, width: number, height: number) => void;
+};
+
+export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds: number, paint: PaintMark<M>): FlowView<M> {
+  let marks: M[] = [];
+  return {
+    add: (m) => () => marks.push(m),
+    clear: () => (marks = []),
+    draw(g, width, height) {
+      const now = Tone.now();
+      marks = marks.filter((m) => now - m.time < windowSeconds);
+      const count = ctx.pitches().length;
+      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+      for (const m of marks) {
+        const x = width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span;
+        if (x < MARGIN_LEFT) continue;
+        const y = yOf(clamp(m.index, 0, count - 1), height, count);
+        const fade = 1 - (now - m.time) / windowSeconds;
+        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
+        paint(g, m, x, y, ringing, fade, span);
+      }
+    },
+  };
+}
+
+// 音の時刻に合わせて切り替わる表示の値。予定の時刻と値を時刻順に貯めておき、描くときに今の時刻までに来た最後の値を使う
+// （1 拍ごとに Tone.getDraw() の予定を入れると、タブを裏に回して描画が止まっているあいだに予定がたまる）
+export function timed<T>(initial: T) {
+  let current = initial;
+  let pending: { time: number; value: T }[] = [];
+  return {
+    set: (time: number, value: T) => pending.push({ time, value }),
+    get(): T {
+      const now = Tone.now();
+      while (pending.length > 0 && pending[0].time <= now) current = pending.shift()!.value;
+      return current;
+    },
+    clear: () => (pending = []),
+  };
+}
+
+// 色相で色分けする印と、その印を付けて音を鳴らす手順（画面の外の音は、オクターブを指定して鳴らす）
+export type HueMark = FlowMark & { hue: number };
+export type Queue = ReturnType<typeof pendingQueue>;
+export function note(h: Layout, queue: Queue, view: FlowView<HueMark>, index: number, time: number, velocity: number, seconds: number, hue: number) {
+  queue.add({ time, ...h.place(index), velocity, seconds, onPlay: view.add({ time, index, hue, seconds, velocity }) });
 }
 
 // 音の時計（AudioContext の時刻）で予定を立てる部品。刻みを持たない楽章（イーノ、ペルト）で使う

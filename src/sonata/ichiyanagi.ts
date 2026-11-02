@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { pitchAt, pitchIndexAt } from "../scales";
 import { t } from "../i18n";
-import { after, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
+import { after, CHROMATIC, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
 
 // 一柳慧がピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.  反復のずれ（『ピアノ・メディア』のころ）: 両手が長さの違う短い型を同じ刻みで繰り返し、重なり方がずれていく
@@ -492,7 +492,7 @@ export const ichiyanagi: Sonata = {
   composer: { ja: "一柳慧", en: "Toshi Ichiyanagi" },
   initials: "T.I.",
   // 調性に寄らない 12 音すべて
-  scale: { id: "chromatic", group: "", name: { ja: "半音階", en: "Chromatic" }, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  scale: CHROMATIC,
   movements: [shifting, silences, toccata],
 };
 

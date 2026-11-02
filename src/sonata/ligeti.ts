@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { t } from "../i18n";
 import { pitchIndexAt } from "../scales";
-import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { CHROMATIC, flowView, type HueMark, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // ジェルジ・リゲティがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   一音から: 最初は 1 つの音名だけで、区切りごとに使える音名を 1 つずつ増やす。だんだん速くなり、最後の音名は最後の 1 音まで取っておく
@@ -12,33 +12,15 @@ import { layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext,
 
 // --- 画面: 鳴った音が右端から左へ流れる。強い音ほど大きい ---
 
-type Mark = { time: number; index: number; hue: number; seconds: number; velocity: number };
 const WINDOW = 10;
 
-function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
-  return {
-    add: (m: Mark) => () => marks.push(m),
-    clear: () => (marks = []),
-    draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        g.fillStyle = `hsla(${m.hue}, 70%, ${55 + 25 * ringing}%, ${(0.25 + 0.6 * ringing) * fade})`;
-        g.beginPath();
-        g.arc(x, y, 1.5 + 7 * m.velocity + 2 * ringing, 0, Math.PI * 2);
-        g.fill();
-      }
-    },
-  };
-}
+const markView = (ctx: MovementContext) =>
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+    g.fillStyle = `hsla(${m.hue}, 70%, ${55 + 25 * ringing}%, ${(0.25 + 0.6 * ringing) * fade})`;
+    g.beginPath();
+    g.arc(x, y, 1.5 + 7 * m.velocity + 2 * ringing, 0, Math.PI * 2);
+    g.fill();
+  });
 
 // --- I. 一音から ---
 
@@ -397,6 +379,6 @@ export const ligeti: Sonata = {
   composer: { ja: "ジェルジ・リゲティ", en: "György Ligeti" },
   initials: "G.L.",
   // 半音階。I は音名を 1 つずつ加え、III は白鍵と黒鍵に両手を分ける
-  scale: { id: "chromatic", group: "", name: { ja: "半音階", en: "Chromatic" }, steps: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] },
+  scale: CHROMATIC,
   movements: [repeatedNote, metronomes, disorder],
 };

@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { AEOLIAN, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, type Movement, type MovementContext, note, pendingQueue, pick, type Queue, rand, random, scheduler, type Sonata, TICK, timed } from "./movement";
 
 // フィリップ・グラスがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   足し算と引き算: 短い音型を、頭から 2 音、3 音…と 1 音ずつ足しながら決まった回数ずつ繰り返し、全部そろったら 1 音ずつ減らす。
@@ -12,49 +12,24 @@ import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type Mov
 
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（音型・区切り・巡り）を出す ---
 
-type Mark = { time: number; index: number; hue: number; seconds: number; velocity: number };
 const WINDOW = 10;
 
-function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
-  return {
-    add: (m: Mark) => () => marks.push(m),
-    clear: () => (marks = []),
-    draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        g.fillStyle = `hsla(${m.hue}, 55%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-        g.beginPath();
-        g.arc(x, y, 2 + 5 * m.velocity + 2 * ringing, 0, Math.PI * 2);
-        g.fill();
-      }
-    },
-  };
-}
+const markView = (ctx: MovementContext) =>
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+    g.fillStyle = `hsla(${m.hue}, 55%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
+    g.beginPath();
+    g.arc(x, y, 2 + 5 * m.velocity + 2 * ringing, 0, Math.PI * 2);
+    g.fill();
+  });
 
-type Queue = ReturnType<typeof pendingQueue>;
 type View = ReturnType<typeof markView>;
 
 const RIGHT = 200;
 const LEFT = 35;
 
-function note(h: Layout, queue: Queue, view: View, index: number, time: number, velocity: number, seconds: number, hue: number) {
-  queue.add({ time, ...h.place(index), velocity, seconds, onPlay: view.add({ time, index, hue, seconds, velocity }) });
-}
-
 // 度数（主音から数える。7 で 1 オクターブ上）の音の位置。右手は真ん中の主音から、左手は画面の一番下の主音から数える
 const high = (h: Layout, degree: number) => h.centre + h.degree(degree);
 const low = (h: Layout, degree: number) => h.lowRoot + h.degree(degree);
-
-const pick = <T>(list: T[]): T => list[Math.floor(rand() * list.length)];
 
 // クリック: その高さの音に、3 度上の音を添えて鳴らす
 function pointAt(ctx: MovementContext, queue: Queue, view: View, y: number, height: number) {
@@ -65,19 +40,35 @@ function pointAt(ctx: MovementContext, queue: Queue, view: View, y: number, heig
   note(h, queue, view, index + h.degree(2), time, 0.22, 1.2, 50);
 }
 
-// 上に小さな箱を並べる（今の所は明るく、使っている所は少し明るく）
+// 上に小さな箱を並べる（今の所は明るく、使っている所は少し明るく）。長い名前の箱は、名前に合わせて広げる
 function boxes(g: CanvasRenderingContext2D, labels: string[], used: number, current: number, top = 66) {
   g.font = "11px system-ui, sans-serif";
   g.textAlign = "center";
+  let x = MARGIN_LEFT;
   labels.forEach((label, i) => {
-    const x = MARGIN_LEFT + i * 22;
+    const width = Math.max(18, Math.ceil(g.measureText(label).width) + 8);
     g.fillStyle = i === current ? "rgba(240, 200, 120, 0.8)" : i < used ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.08)";
-    g.fillRect(x, top, 18, 14);
+    g.fillRect(x, top, width, 14);
     if (label) {
       g.fillStyle = i === current ? "rgba(30, 30, 30, 0.9)" : "rgba(255, 255, 255, 0.6)";
-      g.fillText(label, x + 9, top + 11);
+      g.fillText(label, x + width / 2, top + 11);
     }
+    x += width + 4;
   });
+}
+
+// 和音の名前（ローマ数字）。根音が主音から何半音上かで数字を決め（エオリアンの 3 番目の和音は ♭III）、
+// 根音から 3 度・5 度の音までの半音の数で、大文字（長）・小文字（短）・°（減）・+（増）を付ける。
+// 和音は、根音の度数から 0・2・4 度上の音（右手の型と同じ数え方）
+const NUMERALS = ["I", "♭II", "II", "♭III", "III", "IV", "♯IV", "V", "♭VI", "VI", "♭VII", "VII"];
+function chordName(h: Layout, root: number): string {
+  const semitone = (degree: number) => h.semitone(h.place(high(h, degree)).index);
+  const base = semitone(root);
+  const third = (semitone(root + 2) - base + 12) % 12;
+  const fifth = (semitone(root + 4) - base + 12) % 12;
+  const numeral = NUMERALS[base];
+  if (third <= 3) return fifth === 6 ? `${numeral.toLowerCase()}°` : numeral.toLowerCase();
+  return fifth === 8 ? `${numeral}+` : numeral;
 }
 
 // --- I. 足し算と引き算 ---
@@ -111,7 +102,7 @@ const additive: Movement = {
     let eighthAt = startAt + 0.4;
     let final = false; // 最後の区切り（最初の音型に戻り、全部の長さで弾いて終わる）
     let ending = false;
-    let shown = { length: STAGES[0], pos: 0, rep: 0 };
+    const shown = timed({ length: STAGES[0], pos: 0, rep: 0 });
 
     const loop = scheduler(ctx, (time) => {
       queue.flush(time);
@@ -124,8 +115,7 @@ const additive: Movement = {
         const accent = pos === 0 ? 1.2 : 1;
         note(h, queue, view, high(h, figure[pos]), eighthAt, 0.28 * accent * random(0.95, 1.05), e * 1.4, RIGHT);
         if (step % 2 === 0) note(h, queue, view, low(h, root + BASS[(step / 2) % 4]), eighthAt, 0.24, e * 2.4, LEFT);
-        const state = { length, pos, rep };
-        Tone.getDraw().schedule(() => (shown = state), eighthAt);
+        shown.set(eighthAt, { length, pos, rep });
         step++;
         eighthAt += e;
         pos++;
@@ -160,9 +150,10 @@ const additive: Movement = {
       draw: (g, width, height) => {
         view.draw(g, width, height);
         // 音型の 6 音を箱で出す。今繰り返している長さの所が明るく、右に何回目かを点で出す
-        boxes(g, ["", "", "", "", "", ""], shown.length, shown.pos);
+        const now = shown.get();
+        boxes(g, ["", "", "", "", "", ""], now.length, now.pos);
         for (let i = 0; i < REPEATS; i++) {
-          g.fillStyle = i <= shown.rep ? "rgba(240, 200, 120, 0.7)" : "rgba(255, 255, 255, 0.12)";
+          g.fillStyle = i <= now.rep ?"rgba(240, 200, 120, 0.7)" : "rgba(255, 255, 255, 0.12)";
           g.beginPath();
           g.arc(MARGIN_LEFT + 6 * 22 + 10 + i * 10, 73, 3, 0, Math.PI * 2);
           g.fill();
@@ -222,7 +213,7 @@ const rocking: Movement = {
     let endAt = Infinity;
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
-    const quarter = () => 66 / ctx.bpm();
+    const quarter = () => 60 / ctx.bpm();
     const pairs: Record<Part, number[]> = { A: pick(PAIRS_A), B: pick(PAIRS_OTHER), C: pick(PAIRS_OTHER) };
     if (pairs.C === pairs.B) pairs.C = PAIRS_OTHER[(PAIRS_OTHER.indexOf(pairs.B) + 1) % PAIRS_OTHER.length];
     const melodies: Record<Part, Held[][]> = { A: newMelody(pairs.A), B: newMelody(pairs.B), C: newMelody(pairs.C) };
@@ -232,7 +223,7 @@ const rocking: Movement = {
     let barAt = startAt + 0.4;
     let final = false;
     let ending = false;
-    let shown = 0;
+    const shown = timed(0);
 
     const loop = scheduler(ctx, (time) => {
       queue.flush(time);
@@ -241,8 +232,7 @@ const rocking: Movement = {
       const q = quarter();
       if (bar === 0) {
         played.push(part);
-        const index = played.length - 1;
-        Tone.getDraw().schedule(() => (shown = index), barAt);
+        shown.set(barAt, played.length - 1);
       }
       const root = pairs[part][bar % 2];
       ROCK.forEach((d, i) => note(h, queue, view, low(h, root + d), barAt + i * q, 0.22 * (i === 0 ? 1.15 : 1), q * 1.8, LEFT));
@@ -280,7 +270,7 @@ const rocking: Movement = {
         // 弾いてきた区切りの並び（A B A C …）。今の区切りが明るい
         const recent = played.slice(-16);
         const offset = played.length - recent.length;
-        boxes(g, recent, recent.length, shown - offset);
+        boxes(g, recent, recent.length, shown.get() - offset);
       },
       finished: () => Tone.now() >= endAt,
       stop() {
@@ -325,7 +315,7 @@ const threeTwo: Movement = {
     let chord = 0;
     let chordAt = startAt + 0.4;
     let ending = false;
-    let shown = { cycle: CYCLES[0], chord: 0 };
+    const shown = timed({ cycle: CYCLES[0], chord: 0 });
 
     const loop = scheduler(ctx, (time) => {
       queue.flush(time);
@@ -340,8 +330,7 @@ const threeTwo: Movement = {
       // 1 つの和音に 2 拍。右手は 3 連符で 6 音、左手は 8 分音符で 4 音
       RIGHT_PATTERNS[level].forEach((d, i) => note(h, queue, view, high(h, root + d), chordAt + (i * 2 * b) / 6, velocity * (i % 3 === 0 ? 1.15 : 1), b * 0.5, RIGHT));
       LEFT_PATTERN.forEach((d, i) => note(h, queue, view, low(h, root + d), chordAt + (i * 2 * b) / 4, velocity * (i % 2 === 0 ? 1.1 : 0.95), b * 0.7, LEFT));
-      const state = { cycle, chord };
-      Tone.getDraw().schedule(() => (shown = state), chordAt);
+      shown.set(chordAt, { cycle, chord });
       chordAt += 2 * b;
       chord++;
       if (chord < cycle.length) return;
@@ -363,9 +352,10 @@ const threeTwo: Movement = {
       pointer: (_x, y, height) => !ending && pointAt(ctx, queue, view, y, height),
       draw: (g, width, height) => {
         view.draw(g, width, height);
-        // 4 つの和音の巡り。今の和音が明るい
-        const names = ["i", "ii°", "III", "iv", "v", "VI", "VII"]; // エオリアンの和音の名前
-        boxes(g, shown.cycle.map((r) => names[r % 7]), 4, shown.chord);
+        // 4 つの和音の巡り。今の和音が明るい。和音の名前は、今の音階で実際に鳴る音から付ける
+        const now = shown.get();
+        const h = layout(ctx);
+        boxes(g, now.cycle.map((r) => chordName(h, r)), 4, now.chord);
       },
       finished: () => Tone.now() >= endAt,
       stop() {
@@ -382,6 +372,6 @@ export const glass: Sonata = {
   composer: { ja: "フィリップ・グラス", en: "Philip Glass" },
   initials: "P.G.",
   // エオリアン（自然的短音階）。短調の分散和音の揺り返しになじむ
-  scale: { id: "aeolian", group: "", name: { ja: "エオリアン", en: "Aeolian" }, steps: [0, 2, 3, 5, 7, 8, 10] },
+  scale: AEOLIAN,
   movements: [additive, rocking, threeTwo],
 };

@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { type L, t } from "../i18n";
 import { pitchIndexAt } from "../scales";
-import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { DORIAN, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, type Movement, type MovementContext, note, pendingQueue, type Queue, rand, random, scheduler, type Sonata, TICK } from "./movement";
 
 // エリック・サティがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   ゆるやかな舞曲: 3 拍子。左手は 1 拍目に低い音、2 拍目に和音。2 つの和音を揺り返す上に、素朴な旋律が浮かび、同じ節がそのまま戻ってくる
@@ -11,7 +11,6 @@ import { layout, type Layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type Mov
 
 // --- 画面: 鳴った音が右端から左へ流れる。左上には、区切りごとの心得の言葉を出す ---
 
-type Mark = { time: number; index: number; hue: number; seconds: number; velocity: number };
 const WINDOW = 16;
 const TURN_LEAD = 0.27; // 回り込む飾りが、本当の音より先に始まる長さ（秒）
 
@@ -36,37 +35,28 @@ const DIRECTIONS: L[] = [
 ];
 
 function markView(ctx: MovementContext) {
-  let marks: Mark[] = [];
+  const flow = flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+    g.fillStyle = `hsla(${m.hue}, 45%, ${60 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
+    g.beginPath();
+    g.arc(x, y, 2 + 6 * m.velocity + 3 * ringing, 0, Math.PI * 2);
+    g.fill();
+  });
   let direction: { text: L; time: number } | null = null;
   return {
-    add: (m: Mark) => () => marks.push(m),
+    add: flow.add,
     // 区切りの頭で、心得の言葉を 1 つ出す（音と同じ時刻に変わる）
     say: (time: number) => {
       const text = DIRECTIONS[Math.floor(rand() * DIRECTIONS.length)];
       Tone.getDraw().schedule(() => (direction = { text, time }), time);
     },
     clear: () => {
-      marks = [];
+      flow.clear();
       direction = null;
     },
     draw(g: CanvasRenderingContext2D, width: number, height: number) {
-      const now = Tone.now();
-      marks = marks.filter((m) => now - m.time < WINDOW);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / WINDOW) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
-        const fade = 1 - (now - m.time) / WINDOW;
-        const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        g.fillStyle = `hsla(${m.hue}, 45%, ${60 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-        g.beginPath();
-        g.arc(x, y, 2 + 6 * m.velocity + 3 * ringing, 0, Math.PI * 2);
-        g.fill();
-      }
+      flow.draw(g, width, height);
       if (direction) {
-        const age = now - direction.time;
+        const age = Tone.now() - direction.time;
         const alpha = Math.max(0, Math.min(1, age / 1.5, (20 - age) / 4));
         g.font = "italic 15px Georgia, 'Times New Roman', serif";
         g.textAlign = "left";
@@ -77,16 +67,10 @@ function markView(ctx: MovementContext) {
   };
 }
 
-type Queue = ReturnType<typeof pendingQueue>;
 type View = ReturnType<typeof markView>;
 
 const MELODY = 205;
 const LEFT = 30;
-
-function note(h: Layout, queue: Queue, view: View, index: number, time: number, velocity: number, seconds: number, hue: number) {
-  const placed = h.place(index);
-  queue.add({ time, ...placed, velocity, seconds, onPlay: view.add({ time, index, hue, seconds, velocity }) });
-}
 
 // 左手の低い音と和音。根音は主音から数えた度数。低い音は画面の一番下の主音より 1 オクターブ下から、
 // 和音はその 1 オクターブ上で、根音の上に 3 度ずつ重ねる（7 の音を含む柔らかい和音）
@@ -431,6 +415,6 @@ export const satie: Sonata = {
   composer: { ja: "エリック・サティ", en: "Erik Satie" },
   initials: "E.S.",
   // ドリアン。旋法の素朴な響きで、IV の和音が長三和音になる（I の揺り返しに使う）
-  scale: { id: "dorian", group: "", name: { ja: "ドリアン", en: "Dorian" }, steps: [0, 2, 3, 5, 7, 9, 10] },
+  scale: DORIAN,
   movements: [dance, song, furniture],
 };

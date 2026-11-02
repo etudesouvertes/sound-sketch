@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { AEOLIAN, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // アルヴォ・ペルトがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方（ティンティナブリ）だけを借りている。
 // ティンティナブリ: 音階を順に動く旋律（M 声部）に、主和音の音だけを弾く声部（T 声部）が規則で付く。
@@ -349,6 +349,6 @@ export const paert: Sonata = {
   composer: { ja: "アルヴォ・ペルト", en: "Arvo Pärt" },
   initials: "A.P.",
   // 自然短音階。主和音（1・3・5 番目の音）は短三和音になる
-  scale: { id: "aeolian", group: "", name: { ja: "エオリアン（自然短音階）", en: "Aeolian (natural minor)" }, steps: [0, 2, 3, 5, 7, 8, 10] },
+  scale: AEOLIAN,
   movements: [tintinnabuli, canon, mirror],
 };
