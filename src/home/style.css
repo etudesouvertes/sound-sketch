@@ -51,6 +51,24 @@ a {
   color: var(--muted);
 }
 
+.category + .category {
+  margin-top: 48px;
+}
+
+.category h2 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.category-lead {
+  margin: 2px 0 12px;
+  font-size: 14px;
+}
+
 .pieces {
   display: grid;
   gap: 12px;
@@ -74,7 +92,7 @@ a {
   border-color: var(--accent);
 }
 
-.pieces h2 {
+.pieces h3 {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
@@ -88,11 +106,13 @@ a {
 }
 
 .respect {
-  margin: 32px 0 8px;
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .note {
-  margin: 0;
+  margin: 40px 0 0;
   color: var(--muted);
   font-size: 14px;
 }

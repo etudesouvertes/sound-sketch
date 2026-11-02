@@ -24,10 +24,19 @@ function cloudflareAnalytics(): Plugin {
   };
 }
 
+// <!-- unpublished --> 〜 <!-- /unpublished --> で囲んだ部分（公開前の作品へのリンクなど）を、本番用ビルドから外す。開発サーバーでは見える
+function stripUnpublished(): Plugin {
+  return {
+    name: "strip-unpublished",
+    apply: "build",
+    transformIndexHtml: (html) => html.replace(/[ \t]*<!-- unpublished -->[\s\S]*?<!-- \/unpublished -->\n?/g, ""),
+  };
+}
+
 export default defineConfig(({ command }) => ({
   // GitHub Pages では https://etudesouvertes.github.io/sound-sketch/ で公開する
   base: command === "build" ? "/sound-sketch/" : "/",
-  plugins: [cloudflareAnalytics()],
+  plugins: [cloudflareAnalytics(), stripUnpublished()],
   server: {
     host: "0.0.0.0",
     port: 5173,

@@ -18,37 +18,60 @@
       <h1>sound-sketch</h1>
       <p class="lead" data-i18n="home.lead">ブラウザだけで鳴る、ジェネレーティブ音楽のスケッチ集です。</p>
 
-      <ul class="pieces">
-        <li>
-          <a href="./ripples.html">
-            <h2>Ripples</h2>
-            <p data-i18n="home.ripples">波紋が広がり、ぶつかると音が鳴ります。</p>
-          </a>
-        </li>
-        <li>
-          <a href="./phase.html">
-            <h2>Phase</h2>
-            <p data-i18n="home.phase">周期がわずかに違うループが、少しずつずれていきます。</p>
-          </a>
-        </li>
-        <li>
-          <a href="./loops.html">
-            <h2>Loops</h2>
-            <p data-i18n="home.loops">長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。</p>
-          </a>
-        </li>
-      </ul>
+      <!-- 作品はカテゴリー（音楽の形式など）ごとにまとめる。カテゴリーを増やすときは section を足す -->
+      <section class="category">
+        <h2>Sketches</h2>
+        <p class="category-lead" data-i18n="home.sketches">触ると変わり、終わらずに鳴り続ける音楽。</p>
+        <ul class="pieces">
+          <li>
+            <a href="./ripples.html">
+              <h3>Ripples</h3>
+              <p data-i18n="home.ripples">波紋が広がり、ぶつかると音が鳴ります。</p>
+            </a>
+          </li>
+          <li>
+            <a href="./phase.html">
+              <h3>Phase</h3>
+              <p data-i18n="home.phase">周期がわずかに違うループが、少しずつずれていきます。</p>
+            </a>
+          </li>
+          <li>
+            <a href="./loops.html">
+              <h3>Loops</h3>
+              <p data-i18n="home.loops">長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。</p>
+            </a>
+          </li>
+        </ul>
+        <p class="respect" data-i18n="home.respect">
+          ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。
+        </p>
+      </section>
 
-      <p class="respect" data-i18n="home.respect">
-        ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。
-      </p>
+      <!-- unpublished -->
+      <section class="category">
+        <h2>Sonatas</h2>
+        <p class="category-lead" data-i18n="home.sonatas">作曲家の手法で作る、3 楽章のピアノソナタ。</p>
+        <ul class="pieces">
+          <li>
+            <a href="./sonata.html">
+              <h3>Sonata</h3>
+              <p data-i18n="home.sonata">サティからイーノまで 12 人の作曲家。作品ではなく作り方を借りて、作曲家ごとのソナタが鳴ります。</p>
+            </a>
+          </li>
+        </ul>
+        <p class="respect" data-i18n="home.sonataRespect">
+          エリック・サティ、オリヴィエ・メシアン、ジョン・ケージ、コンロン・ナンカロウ、ジェルジ・リゲティ、モートン・フェルドマン、一柳慧、テリー・ライリー、アルヴォ・ペルト、スティーヴ・ライヒ、フィリップ・グラス、ブライアン・イーノの音楽と、その手法への敬意を込めて。
+        </p>
+      </section>
+      <!-- /unpublished -->
+
       <p class="note" data-i18n="home.note">
         音が出ないときは、iPhone のマナーモードを解除してください。ヘッドホンでの視聴がおすすめです。
       </p>
     </main>
     <footer class="home-footer">
       <p data-i18n="home.disclaimer">
-        本作はブライアン・イーノ氏、スティーヴ・ライヒ氏および関係者とは関係のない、個人の作品です。
+        本作は、名前を挙げた作曲家および関係者とは関係のない、個人の作品です。
       </p>
       <p>
         <a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a>

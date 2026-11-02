@@ -95,6 +95,10 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "ブラウザだけで鳴る、ジェネレーティブ音楽のスケッチ集です。",
     en: "A collection of generative music sketches that play right in your browser.",
   },
+  "home.sketches": {
+    ja: "触ると変わり、終わらずに鳴り続ける音楽。",
+    en: "Music that changes as you touch it and never ends.",
+  },
   "home.ripples": {
     ja: "波紋が広がり、ぶつかると音が鳴ります。",
     en: "Ripples spread out and make sounds when they collide.",
@@ -111,13 +115,25 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。",
     en: "Made with deep respect for the music and ideas of Brian Eno and Steve Reich.",
   },
+  "home.sonatas": {
+    ja: "作曲家の手法で作る、3 楽章のピアノソナタ。",
+    en: "Three-movement piano sonatas built from composers' methods.",
+  },
+  "home.sonata": {
+    ja: "サティからイーノまで 12 人の作曲家。作品ではなく作り方を借りて、作曲家ごとのソナタが鳴ります。",
+    en: "Twelve composers, from Satie to Eno. Each sonata borrows a composer's methods, not their pieces.",
+  },
+  "home.sonataRespect": {
+    ja: "エリック・サティ、オリヴィエ・メシアン、ジョン・ケージ、コンロン・ナンカロウ、ジェルジ・リゲティ、モートン・フェルドマン、一柳慧、テリー・ライリー、アルヴォ・ペルト、スティーヴ・ライヒ、フィリップ・グラス、ブライアン・イーノの音楽と、その手法への敬意を込めて。",
+    en: "Made with deep respect for the music and ideas of Erik Satie, Olivier Messiaen, John Cage, Conlon Nancarrow, György Ligeti, Morton Feldman, Toshi Ichiyanagi, Terry Riley, Arvo Pärt, Steve Reich, Philip Glass and Brian Eno.",
+  },
   "home.note": {
     ja: "音が出ないときは、iPhone のマナーモードを解除してください。ヘッドホンでの視聴がおすすめです。",
     en: "No sound? On iPhone, turn off silent mode. Headphones are recommended.",
   },
   "home.disclaimer": {
-    ja: "本作はブライアン・イーノ氏、スティーヴ・ライヒ氏および関係者とは関係のない、個人の作品です。",
-    en: "This is a personal project, not affiliated with Brian Eno, Steve Reich or their representatives.",
+    ja: "本作は、名前を挙げた作曲家および関係者とは関係のない、個人の作品です。",
+    en: "This is a personal project, not affiliated with any of the composers named here or their representatives.",
   },
 
   // Keyboard
