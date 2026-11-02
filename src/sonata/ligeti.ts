@@ -210,15 +210,15 @@ const metronomes: Movement = {
         order.sort((a, b) => a.index - b.index);
       },
       draw(g, width, height) {
-        // 振り子: 動いているあいだは左右に振れ、刻んだ瞬間に先が光る。止まったものは垂れ下がって薄くなる
+        // 振り子: 動いているあいだは左右に振れ、真上を通る瞬間に刻んで先が光る（1 回刻むごとに、右と左を入れ替える）。
+        // 止まったものは真上で止まって薄くなる
         const now = Tone.now();
         const span = width - MARGIN_LEFT - MARGIN_RIGHT;
         order.forEach((m, i) => {
           const x = MARGIN_LEFT + ((i + 0.5) / order.length) * span;
           const y = yOf(m.index, height, h.count);
           const running = now < m.stopAt && now >= m.startedAt;
-          const swing = running ? Math.sin((Math.PI * (now - m.startedAt)) / m.period) : 0;
-          const angle = 0.6 * Math.cos((Math.PI / 2) * (1 - swing)) * Math.sign(swing);
+          const angle = running ? 0.6 * Math.sin((Math.PI * (now - m.startedAt)) / m.period) : 0;
           const length = 28;
           const tipX = x + Math.sin(angle) * length;
           const tipY = y - Math.cos(angle) * length;
