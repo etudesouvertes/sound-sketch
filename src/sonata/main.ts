@@ -330,7 +330,7 @@ onLangChange(fillSelects);
 // --- 種 ---
 
 // 演奏ごとに 5 桁の種を決め、楽章の乱数はこの種と作曲家・楽章から決める（同じ種・同じ設定なら同じ演奏になる）。
-// 設定で種を入れると、その種で固定する（URL の ?seed=… に残る）。空なら、I から始めるたびに新しい種を引く。
+// 画面と設定では「作品番号（Op.）」と呼ぶ。設定で種を入れると、その種で固定する（URL の ?seed=… に残る）。空なら、I から始めるたびに新しい種を引く。
 // 天気・変化・音域・密度・テンポが違うと、同じ種でも違う演奏になる
 const newSeed = () => String(10000 + Math.floor(Math.random() * 90000));
 let seed = newSeed();
@@ -699,7 +699,7 @@ function draw() {
   drawPitchGuides(g, width, height, page.pitches());
   run?.draw(g, width, height);
 
-  // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種（設定の「種」に入れると、同じ演奏をもう一度聴ける）
+  // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種を作品番号（Op.）として出す（設定に入れると、同じ演奏をもう一度聴ける）
   const movement = sonata.movements[index];
   const status = requested !== null
     ? t({ ja: "準備中…", en: "Getting ready…" })
@@ -713,7 +713,7 @@ function draw() {
   // 1 行に収まらない狭い画面（スマホ）では、作曲家を 1 段上に分ける
   const line = `${t(sonata.composer)}  ${t(movement.title)}  ${status}`;
   const lines = g.measureText(line).width <= width - 48 ? [line] : [t(sonata.composer), `${t(movement.title)}  ${status}`];
-  const seedText = run || ended ? `${t({ ja: "種", en: "seed" })} ${seed}` : "";
+  const seedText = run || ended ? `Op. ${seed}` : "";
   const widest = Math.max(...lines.map((l) => g.measureText(l).width), seedText.length * 7);
   const bottom = freeBottom(width - 24 - widest);
   g.fillStyle = "rgba(255, 255, 255, 0.55)";
