@@ -3,7 +3,8 @@ import type { Pitch } from "../scales";
 // 背景の大譜表。画面は音高の帯で縦に等分しているので、五線はその帯の上の、線の音の高さの位置に引く
 // （7 音の音階ならほぼ等間隔、半音階や 5 音の音階では、線の間隔が少し揃わない）。
 // 鳴った音の印は自分の音高の帯に描かれるので、線の音（ミ・ソ・シ・レ・ファ など）はちょうど線の上に乗る。
-// 幹音が音階になく、その ♯ か ♭ の音があるときは、調号を付けて、線もその音の帯に引く（ロ短調ならファの線はファ♯の帯）
+// 幹音が音階になく、その ♯ か ♭ の音があるときは、線をその音の帯に引く（ロ短調ならファの線はファ♯の帯）。
+// その変化は、調号か、音符ごとの臨時記号で示す（SIGNATURE）
 
 const TREBLE = [64, 67, 71, 74, 77]; // E4 G4 B4 D5 F5（下から）
 const BASS = [43, 47, 50, 53, 57]; // G2 B2 D3 F3 A3
@@ -33,6 +34,12 @@ const WHITE = [0, 2, 4, 5, 7, 9, 11];
 
 // ♭ の調として書くことの多い主音（ヘ・変ロ・変ホ・変イ）では ♭ を、ほかは ♯ を先に探す
 const FLAT_ROOTS = ["F", "A#", "D#", "G#"];
+
+// 調号の決め方。"mode" は音階の音そのまま（C ドリアンなら ♭ 2 つ）。
+// "root" は主音の長調（C ドリアンでも調号なし）で、調号と違う音には、音符ごとに臨時記号を付ける
+const SIGNATURE: "mode" | "root" = "root";
+// 主音ごとの長調の調号。正は ♯ の数、負は ♭ の数（C♯ は変ニ長調として書く）
+const KEY_SIGNATURES: Record<string, number> = { C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, "F#": 6, "C#": -5, F: -1, "A#": -2, "D#": -3, "G#": -4 };
 
 const midiOf = (freq: number) => 69 + 12 * Math.log2(freq / 440);
 
@@ -68,7 +75,27 @@ export function staffLayout(pitches: Pitch[], height: number) {
     const i = rounded.indexOf(midi);
     return i >= 0 ? height - (i + 0.5) * band : yOfMidi(midi, pitches, height);
   };
-  return { accidental, lineY, space: (lineY(TREBLE[0]) - lineY(TREBLE[4])) / 4 };
+
+  // 調号で幹音に付ける変化
+  const keyCount = KEY_SIGNATURES[root] ?? 0;
+  const signature = (pc: number): number => {
+    if (SIGNATURE === "mode") return accidental(pc);
+    if (keyCount > 0) return SHARPS.slice(0, keyCount).some((k) => k.pc === pc) ? 1 : 0;
+    return FLATS.slice(0, -keyCount).some((k) => k.pc === pc) ? -1 : 0;
+  };
+  // 音符に付ける臨時記号（要らなければ空）。音は、線や間と同じ割り当てで幹音に読む（音階にない黒鍵は ♯ か ♭ で読む）
+  const written = (midi: number): string => {
+    const pc = ((Math.round(midi) % 12) + 12) % 12;
+    let letter = WHITE.find((w) => (w + accidental(w) + 12) % 12 === pc);
+    let alter = letter === undefined ? 0 : accidental(letter);
+    if (letter === undefined) {
+      alter = flatsFirst ? -1 : 1;
+      letter = (pc - alter + 12) % 12;
+    }
+    if (alter === signature(letter)) return "";
+    return alter === 1 ? "♯" : alter === -1 ? "♭" : "♮";
+  };
+  return { accidental, signature, written, lineY, space: (lineY(TREBLE[0]) - lineY(TREBLE[4])) / 4 };
 }
 export type StaffLayout = ReturnType<typeof staffLayout>;
 
@@ -95,7 +122,7 @@ export const musicLeft = () => left;
 export function drawStaff(g: CanvasRenderingContext2D, width: number, height: number, pitches: Pitch[]) {
   left = STAFF_LEFT;
   if (pitches.length < 2) return;
-  const { accidental, lineY } = staffLayout(pitches, height);
+  const { signature, lineY } = staffLayout(pitches, height);
 
   const staff = (lines: number[], glyph: string, anchor: number, scale: number, shift: number, offset: number) => {
     const ys = lines.map(lineY);
@@ -129,12 +156,12 @@ export function drawStaff(g: CanvasRenderingContext2D, width: number, height: nu
     g.font = `${space * 2.4}px "Segoe UI Symbol", "Apple Symbols", "Noto Music", serif`;
     g.textBaseline = "middle";
     for (const { pc, step } of SHARPS) {
-      if (accidental(pc) !== 1) continue;
+      if (signature(pc) !== 1) continue;
       g.fillText("♯", x, stepY(step - offset) + space * 0.18);
       x += space * 0.9;
     }
     for (const { pc, step } of FLATS) {
-      if (accidental(pc) !== -1) continue;
+      if (signature(pc) !== -1) continue;
       g.fillText("♭", x, stepY(step - offset) - space * 0.27);
       x += space * 0.8;
     }

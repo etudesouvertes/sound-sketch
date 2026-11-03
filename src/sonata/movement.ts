@@ -129,6 +129,8 @@ export type FlowView<M extends FlowMark> = {
   draw: (g: CanvasRenderingContext2D, width: number, height: number) => void;
 };
 
+const midiOf = (freq: number) => 69 + 12 * Math.log2(freq / 440);
+
 // 符頭の形。丸の半径に対する横の半径、縦と横の比、傾き（ラジアン。右上がり）
 const NOTE_WIDTH = 1.2;
 const NOTE_RATIO = 0.68;
@@ -182,6 +184,16 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           g.beginPath();
           g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
           g.fill();
+          // 臨時記号は符頭の左に
+          const sign = staff.written(midiOf(pitchAt(pitches, m.index).freq));
+          if (sign) {
+            const size = Math.max(ry * 3.4, 9);
+            g.font = `${size}px "Segoe UI Symbol", "Apple Symbols", "Noto Music", serif`;
+            g.textAlign = "right";
+            g.textBaseline = "middle";
+            g.fillText(sign, x - rx * 1.25, y + (sign === "♭" ? -size * 0.12 : size * 0.07));
+            g.textBaseline = "alphabetic";
+          }
         });
       });
     },
