@@ -698,8 +698,13 @@ function freeBottom(left: number): number {
   return bottom;
 }
 
+// 毎回、薄く塗り重ねて残像を残す。大譜表が変わったとき（主音・音階・音域・画面の大きさ）は、いったん全部塗りつぶす
+// （薄い塗り重ねでは、明るかった所がわずかに残り、前の記号の跡が見えてしまう）
+let staffKey = "";
 function draw() {
-  g.fillStyle = "rgba(27, 29, 35, 0.35)";
+  const key = `${width}x${height}:${page.pitches().map((p) => p.label).join()}`;
+  g.fillStyle = key === staffKey ? "rgba(27, 29, 35, 0.35)" : "rgb(27, 29, 35)";
+  staffKey = key;
   g.fillRect(0, 0, width, height);
   drawStaff(g, width, height, page.pitches());
   run?.draw(g, width, height);
