@@ -1,7 +1,6 @@
 import * as Tone from "tone";
 import "../ripples/style.css";
 import "./style.css";
-import { drawPitchGuides } from "../scales";
 import { reverbWet, setupCanvas, setupGenerativePage, type SoundParams } from "../generative";
 import { onLangChange, t } from "../i18n";
 import { setupLevel } from "../levels";
@@ -21,6 +20,7 @@ import { satie } from "./satie";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
 import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
 import { recordSonata } from "./record";
+import { drawStaff } from "./staff";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
@@ -701,7 +701,7 @@ function freeBottom(left: number): number {
 function draw() {
   g.fillStyle = "rgba(27, 29, 35, 0.35)";
   g.fillRect(0, 0, width, height);
-  drawPitchGuides(g, width, height, page.pitches());
+  drawStaff(g, width, height, page.pitches());
   run?.draw(g, width, height);
   drawCard?.(g, width, height);
 
