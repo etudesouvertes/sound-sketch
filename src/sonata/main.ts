@@ -20,7 +20,7 @@ import { satie } from "./satie";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
 import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
 import { recordSonata } from "./record";
-import { drawStaff } from "./staff";
+import { drawStaff, viewRange } from "./staff";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
@@ -698,6 +698,13 @@ function freeBottom(left: number): number {
   return bottom;
 }
 
+// 楽章が描く範囲（曲の音域の分）。画面は、その上下に音域を広げてある（viewRange）
+function musicArea() {
+  const range = viewRange(page.pitches());
+  const band = height / range.pitches.length;
+  return { top: range.above * band, height: page.pitches().length * band };
+}
+
 // 毎回、薄く塗り重ねて残像を残す。大譜表が変わったとき（主音・音階・音域・画面の大きさ）は、いったん全部塗りつぶす
 // （薄い塗り重ねでは、明るかった所がわずかに残り、前の記号の跡が見えてしまう）
 let staffKey = "";
@@ -706,8 +713,12 @@ function draw() {
   g.fillStyle = key === staffKey ? "rgba(27, 29, 35, 0.35)" : "rgb(27, 29, 35)";
   staffKey = key;
   g.fillRect(0, 0, width, height);
-  drawStaff(g, width, height, page.pitches());
-  run?.draw(g, width, height);
+  const music = musicArea();
+  drawStaff(g, width, height, viewRange(page.pitches()).pitches);
+  g.save();
+  g.translate(0, music.top);
+  run?.draw(g, width, music.height);
+  g.restore();
   drawCard?.(g, width, height);
 
   // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種を作品番号（Op.）として出す（設定に入れると、同じ演奏をもう一度聴ける）
@@ -751,7 +762,10 @@ canvas.addEventListener("pointerdown", (e) => {
   if (e.button !== 0) return;
   if (run) {
     const r = run;
-    keepRandom(() => r.pointer(e.clientX, e.clientY, height));
+    // 広げた範囲のクリックは、曲の音域のいちばん上か下の音にする
+    const music = musicArea();
+    const y = Math.min(Math.max(e.clientY - music.top, 0), music.height - 1);
+    keepRandom(() => r.pointer(e.clientX, y, music.height));
     if (listening) listening.clicks++;
     return;
   }

@@ -104,7 +104,7 @@ const acceleration: Movement = {
           const index = h.centre + h.degree(d);
           queue.add({ time: at, index, velocity: 0.45, seconds: 5, onPlay: view.add({ time: at, index, voice: 0, seconds: 5, velocity: 0.45 }) });
         }
-        queue.add({ time: at, index: h.lowRoot, octave: -1, velocity: 0.5, seconds: 5, onPlay: view.add({ time: at, index: h.lowRoot, voice: 1, seconds: 5, velocity: 0.5 }) });
+        queue.add({ time: at, index: h.lowRoot, octave: -1, velocity: 0.5, seconds: 5, onPlay: view.add({ time: at, index: h.lowRoot - h.perOctave, voice: 1, seconds: 5, velocity: 0.5 }) });
         endAt = at + 6;
       }
     });
@@ -169,7 +169,7 @@ const boogie: Movement = {
         if (beat === 0 && bar === 0 && step > 0 && progress >= 0.9) {
           ending = true;
           const root = h.lowRoot;
-          queue.add({ time: at, index: root, octave: -1, velocity: 0.55, seconds: 5, onPlay: view.add({ time: at, index: root, voice: 0, seconds: 5, velocity: 0.55 }) });
+          queue.add({ time: at, index: root, octave: -1, velocity: 0.55, seconds: 5, onPlay: view.add({ time: at, index: root - h.perOctave, voice: 0, seconds: 5, velocity: 0.55 }) });
           for (const d of [0, 2, 4, 6]) {
             const index = h.centre + h.degree(d);
             queue.add({ time: at, index, velocity: 0.4, seconds: 5, onPlay: view.add({ time: at, index, voice: 1, seconds: 5, velocity: 0.4 }) });
@@ -181,7 +181,7 @@ const boogie: Movement = {
         const index = h.lowRoot + chord + h.degree(BOOGIE[beat]);
         const velocity = (beat % 2 === 0 ? 0.42 : 0.3) * (0.85 + 0.25 * Math.sin(Math.PI * Math.min(progress, 1)));
         const seconds = eighth() * 1.1;
-        queue.add({ time: at, index, octave: -1, velocity, seconds, onPlay: view.add({ time: at, index, voice: 0, seconds, velocity }) });
+        queue.add({ time: at, index, octave: -1, velocity, seconds, onPlay: view.add({ time: at, index: index - h.perOctave, voice: 0, seconds, velocity }) });
         // 小節の頭では、根音をもう 1 オクターブ下に重ねる
         if (beat === 0) queue.add({ time: at, index: h.lowRoot + chord, octave: -2, velocity: velocity * 0.7, seconds: eighth() * 4 });
         step++;

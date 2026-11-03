@@ -53,6 +53,21 @@ function yOfMidi(midi: number, pitches: Pitch[], height: number): number {
   return height - (position + 0.5) * band;
 }
 
+// 画面の縦の範囲。曲が使う音域（pitches）の上下に、半オクターブずつ見える範囲を足す。
+// 曲はその内側（上から above 段目から）に描き、足した範囲より外の音は、オクターブ記号（8va・8vb）を添えて内側へ移して描く
+const EXTEND = 0.5;
+export function viewRange(pitches: Pitch[]) {
+  const roots = pitches.flatMap((p, i) => (p.isRoot ? [i] : []));
+  const perOctave = roots.length >= 2 ? roots[1] - roots[0] : 7;
+  const extra = Math.min(Math.round(perOctave * EXTEND), perOctave, pitches.length);
+  // 1 オクターブ上か下の音として作る。音名のオクターブの数字も 1 つずらす
+  const shift = (p: Pitch, octave: number): Pitch => ({ ...p, freq: p.freq * 2 ** octave, label: p.label.replace(/-?\d+/, (n) => String(Number(n) + octave)) });
+  const below = pitches.slice(perOctave - extra, perOctave).map((p) => shift(p, -1));
+  const above = pitches.slice(pitches.length - perOctave, pitches.length - perOctave + extra).map((p) => shift(p, 1));
+  return { pitches: [...below, ...pitches, ...above], below: extra, above: extra, perOctave };
+}
+export type ViewRange = ReturnType<typeof viewRange>;
+
 // 大譜表の形。accidental は幹音に付ける調号、lineY は線の音（幹音）の y 座標で、
 // 調号を付けた音が見えていればその帯、なければ音の高さから割り出す
 export function staffLayout(pitches: Pitch[], height: number) {

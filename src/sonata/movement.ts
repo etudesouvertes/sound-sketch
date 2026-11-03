@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import type { L } from "../i18n";
 import { type Pitch, pitchAt, type Scale } from "../scales";
-import { ledgersFor, musicLeft, staffLayout } from "./staff";
+import { ledgersFor, musicLeft, staffLayout, viewRange } from "./staff";
 
 // ソナタの楽章に共通の形。楽章は始まりから終わりまでの流れを自分で持ち、終わったら finished() が true になる。
 // ページ（main.ts）は、終わった楽章を止めて次の楽章を始め、III が終わったらソナタを終える
@@ -155,12 +155,23 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
       // 音符は、音部記号と調号の右で消える
       const left = Math.max(MARGIN_LEFT, musicLeft());
       const span = width - left - MARGIN_RIGHT;
-      const staff = staffLayout(pitches, height);
+      // 画面は曲の音域の上下に広げてあり（viewRange）、ここに渡る height は曲の音域の分だけ。広げた範囲は y が 0 より上と height より下になる
+      const range = viewRange(pitches);
+      const top = range.above * band;
+      const staff = staffLayout(range.pitches, (count + range.above + range.below) * band);
+      // 広げた範囲にも収まらない音は、オクターブずつ内側へ移し、移した数（上なら正）を octave に持つ
+      const shown = (index: number) => {
+        let octave = 0;
+        while (index > count - 1 + range.above && octave < 3) (index -= range.perOctave), octave++;
+        while (index < -range.below && octave > -3) (index += range.perOctave), octave--;
+        return { index: clamp(index, -range.below, count - 1 + range.above), octave };
+      };
       const placed = marks
-        .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, y: yOf(clamp(m.index, 0, count - 1), height, count) }))
+        .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, ...shown(m.index) }))
+        .map((p) => ({ ...p, y: yOf(p.index, height, count) }))
         .filter((p) => p.x >= left)
         .sort((a, b) => a.x - b.x);
-      placed.forEach(({ m, x, y }, i) => {
+      placed.forEach(({ m, x, y, index, octave }, i) => {
         const fade = 1 - (now - m.time) / windowSeconds;
         const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
         // 前後の印に重ならない幅。同時に鳴る音（和音）は数えない
@@ -176,7 +187,7 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           return room;
         };
         const ledgers = (from: number, to: number) => {
-          const lines = ledgersFor(staff, y);
+          const lines = ledgersFor(staff, y + top).map((l) => l - top);
           if (lines.length === 0) return;
           g.strokeStyle = g.fillStyle;
           g.lineWidth = 1.2;
@@ -196,7 +207,7 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
           g.fill();
           // 臨時記号は符頭の左に
-          const sign = staff.written(midiOf(pitchAt(pitches, m.index).freq));
+          const sign = staff.written(midiOf(range.pitches[index + range.below].freq));
           if (sign) {
             const size = Math.max(ry * 3.4, 9);
             g.font = `${size}px "Segoe UI Symbol", "Apple Symbols", "Noto Music", serif`;
@@ -207,6 +218,15 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           }
         };
         paint(g, m, x, y, ringing, fade, span, note, fit, band, ledgers);
+        // オクターブ記号は、印の上（8va）か下（8vb）に、印と同じ色で
+        if (octave !== 0) {
+          const size = Math.max(band * 0.45, 6);
+          g.font = `italic ${size}px Georgia, serif`;
+          g.textAlign = "center";
+          g.textBaseline = "middle";
+          g.fillText(`${["8", "15", "22"][Math.abs(octave) - 1]}${octave > 0 ? (octave > 1 ? "ma" : "va") : octave < -1 ? "mb" : "vb"}`, x, y - Math.sign(octave) * band * 0.9);
+          g.textBaseline = "alphabetic";
+        }
       });
     },
   };
