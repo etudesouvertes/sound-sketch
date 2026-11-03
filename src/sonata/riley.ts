@@ -16,11 +16,9 @@ type VoiceMark = FlowMark & { voice: number };
 const WINDOW = 14;
 
 const markView = (ctx: MovementContext) =>
-  flowView<VoiceMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+  flowView<VoiceMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, _span, note) => {
     g.fillStyle = `hsla(${HUES[m.voice % HUES.length]}, 70%, ${55 + 25 * ringing}%, ${(0.25 + 0.6 * ringing) * fade})`;
-    g.beginPath();
-    g.arc(x, y, 2 + 5 * m.velocity + 3 * ringing, 0, Math.PI * 2);
-    g.fill();
+    note(2 * (2 + 5 * m.velocity + 3 * ringing));
   });
 
 // クリック: その高さの音を、8 分音符で 4 回、だんだん弱く繰り返す

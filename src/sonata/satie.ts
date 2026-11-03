@@ -35,11 +35,9 @@ const DIRECTIONS: L[] = [
 ];
 
 function markView(ctx: MovementContext) {
-  const flow = flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+  const flow = flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, _span, note) => {
     g.fillStyle = `hsla(${m.hue}, 45%, ${60 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-    g.beginPath();
-    g.arc(x, y, 2 + 6 * m.velocity + 3 * ringing, 0, Math.PI * 2);
-    g.fill();
+    note(2 * (2 + 6 * m.velocity + 3 * ringing));
   });
   let direction: { text: L; time: number } | null = null;
   return {

@@ -15,11 +15,9 @@ import { CHROMATIC, flowView, type HueMark, layout, MARGIN_LEFT, MARGIN_RIGHT, t
 const WINDOW = 10;
 
 const markView = (ctx: MovementContext) =>
-  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, _span, note) => {
     g.fillStyle = `hsla(${m.hue}, 70%, ${55 + 25 * ringing}%, ${(0.25 + 0.6 * ringing) * fade})`;
-    g.beginPath();
-    g.arc(x, y, 1.5 + 7 * m.velocity + 2 * ringing, 0, Math.PI * 2);
-    g.fill();
+    note(2 * (1.5 + 7 * m.velocity + 2 * ringing));
   });
 
 // --- I. 一音から ---

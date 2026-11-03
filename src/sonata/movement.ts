@@ -1,6 +1,7 @@
 import * as Tone from "tone";
 import type { L } from "../i18n";
 import { type Pitch, pitchAt, type Scale } from "../scales";
+import { ledgersFor, musicLeft, staffLayout } from "./staff";
 
 // ソナタの楽章に共通の形。楽章は始まりから終わりまでの流れを自分で持ち、終わったら finished() が true になる。
 // ページ（main.ts）は、終わった楽章を止めて次の楽章を始め、III が終わったらソナタを終える
@@ -110,13 +111,28 @@ export const clamp = (x: number, min: number, max: number) => Math.min(Math.max(
 
 // 印に共通の項目。楽章ごとに、色を決める項目（hue や voice など）を足す
 export type FlowMark = { time: number; index: number; seconds: number; velocity: number };
-// 1 つの印を描く。ringing は鳴り残り（1 → 0）、fade は消えるまでの残り（1 → 0）、span は流れる幅（px）
-export type PaintMark<M extends FlowMark> = (g: CanvasRenderingContext2D, m: M, x: number, y: number, ringing: number, fade: number, span: number) => void;
+// 1 つの印を描く。ringing は鳴り残り（1 → 0）、fade は消えるまでの残り（1 → 0）、span は流れる幅（px）。
+// note(radius) は、その位置に今の塗りの色で音符（斜めの楕円の符頭と、要るときは加線）を描く。radius は丸で描いたときの半径
+export type PaintMark<M extends FlowMark> = (
+  g: CanvasRenderingContext2D,
+  m: M,
+  x: number,
+  y: number,
+  ringing: number,
+  fade: number,
+  span: number,
+  note: (radius: number) => void,
+) => void;
 export type FlowView<M extends FlowMark> = {
   add: (m: M) => () => void; // 音が鳴る時刻に印を足す関数を返す（Pending の onPlay に渡す）
   clear: () => void;
   draw: (g: CanvasRenderingContext2D, width: number, height: number) => void;
 };
+
+// 符頭の形。丸の半径に対する横の半径、縦と横の比、傾き（ラジアン。右上がり）
+const NOTE_WIDTH = 1.2;
+const NOTE_RATIO = 0.68;
+const NOTE_TILT = -0.35;
 
 export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds: number, paint: PaintMark<M>): FlowView<M> {
   let marks: M[] = [];
@@ -126,16 +142,48 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
     draw(g, width, height) {
       const now = Tone.now();
       marks = marks.filter((m) => now - m.time < windowSeconds);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
-      for (const m of marks) {
-        const x = width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span;
-        if (x < MARGIN_LEFT) continue;
-        const y = yOf(clamp(m.index, 0, count - 1), height, count);
+      const pitches = ctx.pitches();
+      const count = pitches.length;
+      const band = height / count;
+      // 音符は、音部記号と調号の右で消える
+      const left = Math.max(MARGIN_LEFT, musicLeft());
+      const span = width - left - MARGIN_RIGHT;
+      const staff = staffLayout(pitches, height);
+      const placed = marks
+        .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, y: yOf(clamp(m.index, 0, count - 1), height, count) }))
+        .filter((p) => p.x >= left)
+        .sort((a, b) => a.x - b.x);
+      placed.forEach(({ m, x, y }, i) => {
         const fade = 1 - (now - m.time) / windowSeconds;
         const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        paint(g, m, x, y, ringing, fade, span);
-      }
+        paint(g, m, x, y, ringing, fade, span, (radius) => {
+          // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする。同時に鳴る音（和音）は数えない
+          let room = radius * NOTE_WIDTH;
+          for (const j of [i - 1, i + 1]) {
+            for (let k = j; k >= 0 && k < placed.length; k += j < i ? -1 : 1) {
+              const dx = Math.abs(placed[k].x - x);
+              if (dx >= room * 2) break;
+              if (dx >= 1 && Math.abs(placed[k].y - y) < band * 1.5) room = Math.min(room, dx / 2 - 0.5);
+            }
+          }
+          const rx = Math.max(room, 1.5);
+          const ry = Math.min(rx * NOTE_RATIO, radius * NOTE_WIDTH * NOTE_RATIO);
+          const ledgers = ledgersFor(staff, y);
+          if (ledgers.length > 0) {
+            g.strokeStyle = g.fillStyle;
+            g.lineWidth = 1.2;
+            g.beginPath();
+            for (const ly of ledgers) {
+              g.moveTo(x - rx * 1.6, ly);
+              g.lineTo(x + rx * 1.6, ly);
+            }
+            g.stroke();
+          }
+          g.beginPath();
+          g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
+          g.fill();
+        });
+      });
     },
   };
 }

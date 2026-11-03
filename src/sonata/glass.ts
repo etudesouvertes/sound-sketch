@@ -15,11 +15,9 @@ import { AEOLIAN, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, type
 const WINDOW = 10;
 
 const markView = (ctx: MovementContext) =>
-  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, _span, note) => {
     g.fillStyle = `hsla(${m.hue}, 55%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-    g.beginPath();
-    g.arc(x, y, 2 + 5 * m.velocity + 2 * ringing, 0, Math.PI * 2);
-    g.fill();
+    note(2 * (2 + 5 * m.velocity + 2 * ringing));
   });
 
 type View = ReturnType<typeof markView>;
