@@ -129,3 +129,12 @@
   border-color: var(--accent);
   color: var(--accent);
 }
+
+/* 録音モード（?record）: 動画に映らないよう、操作のための表示を隠す */
+
+.recording .bar,
+.recording .chrome-show,
+.recording .hint,
+.recording .rating {
+  display: none;
+}

@@ -20,6 +20,7 @@ import { riley } from "./riley";
 import { satie } from "./satie";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
 import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
+import { recordSonata } from "./record";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
@@ -34,7 +35,9 @@ const GAP_BETWEEN_SONATAS = 10; // 続けて鳴らすときの、ソナタのあ
 // shuffle（シャッフル再生）は作曲家を選ばずに混ぜた順で移り続ける。URL の ?continuous で repeat、?shuffle で shuffle から始まる
 type PlayMode = "once" | "repeat" | "shuffle";
 const query = new URLSearchParams(location.search);
-let mode: PlayMode = query.has("shuffle") ? "shuffle" : query.has("continuous") ? "repeat" : "once";
+// 録音モード（?record）では、1 つのソナタだけを鳴らす（record.ts）
+const RECORD = query.has("record");
+let mode: PlayMode = RECORD ? "once" : query.has("shuffle") ? "shuffle" : query.has("continuous") ? "repeat" : "once";
 
 // 試すとき用: ?short を付けると、どの楽章も 5 分の 1 の長さになる（終わり方をすぐ確かめられる）
 if (query.has("short"))
@@ -162,8 +165,8 @@ type Strike = { freq: number; seconds: number; at: number; velocity?: number };
 // 楽章が指定した音の長さに、空模様による倍率を掛け、時刻に揺らぎを足して鳴らす（雨で短く、雪で長く）。
 // 和音を崩すには同時に鳴る音がそろっている必要があるので、同じ処理の中で頼まれた音をいったん貯め、まとめて鳴らす
 let sustain = 1;
-// 評価（良い・普通・ダメ）は、作品を調整するための開発用の道具。公開版では評価のボタンを出さず、何も記録しない
-const RATINGS = import.meta.env.DEV;
+// 評価（良い・普通・ダメ）は、作品を調整するための開発用の道具。公開版と録音モードでは評価のボタンを出さず、何も記録しない
+const RATINGS = import.meta.env.DEV && !RECORD;
 // 今聴いている楽章の記録（評価のため）。楽章を始めるたびに作り直す（公開版ではいつも null）
 let listening: Listening | null = null;
 class Piano extends Tone.Sampler {
@@ -256,8 +259,10 @@ let reverbLevel = setupLevel(reverbEl, reverbValueEl, "reverb", (level) => {
   if (lastParams) applyReverb(level, { ...lastParams, ramp: 0.5 });
 });
 
-// スケールで「指定しない」を選ぶと、今の作曲家の音階を使う（作曲家を変えると音階も変わる）
-let sonata = SONATAS[0];
+// スケールで「指定しない」を選ぶと、今の作曲家の音階を使う（作曲家を変えると音階も変わる）。URL の ?composer=satie などで作曲家を選んで開ける。
+// 録音モードで作曲家を選ばなかったときは、でたらめに選ぶ
+let sonata =
+  SONATAS.find((s) => s.id === query.get("composer")) ?? (RECORD ? SONATAS[Math.floor(Math.random() * SONATAS.length)] : SONATAS[0]);
 // 初めて開いたときは「指定しない」（作曲家ごとの音階）にしておく
 const page = setupGenerativePage({
   defaults: { scale: "composer", root: "D" },
@@ -465,7 +470,7 @@ function startMovement(i: number) {
 // iPhone では、触れた瞬間でなく指を離したときに音を出せるようになるなど、頼んだ時点ではまだ始められないことがある
 let requested: number | null = null;
 let pianoReady = false;
-Tone.loaded().then(
+const pianoLoaded = Tone.loaded().then(
   () => (pianoReady = true),
   (e) => {
     console.warn(e); // 読めなかった録音があっても、読めた録音で鳴らす（近い録音の速さを変えて作る）
@@ -698,13 +703,16 @@ function draw() {
   g.fillRect(0, 0, width, height);
   drawPitchGuides(g, width, height, page.pitches());
   run?.draw(g, width, height);
+  drawCard?.(g, width, height);
 
   // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種を作品番号（Op.）として出す（設定に入れると、同じ演奏をもう一度聴ける）
   const movement = sonata.movements[index];
   const status = requested !== null
     ? t({ ja: "準備中…", en: "Getting ready…" })
     : ended
-    ? t({ ja: "終わり — クリックでもう一度", en: "Fine — click to play again" })
+    ? RECORD
+      ? "Fine"
+      : t({ ja: "終わり — クリックでもう一度", en: "Fine — click to play again" })
     : run
       ? `${clock(Tone.now() - startedAt)} / ${clock(movement.duration)}`
       : "";
@@ -744,5 +752,21 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   play();
 });
+
+// 録音モード: 始まりのカード、ソナタ、終わりのクレジットを録る
+const drawCard = RECORD
+  ? recordSonata({
+      canvas,
+      ready: () => pianoLoaded,
+      info: () => ({
+        composer: sonata.composer.en,
+        composerId: sonata.id,
+        movements: sonata.movements.map((m) => ({ title: m.title.en, duration: m.duration })),
+        seed: fixedSeed() ?? seed,
+      }),
+      start: () => request(0),
+      ended: () => ended,
+    })
+  : null;
 
 requestAnimationFrame(frame);

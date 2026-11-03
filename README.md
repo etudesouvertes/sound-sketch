@@ -60,6 +60,15 @@ Pushing to `main` builds and deploys to GitHub Pages via GitHub Actions.
 開発サーバーでは、音源やエフェクトを試すための Keyboard のページ（`/keyboard.html`）も開けます。公開版には含めていません。
 The development server also serves a Keyboard page (`/keyboard.html`) for trying instruments and effects. It is not part of the published site.
 
+### Sonata の録音 / Recording Sonata
+
+```sh
+docker compose --profile record run --rm recorder [--composer satie] [--seed 12345] [--short]
+```
+
+ヘッドレスの Chromium で Sonata を 1 つ鳴らして録り、`recordings/` に動画（`.mp4`、YouTube 用）、音声（`.flac`、SoundCloud 用）、情報（`.json`）を書き出します。始まりにタイトルのカード、終わりにクレジットが入ります。作曲家と Op. を省くと、でたらめに選びます。`--short` は楽章を 5 分の 1 の長さにします（試すとき用）。ページは `sonata.html?record` で録音モードになります。
+Plays one Sonata in headless Chromium and writes a video (`.mp4`, for YouTube), audio (`.flac`, for SoundCloud) and metadata (`.json`) to `recordings/`, with a title card at the start and credits at the end. Without a composer or Op. it picks them at random. `--short` plays each movement at a fifth of its length (for testing). The page enters recording mode with `sonata.html?record`.
+
 ## ライセンス / License
 
 [MIT License](./LICENSE) © 2026 Tomonori Yoshida
