@@ -141,6 +141,71 @@ const NOTE_WIDTH = 1.2;
 const NOTE_RATIO = 0.68;
 const NOTE_TILT = -0.35;
 
+// 大譜表の上に音符を描く道具。height は楽章が描く範囲（曲の音域）の高さ。
+// 画面は曲の音域の上下に広げてあり（viewRange）、広げた範囲は y が 0 より上と height より下になる
+export function staffPen(ctx: MovementContext, height: number) {
+  const pitches = ctx.pitches();
+  const count = pitches.length;
+  const band = height / count;
+  const range = viewRange(pitches);
+  const top = range.above * band;
+  const staff = staffLayout(range.pitches, (count + range.above + range.below) * band);
+  // 音符は、音部記号と調号の右に置く
+  const left = Math.max(MARGIN_LEFT, musicLeft());
+
+  // 音の位置の、画面に描く位置。広げた範囲にも収まらない音は、オクターブずつ内側へ移し、移した数（上なら正）を octave に持つ
+  const shown = (index: number) => {
+    let octave = 0;
+    while (index > count - 1 + range.above && octave < 3) (index -= range.perOctave), octave++;
+    while (index < -range.below && octave > -3) (index += range.perOctave), octave--;
+    index = clamp(index, -range.below, count - 1 + range.above);
+    return { index, octave, y: yOf(index, height, count) };
+  };
+  // y の高さの音に要る加線を、x が from から to までの範囲に、今の塗りの色で引く
+  const ledgers = (g: CanvasRenderingContext2D, y: number, from: number, to: number) => {
+    const lines = ledgersFor(staff, y + top).map((l) => l - top);
+    if (lines.length === 0) return;
+    g.strokeStyle = g.fillStyle;
+    g.lineWidth = 1.2;
+    g.beginPath();
+    for (const ly of lines) {
+      g.moveTo(from, ly);
+      g.lineTo(to, ly);
+    }
+    g.stroke();
+  };
+  // 音符（斜めの楕円の符頭と、要るときは加線と臨時記号）を今の塗りの色で描く。radius は丸で描いたときの半径、room は使える横の半径
+  const note = (g: CanvasRenderingContext2D, x: number, y: number, index: number, radius: number, room = Infinity) => {
+    const rx = Math.max(Math.min(radius * NOTE_WIDTH, room), 1.5);
+    const ry = Math.min(rx * NOTE_RATIO, radius * NOTE_WIDTH * NOTE_RATIO);
+    ledgers(g, y, x - rx * 1.6, x + rx * 1.6);
+    g.beginPath();
+    g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
+    g.fill();
+    // 臨時記号は符頭の左に
+    const sign = staff.written(midiOf(range.pitches[index + range.below].freq));
+    if (sign) {
+      const size = Math.max(ry * 3.4, 9);
+      g.font = `${size}px "Segoe UI Symbol", "Apple Symbols", "Noto Music", serif`;
+      g.textAlign = "right";
+      g.textBaseline = "middle";
+      g.fillText(sign, x - rx * 1.25, y + (sign === "♭" ? -size * 0.12 : size * 0.07));
+      g.textBaseline = "alphabetic";
+    }
+  };
+  // オクターブ記号は、音符の上（8va）か下（8vb）に、今の塗りの色で
+  const ottava = (g: CanvasRenderingContext2D, x: number, y: number, octave: number) => {
+    if (octave === 0) return;
+    const size = Math.max(band * 0.45, 6);
+    g.font = `italic ${size}px Georgia, serif`;
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    g.fillText(`${["8", "15", "22"][Math.abs(octave) - 1]}${octave > 0 ? (octave > 1 ? "ma" : "va") : octave < -1 ? "mb" : "vb"}`, x, y - Math.sign(octave) * band * 0.9);
+    g.textBaseline = "alphabetic";
+  };
+  return { band, left, shown, ledgers, note, ottava };
+}
+
 export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds: number, paint: PaintMark<M>): FlowView<M> {
   let marks: M[] = [];
   return {
@@ -149,26 +214,11 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
     draw(g, width, height) {
       const now = Tone.now();
       marks = marks.filter((m) => now - m.time < windowSeconds);
-      const pitches = ctx.pitches();
-      const count = pitches.length;
-      const band = height / count;
-      // 音符は、音部記号と調号の右で消える
-      const left = Math.max(MARGIN_LEFT, musicLeft());
+      const pen = staffPen(ctx, height);
+      const { band, left } = pen;
       const span = width - left - MARGIN_RIGHT;
-      // 画面は曲の音域の上下に広げてあり（viewRange）、ここに渡る height は曲の音域の分だけ。広げた範囲は y が 0 より上と height より下になる
-      const range = viewRange(pitches);
-      const top = range.above * band;
-      const staff = staffLayout(range.pitches, (count + range.above + range.below) * band);
-      // 広げた範囲にも収まらない音は、オクターブずつ内側へ移し、移した数（上なら正）を octave に持つ
-      const shown = (index: number) => {
-        let octave = 0;
-        while (index > count - 1 + range.above && octave < 3) (index -= range.perOctave), octave++;
-        while (index < -range.below && octave > -3) (index += range.perOctave), octave--;
-        return { index: clamp(index, -range.below, count - 1 + range.above), octave };
-      };
       const placed = marks
-        .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, ...shown(m.index) }))
-        .map((p) => ({ ...p, y: yOf(p.index, height, count) }))
+        .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, ...pen.shown(m.index) }))
         .filter((p) => p.x >= left)
         .sort((a, b) => a.x - b.x);
       placed.forEach(({ m, x, y, index, octave }, i) => {
@@ -186,47 +236,10 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           }
           return room;
         };
-        const ledgers = (from: number, to: number) => {
-          const lines = ledgersFor(staff, y + top).map((l) => l - top);
-          if (lines.length === 0) return;
-          g.strokeStyle = g.fillStyle;
-          g.lineWidth = 1.2;
-          g.beginPath();
-          for (const ly of lines) {
-            g.moveTo(from, ly);
-            g.lineTo(to, ly);
-          }
-          g.stroke();
-        };
-        const note = (radius: number) => {
-          // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする
-          const rx = Math.max(fit(radius * NOTE_WIDTH, band * 1.5, 1), 1.5);
-          const ry = Math.min(rx * NOTE_RATIO, radius * NOTE_WIDTH * NOTE_RATIO);
-          ledgers(x - rx * 1.6, x + rx * 1.6);
-          g.beginPath();
-          g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
-          g.fill();
-          // 臨時記号は符頭の左に
-          const sign = staff.written(midiOf(range.pitches[index + range.below].freq));
-          if (sign) {
-            const size = Math.max(ry * 3.4, 9);
-            g.font = `${size}px "Segoe UI Symbol", "Apple Symbols", "Noto Music", serif`;
-            g.textAlign = "right";
-            g.textBaseline = "middle";
-            g.fillText(sign, x - rx * 1.25, y + (sign === "♭" ? -size * 0.12 : size * 0.07));
-            g.textBaseline = "alphabetic";
-          }
-        };
-        paint(g, m, x, y, ringing, fade, span, note, fit, band, ledgers);
-        // オクターブ記号は、印の上（8va）か下（8vb）に、印と同じ色で
-        if (octave !== 0) {
-          const size = Math.max(band * 0.45, 6);
-          g.font = `italic ${size}px Georgia, serif`;
-          g.textAlign = "center";
-          g.textBaseline = "middle";
-          g.fillText(`${["8", "15", "22"][Math.abs(octave) - 1]}${octave > 0 ? (octave > 1 ? "ma" : "va") : octave < -1 ? "mb" : "vb"}`, x, y - Math.sign(octave) * band * 0.9);
-          g.textBaseline = "alphabetic";
-        }
+        // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする
+        const note = (radius: number) => pen.note(g, x, y, index, radius, fit(radius * NOTE_WIDTH, band * 1.5, 1));
+        paint(g, m, x, y, ringing, fade, span, note, fit, band, (from, to) => pen.ledgers(g, y, from, to));
+        pen.ottava(g, x, y, octave);
       });
     },
   };

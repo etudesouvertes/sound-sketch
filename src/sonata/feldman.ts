@@ -1,6 +1,7 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { CHROMATIC, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { CHROMATIC, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, staffPen, TICK } from "./movement";
+import { musicLeft } from "./staff";
 
 // モートン・フェルドマンがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // フェルドマンの後期の作品は、ごく弱い音で、短い型を何度か繰り返しては少しだけ変え、別の型へ移る。盛り上がりも展開もなく、
@@ -17,6 +18,7 @@ const steps = (ctx: MovementContext, semitones: number) => Math.round((semitones
 
 type Mark = { time: number; index: number; x: number; seconds: number; layer: number };
 const FADE = 16;
+const PAD = 16; // 音部記号・調号と、いちばん左の音符のあいだ（px）
 
 function markView(ctx: MovementContext) {
   let marks: Mark[] = [];
@@ -26,18 +28,19 @@ function markView(ctx: MovementContext) {
     draw(g: CanvasRenderingContext2D, width: number, height: number) {
       const now = Tone.now();
       marks = marks.filter((m) => now - m.time < FADE);
-      const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+      // 音符は音部記号と調号の右に、臨時記号が入るだけの余白を空けて置く
+      const pen = staffPen(ctx, height);
+      const from = pen.left + PAD;
+      const span = width - from - MARGIN_RIGHT;
       for (const m of marks) {
         const age = now - m.time;
         const ringing = Math.max(0, 1 - age / m.seconds);
         const fade = 1 - age / FADE;
-        const x = MARGIN_LEFT + m.x * span;
-        const y = yOf(Math.min(Math.max(m.index, 0), count - 1), height, count);
+        const x = from + m.x * span;
+        const { y, index, octave } = pen.shown(m.index);
         g.fillStyle = m.layer === 0 ? `hsla(250, 25%, 80%, ${(0.08 + 0.35 * ringing) * fade})` : `hsla(35, 35%, 80%, ${(0.08 + 0.35 * ringing) * fade})`;
-        g.beginPath();
-        g.arc(x, y, 3 + 10 * ringing, 0, Math.PI * 2);
-        g.fill();
+        pen.note(g, x, y, index, 4 + 8 * ringing);
+        pen.ottava(g, x, y, octave);
       }
     },
   };
@@ -48,7 +51,8 @@ function softAt(ctx: MovementContext, queue: ReturnType<typeof pendingQueue>, vi
   const h = layout(ctx, 12);
   const index = Math.min(Math.max(pitchIndexAt(y, height, h.count), 0), h.count - 1);
   const time = Tone.now() + 0.02;
-  const fx = Math.min(Math.max((x - MARGIN_LEFT) / (width - MARGIN_LEFT - MARGIN_RIGHT), 0), 1);
+  const from = Math.max(MARGIN_LEFT, musicLeft()) + PAD;
+  const fx = Math.min(Math.max((x - from) / (width - from - MARGIN_RIGHT), 0), 1);
   queue.add({ time, index, velocity: 0.16, seconds: 4, onPlay: view.add({ time, index, x: fx, seconds: 4, layer: 1 }) });
   const upper = h.place(index + steps(ctx, 11));
   queue.add({ time: time + 0.35, ...upper, velocity: 0.12, seconds: 4 });
