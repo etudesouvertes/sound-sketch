@@ -114,7 +114,7 @@ export type FlowMark = { time: number; index: number; seconds: number; velocity:
 // 1 つの印を描く。ringing は鳴り残り（1 → 0）、fade は消えるまでの残り（1 → 0）、span は流れる幅（px）。
 // note(radius) は、その位置に今の塗りの色で音符（斜めの楕円の符頭と、要るときは加線）を描く。radius は丸で描いたときの半径。
 // fit(max, near, gap) は、前後の印（高さの差が near 未満のもの）と gap の隙間を残して使える、左右それぞれの幅（max まで）。
-// band は音高 1 つ分の帯の高さ
+// band は音高 1 つ分の帯の高さ。ledgers(from, to) は、x が from から to までの範囲に、今の塗りの色で加線（要るときだけ）を引く
 export type PaintMark<M extends FlowMark> = (
   g: CanvasRenderingContext2D,
   m: M,
@@ -126,6 +126,7 @@ export type PaintMark<M extends FlowMark> = (
   note: (radius: number) => void,
   fit: (max: number, near: number, gap: number) => number,
   band: number,
+  ledgers: (from: number, to: number) => void,
 ) => void;
 export type FlowView<M extends FlowMark> = {
   add: (m: M) => () => void; // 音が鳴る時刻に印を足す関数を返す（Pending の onPlay に渡す）
@@ -174,21 +175,23 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
           }
           return room;
         };
+        const ledgers = (from: number, to: number) => {
+          const lines = ledgersFor(staff, y);
+          if (lines.length === 0) return;
+          g.strokeStyle = g.fillStyle;
+          g.lineWidth = 1.2;
+          g.beginPath();
+          for (const ly of lines) {
+            g.moveTo(from, ly);
+            g.lineTo(to, ly);
+          }
+          g.stroke();
+        };
         const note = (radius: number) => {
           // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする
           const rx = Math.max(fit(radius * NOTE_WIDTH, band * 1.5, 1), 1.5);
           const ry = Math.min(rx * NOTE_RATIO, radius * NOTE_WIDTH * NOTE_RATIO);
-          const ledgers = ledgersFor(staff, y);
-          if (ledgers.length > 0) {
-            g.strokeStyle = g.fillStyle;
-            g.lineWidth = 1.2;
-            g.beginPath();
-            for (const ly of ledgers) {
-              g.moveTo(x - rx * 1.6, ly);
-              g.lineTo(x + rx * 1.6, ly);
-            }
-            g.stroke();
-          }
+          ledgers(x - rx * 1.6, x + rx * 1.6);
           g.beginPath();
           g.ellipse(x, y, rx, ry, NOTE_TILT, 0, Math.PI * 2);
           g.fill();
@@ -203,7 +206,7 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
             g.textBaseline = "alphabetic";
           }
         };
-        paint(g, m, x, y, ringing, fade, span, note, fit, band);
+        paint(g, m, x, y, ringing, fade, span, note, fit, band, ledgers);
       });
     },
   };

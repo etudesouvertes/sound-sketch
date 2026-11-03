@@ -16,10 +16,13 @@ type VoiceMark = FlowMark & { voice: number };
 const WINDOW = 12;
 
 const markView = (ctx: MovementContext) =>
-  flowView<VoiceMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, span) => {
+  flowView<VoiceMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, span, _note, _fit, band, ledgers) => {
     const length = Math.max(2, (m.seconds / WINDOW) * span * 0.6);
+    // 帯は強い音ほど太く、いちばん強い音で帯の高さいっぱい（上下に 1px ずつ残す）
+    const tall = Math.max(3, (band - 2) * (0.35 + 0.65 * m.velocity));
     g.fillStyle = m.voice < 0 ? `rgba(255, 255, 255, ${(0.3 + 0.6 * ringing) * fade})` : `hsla(${HUES[m.voice % HUES.length]}, 70%, ${55 + 25 * ringing}%, ${(0.3 + 0.6 * ringing) * fade})`;
-    g.fillRect(x, y - 1.5 - 2 * m.velocity, length, 3 + 4 * m.velocity);
+    ledgers(x - 3, x + length + 3);
+    g.fillRect(x, y - tall / 2, length, tall);
   });
 
 // クリック: その高さから、自動ピアノのような速い駆け上がりを鳴らす
