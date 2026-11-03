@@ -112,7 +112,9 @@ export const clamp = (x: number, min: number, max: number) => Math.min(Math.max(
 // 印に共通の項目。楽章ごとに、色を決める項目（hue や voice など）を足す
 export type FlowMark = { time: number; index: number; seconds: number; velocity: number };
 // 1 つの印を描く。ringing は鳴り残り（1 → 0）、fade は消えるまでの残り（1 → 0）、span は流れる幅（px）。
-// note(radius) は、その位置に今の塗りの色で音符（斜めの楕円の符頭と、要るときは加線）を描く。radius は丸で描いたときの半径
+// note(radius) は、その位置に今の塗りの色で音符（斜めの楕円の符頭と、要るときは加線）を描く。radius は丸で描いたときの半径。
+// fit(max, near, gap) は、前後の印（高さの差が near 未満のもの）と gap の隙間を残して使える、左右それぞれの幅（max まで）。
+// band は音高 1 つ分の帯の高さ
 export type PaintMark<M extends FlowMark> = (
   g: CanvasRenderingContext2D,
   m: M,
@@ -122,6 +124,8 @@ export type PaintMark<M extends FlowMark> = (
   fade: number,
   span: number,
   note: (radius: number) => void,
+  fit: (max: number, near: number, gap: number) => number,
+  band: number,
 ) => void;
 export type FlowView<M extends FlowMark> = {
   add: (m: M) => () => void; // 音が鳴る時刻に印を足す関数を返す（Pending の onPlay に渡す）
@@ -158,17 +162,21 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
       placed.forEach(({ m, x, y }, i) => {
         const fade = 1 - (now - m.time) / windowSeconds;
         const ringing = Math.max(0, 1 - (now - m.time) / m.seconds);
-        paint(g, m, x, y, ringing, fade, span, (radius) => {
-          // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする。同時に鳴る音（和音）は数えない
-          let room = radius * NOTE_WIDTH;
-          for (const j of [i - 1, i + 1]) {
-            for (let k = j; k >= 0 && k < placed.length; k += j < i ? -1 : 1) {
+        // 前後の印に重ならない幅。同時に鳴る音（和音）は数えない
+        const fit = (max: number, near: number, gap: number) => {
+          let room = max;
+          for (const step of [-1, 1]) {
+            for (let k = i + step; k >= 0 && k < placed.length; k += step) {
               const dx = Math.abs(placed[k].x - x);
-              if (dx >= room * 2) break;
-              if (dx >= 1 && Math.abs(placed[k].y - y) < band * 1.5) room = Math.min(room, dx / 2 - 0.5);
+              if (dx >= room * 2 + gap) break;
+              if (dx >= 1 && Math.abs(placed[k].y - y) < near) room = Math.min(room, (dx - gap) / 2);
             }
           }
-          const rx = Math.max(room, 1.5);
+          return room;
+        };
+        const note = (radius: number) => {
+          // 速いパッセージでは、前後の音符（高さが近いもの）に重ならない幅まで符頭を細くする
+          const rx = Math.max(fit(radius * NOTE_WIDTH, band * 1.5, 1), 1.5);
           const ry = Math.min(rx * NOTE_RATIO, radius * NOTE_WIDTH * NOTE_RATIO);
           const ledgers = ledgersFor(staff, y);
           if (ledgers.length > 0) {
@@ -194,7 +202,8 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
             g.fillText(sign, x - rx * 1.25, y + (sign === "♭" ? -size * 0.12 : size * 0.07));
             g.textBaseline = "alphabetic";
           }
-        });
+        };
+        paint(g, m, x, y, ringing, fade, span, note, fit, band);
       });
     },
   };

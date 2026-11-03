@@ -15,11 +15,16 @@ import { CHROMATIC, clamp, flowView, type HueMark, type Layout, layout, MARGIN_L
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（比・表・枠）を出す ---
 
 const WINDOW = 14;
+const CELL = 22; // 音の四角形の、左右それぞれの幅の上限（px）
+const TALL = 1.5; // 音の四角形の高さの倍率（1 で帯の高さいっぱい）
 
 const markView = (ctx: MovementContext) =>
-  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade) => {
+  flowView<HueMark>(ctx, WINDOW, (g, m, x, y, ringing, fade, _span, _note, fit, band) => {
+    // 四角形は、前後の音（同じ高さの帯）と少し隙間を残す幅まで広げる。縦は強い音ほど高く、いちばん強い音は帯の 1.5 倍
+    const half = Math.max(fit(CELL, band * 0.9, 4), 1.5);
+    const tall = TALL * (band - 4) * (0.3 + 0.7 * m.velocity);
     g.fillStyle = `hsla(${m.hue}, 50%, ${58 + 20 * ringing}%, ${(0.2 + 0.6 * ringing) * fade})`;
-    g.fillRect(x - 1.5, y - 2 - 5 * m.velocity, 3 + 4 * ringing, 4 + 10 * m.velocity);
+    g.fillRect(x - half, y - tall / 2, half * 2, tall);
   });
 
 // 半音の数を、今の音階の段数に直す（半音階以外を選んだときも、音域の広がりがおおよそ保たれる）
