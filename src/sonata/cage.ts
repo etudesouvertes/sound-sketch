@@ -11,6 +11,7 @@ import { CHROMATIC, clamp, flowView, type HueMark, type Layout, layout, MARGIN_L
 // III. 時間の枠: 音ごとに「この間に始め、この間に終える」という枠だけを決め、どこで始めてどこで終えるかは偶然にまかせる。
 //      2 人の奏者が、それぞれの枠の並びを、静かに、長い沈黙を挟んで弾く
 // 設定の「プリペアド・ピアノ」は、ケージでは初めから入れてある（ほかの作曲家では切ってある）
+// ルバートは I だけに、気づくか気づかないかくらいに入れる。II と III は、演奏者の意図を入れないことが作り方なので揺らさない
 
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（比・表・枠）を出す ---
 
@@ -68,6 +69,10 @@ function newMotif(slots: number, palette: number[], density: number): Hit[] {
   }
   return hits;
 }
+
+// I のルバート: 句の初めは少し前へ進み、終わりへ向けてゆるめる。句の頭と長さは変えないので、比はそのまま保たれる。
+// 句の中の位置 f（0〜1）を f − LEAN·f·(1 − f) に移す（速さは初め 1 − LEAN 倍、終わり 1 + LEAN 倍）
+const LEAN = 0.04;
 
 type PlanPhrase = { macro: number; micro: number; bars: number; unitStart: boolean };
 
@@ -135,13 +140,15 @@ const squareRoot: Movement = {
       const slot = b / 2;
       if (p.unitStart) play(h, gongs[0], phraseAt, 0.38, b * 6, 200);
       else play(h, gongs[1], phraseAt, 0.24, b * 3, 200);
+      const slots = p.bars * beatsPerBar * 2;
       for (const hit of motifs[p.macro][p.micro]) {
         if (hit.slot > 0 && rand() < 0.08) continue; // 繰り返すたびに、ときどき抜ける
         const velocity = (hit.accent ? 0.42 : 0.27) * random(0.9, 1.1);
-        play(h, hit.sound, phraseAt + hit.slot * slot, velocity, slot * 2.5, 30);
+        const f = hit.slot / slots;
+        play(h, hit.sound, phraseAt + (f - LEAN * f * (1 - f)) * slots * slot, velocity, slot * 2.5, 30);
       }
       Tone.getDraw().schedule(() => (shown = p), phraseAt);
-      phraseAt += p.bars * beatsPerBar * 2 * slot;
+      phraseAt += slots * slot;
       k++;
     });
 
