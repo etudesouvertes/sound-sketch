@@ -13,6 +13,14 @@ export function setupChrome() {
   const panel = document.querySelector<HTMLElement>("#settings")!;
   const canvas = document.querySelector<HTMLCanvasElement>("canvas")!;
 
+  // ナビが横にスクロールする狭い画面（スマホの縦向き）では、今のページのボタンが見えるところまで送っておく
+  const nav = bar.querySelector<HTMLElement>(".nav");
+  const current = nav?.querySelector<HTMLElement>('[aria-current="page"]');
+  if (nav && current) {
+    const overflow = current.getBoundingClientRect().right - nav.getBoundingClientRect().right;
+    if (overflow > 0) nav.scrollLeft += overflow + 8;
+  }
+
   const show = document.createElement("button");
   show.type = "button";
   show.className = "chrome-show";
