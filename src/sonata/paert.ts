@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { AEOLIAN, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { AEOLIAN, MARGIN_RIGHT, type Movement, type MovementContext, musicFrom, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // アルヴォ・ペルトがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方（ティンティナブリ）だけを借りている。
 // ティンティナブリ: 音階を順に動く旋律（M 声部）に、主和音の音だけを弾く声部（T 声部）が規則で付く。
@@ -45,11 +45,13 @@ function traceView(ctx: MovementContext) {
       const now = Tone.now();
       traces = traces.filter((tr) => now - tr.time < WINDOW);
       const count = ctx.pitches().length;
-      const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+      // 音は、音部記号と調号の右で消える
+      const left = musicFrom();
+      const span = width - left - MARGIN_RIGHT;
       const xOf = (time: number) => width - MARGIN_RIGHT - ((now - time) / WINDOW) * span;
       for (const tr of traces) {
         const x = xOf(tr.time);
-        if (x < MARGIN_LEFT) continue;
+        if (x < left) continue;
         const y = yOf(tr.index, height, count);
         const fade = 1 - (now - tr.time) / WINDOW;
         const ringing = Math.max(0, 1 - (now - tr.time) / tr.seconds);

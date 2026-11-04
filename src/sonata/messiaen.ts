@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchIndexAt } from "../scales";
-import { clamp, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, note, pendingQueue, pick, type Queue, rand, random, scheduler, type Sonata, TICK } from "./movement";
+import { clamp, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, musicFrom, note, pendingQueue, pick, type Queue, rand, random, scheduler, type Sonata, TICK } from "./movement";
 
 // オリヴィエ・メシアンがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   鳥の歌: 鳥ごとに決まった鳴き方（同じ音の連打、トリル、前打音つきのさえずり、駆け下り、跳ねる呼び声）があり、
@@ -9,6 +9,8 @@ import { clamp, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, MARGIN
 //      1 人は真ん中の音が 1 つずつ伸び、1 人は縮み、1 人は変わらない。しばらくごとに、全員の和音が短 3 度ずつずれ、最後は元の高さに戻る
 // III. 音価と強さの旋法: 鍵ごとに長さと強さと弾き方が決まっていて、どの鍵もいつも同じ長さ・強さで鳴る。
 //      高・中・低の 3 つの声が、自分の音域の鍵を選び続けるだけで、リズムと強弱が音の高さから生まれる
+
+const PAD = 22; // 音部記号・調号と、いちばん左の音のあいだ（px）
 
 // --- 画面: 鳴った音が右端から左へ流れる。上には、楽章ごとの仕組み（鳥・リズム・鍵ごとの値）を出す ---
 
@@ -396,11 +398,12 @@ const valuesMode: Movement = {
         view.draw(g, width, height);
         // 上に鍵ごとの値を出す: 棒の高さが長さ、濃さが強さ、点が短く切る音。鳴った鍵が光る
         const now = Tone.now();
-        const span = Math.min(width - MARGIN_LEFT - MARGIN_RIGHT, (to - from) * 8);
+        const left = musicFrom(PAD);
+        const span = Math.min(width - left - MARGIN_RIGHT, (to - from) * 8);
         const w = span / (to - from);
         for (let i = from; i < to; i++) {
           const v = valueOf(i);
-          const x = MARGIN_LEFT + (i - from) * w;
+          const x = left + (i - from) * w;
           const glow = Math.max(0, 1 - (now - (lit.get(i) ?? -Infinity)) / 0.8);
           const bar = 3 + v.units * 2;
           g.fillStyle = `rgba(255, ${230 - 60 * glow}, ${200 - 120 * glow}, ${0.12 + v.velocity * 0.9 + 0.5 * glow})`;

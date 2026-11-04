@@ -24,6 +24,7 @@ export type MovementRun = {
 export type Movement = {
   title: L;
   duration: number; // 目安の長さ（秒）。終わり方は楽章ごとに違うので、少し前後する
+  noStaff?: boolean; // 音の高さで描かない楽章は、背景の大譜表を描かない
   start: (ctx: MovementContext) => MovementRun;
 };
 
@@ -47,6 +48,8 @@ export function after(transport: MovementContext["transport"], seconds: number):
 
 export const MARGIN_LEFT = 56;
 export const MARGIN_RIGHT = 24;
+// 音を置き始める x 座標。音部記号と調号より右で、pad はそこからの余白（最後に描いた大譜表で決まる）
+export const musicFrom = (pad = 0) => Math.max(MARGIN_LEFT, musicLeft()) + pad;
 
 export function yOf(index: number, height: number, count: number): number {
   return height - (index + 0.5) * (height / count);

@@ -698,23 +698,25 @@ function freeBottom(left: number): number {
   return bottom;
 }
 
-// 楽章が描く範囲（曲の音域の分）。画面は、その上下に音域を広げてある（viewRange）
+// 楽章が描く範囲（曲の音域の分）。画面は、その上下に音域を広げてある（viewRange）。大譜表を描かない楽章は、画面全体に描く
 function musicArea() {
+  if (sonata.movements[index].noStaff) return { top: 0, height };
   const range = viewRange(page.pitches());
   const band = height / range.pitches.length;
   return { top: range.above * band, height: page.pitches().length * band };
 }
 
-// 毎回、薄く塗り重ねて残像を残す。大譜表が変わったとき（主音・音階・音域・画面の大きさ）は、いったん全部塗りつぶす
+// 毎回、薄く塗り重ねて残像を残す。大譜表が変わったとき（主音・音階・音域・画面の大きさ、大譜表を描かない楽章との行き来）は、いったん全部塗りつぶす
 // （薄い塗り重ねでは、明るかった所がわずかに残り、前の記号の跡が見えてしまう）
 let staffKey = "";
 function draw() {
-  const key = `${width}x${height}:${page.pitches().map((p) => p.label).join()}`;
+  const staff = !sonata.movements[index].noStaff;
+  const key = `${width}x${height}:${staff ? page.pitches().map((p) => p.label).join() : "-"}`;
   g.fillStyle = key === staffKey ? "rgba(27, 29, 35, 0.35)" : "rgb(27, 29, 35)";
   staffKey = key;
   g.fillRect(0, 0, width, height);
   const music = musicArea();
-  drawStaff(g, width, height, viewRange(page.pitches()).pitches);
+  if (staff) drawStaff(g, width, height, viewRange(page.pitches()).pitches);
   g.save();
   g.translate(0, music.top);
   run?.draw(g, width, music.height);

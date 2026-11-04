@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { t } from "../i18n";
 import { pitchIndexAt } from "../scales";
-import { CHROMATIC, flowView, type HueMark, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { CHROMATIC, flowView, type HueMark, layout, MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, musicFrom, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // ジェルジ・リゲティがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   一音から: 最初は 1 つの音名だけで、区切りごとに使える音名を 1 つずつ増やす。だんだん速くなり、最後の音名は最後の 1 音まで取っておく
@@ -9,6 +9,8 @@ import { CHROMATIC, flowView, type HueMark, layout, MARGIN_LEFT, MARGIN_RIGHT, t
 // III. 無秩序: 右手は白鍵、左手は黒鍵だけで、休まず同じ速さで刻み、強い音で旋律を浮かべる。右手はときどき 1 拍縮んで左手とずれていき、
 //      両手とも高いほうへ登りつめて、突然終わる
 // 時刻はすべて音の時計で持つ
+
+const PAD = 22; // 音部記号・調号と、いちばん左の音のあいだ（px）
 
 // --- 画面: 鳴った音が右端から左へ流れる。強い音ほど大きい ---
 
@@ -211,9 +213,10 @@ const metronomes: Movement = {
         // 振り子: 動いているあいだは左右に振れ、真上を通る瞬間に刻んで先が光る（1 回刻むごとに、右と左を入れ替える）。
         // 止まったものは真上で止まって薄くなる
         const now = Tone.now();
-        const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+        const from = musicFrom(PAD);
+        const span = width - from - MARGIN_RIGHT;
         order.forEach((m, i) => {
-          const x = MARGIN_LEFT + ((i + 0.5) / order.length) * span;
+          const x = from + ((i + 0.5) / order.length) * span;
           const y = yOf(m.index, height, h.count);
           const running = now < m.stopAt && now >= m.startedAt;
           const angle = running ? 0.6 * Math.sin((Math.PI * (now - m.startedAt)) / m.period) : 0;

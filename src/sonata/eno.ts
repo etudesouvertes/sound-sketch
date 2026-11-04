@@ -1,6 +1,6 @@
 import * as Tone from "tone";
 import { pitchAt, pitchIndexAt } from "../scales";
-import { MARGIN_LEFT, MARGIN_RIGHT, type Movement, type MovementContext, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
+import { MARGIN_RIGHT, type Movement, type MovementContext, musicFrom, pendingQueue, rand, random, scheduler, type Sonata, TICK, yOf } from "./movement";
 
 // ブライアン・イーノがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.  長さの違うループ: 1〜2 音の短い句を、長さの違うループに載せて重ねる。同じ響きはほとんど二度と来ない
@@ -14,6 +14,9 @@ const rootAbove = (ctx: MovementContext, from: number) => {
   const above = pitches.findIndex((p, i) => p.isRoot && i >= from);
   return Math.max(above >= 0 ? above : pitches.findIndex((p) => p.isRoot), 0);
 };
+
+const PAD = 22; // 音部記号・調号と、いちばん左の音のあいだ（px）
+const LOOP_PAD = 34; // ループの輪（半径 28 まで）が、音部記号・調号にかからない余白（px）
 
 // --- I. 長さの違うループ ---
 
@@ -96,8 +99,9 @@ const tapeLoops: Movement = {
       // クリックした場所にループを置く。縦の位置で高さ、横の位置で長さ（15〜35 秒）
       pointer(x, y, height) {
         if (endAt !== Infinity || finalLoop || loops.length >= 12) return;
-        const span = innerWidth - MARGIN_LEFT - MARGIN_RIGHT;
-        const length = MIN_LOOP + Math.min(Math.max((x - MARGIN_LEFT) / span, 0), 1) * (MAX_LOOP - MIN_LOOP);
+        const from = musicFrom(LOOP_PAD);
+        const span = innerWidth - from - MARGIN_RIGHT;
+        const length = MIN_LOOP + Math.min(Math.max((x - from) / span, 0), 1) * (MAX_LOOP - MIN_LOOP);
         add(pitchIndexAt(y, height, ctx.pitches().length), length, Tone.now() + 0.05);
       },
       // ループを、横に長さ・縦に高さの位置へ輪で描く。輪を回る点が、次に鳴るまでの巡り
@@ -106,11 +110,12 @@ const tapeLoops: Movement = {
         const dt = Math.min((now - last) / 1000, 0.05);
         last = now;
         const count = ctx.pitches().length;
-        const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+        const from = musicFrom(LOOP_PAD);
+        const span = width - from - MARGIN_RIGHT;
         const at = Tone.now();
         for (const l of loops) {
           l.glow = Math.max(0, l.glow - dt / 2);
-          const x = MARGIN_LEFT + ((l.length - MIN_LOOP) / (MAX_LOOP - MIN_LOOP)) * span;
+          const x = from + ((l.length - MIN_LOOP) / (MAX_LOOP - MIN_LOOP)) * span;
           const y = yOf(l.index, height, count);
           const alpha = l.dying ? 0.35 : 1;
           g.strokeStyle = `hsla(${l.hue}, 50%, 70%, ${(0.25 + 0.5 * l.glow) * alpha})`;
@@ -197,10 +202,11 @@ const echoes: Movement = {
       draw(g, width, height) {
         const now = Tone.now();
         rings = rings.filter((r) => now - r.time < 5);
-        const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+        const from = musicFrom(PAD);
+        const span = width - from - MARGIN_RIGHT;
         for (const r of rings) {
           const age = now - r.time;
-          const x = MARGIN_LEFT + r.x * span;
+          const x = from + r.x * span;
           const y = yOf(r.index, height, count());
           g.strokeStyle = `hsla(150, 50%, 75%, ${r.velocity * 1.6 * (1 - age / 5)})`;
           g.lineWidth = 1.5;
@@ -328,21 +334,23 @@ const rules: Movement = {
       draw(g, width, height) {
         const now = Tone.now();
         traces = traces.filter((tr) => now - tr.time - tr.seconds < WINDOW);
-        const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+        // 音は、音部記号と調号の右で消える
+        const left = musicFrom();
+        const span = width - left - MARGIN_RIGHT;
         const xOf = (time: number) => width - MARGIN_RIGHT - ((now - time) / WINDOW) * span;
         const fade = (time: number) => Math.max(0, 1 - (now - time) / WINDOW);
 
         for (const tr of traces.filter((tr) => tr.voice === "bass")) {
           const y = yOf(tr.index, height, count());
           g.fillStyle = `hsla(30, 40%, 60%, ${0.25 * fade(tr.time)})`;
-          g.fillRect(Math.max(xOf(tr.time), MARGIN_LEFT), y - 3, Math.min(xOf(tr.time + tr.seconds), width - MARGIN_RIGHT) - Math.max(xOf(tr.time), MARGIN_LEFT), 6);
+          g.fillRect(Math.max(xOf(tr.time), left), y - 3, Math.min(xOf(tr.time + tr.seconds), width - MARGIN_RIGHT) - Math.max(xOf(tr.time), left), 6);
         }
         const melody = traces.filter((tr) => tr.voice === "melody");
         g.strokeStyle = "hsla(50, 60%, 70%, 0.3)";
         g.lineWidth = 1.5;
         g.beginPath();
         melody.forEach((tr, i) => {
-          const x = Math.max(xOf(tr.time), MARGIN_LEFT);
+          const x = Math.max(xOf(tr.time), left);
           const y = yOf(tr.index, height, count());
           if (i === 0) g.moveTo(x, y);
           else g.lineTo(x, y);
@@ -350,7 +358,7 @@ const rules: Movement = {
         g.stroke();
         for (const tr of traces.filter((tr) => tr.voice !== "bass")) {
           const x = xOf(tr.time);
-          if (x < MARGIN_LEFT) continue;
+          if (x < left) continue;
           const recent = Math.max(0, 1 - (now - tr.time) / 1.5);
           const hue = tr.voice === "melody" ? 50 : 280;
           g.fillStyle = `hsla(${hue}, 70%, ${60 + 20 * recent}%, ${(0.3 + 0.7 * recent) * fade(tr.time)})`;

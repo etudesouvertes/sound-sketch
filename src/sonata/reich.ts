@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import { pitchAt, pitchIndexAt } from "../scales";
 import { t } from "../i18n";
-import { after, DORIAN, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
+import { after, DORIAN, MARGIN_LEFT, MARGIN_RIGHT, type Movement, musicFrom, rand, random, type Sonata, yOf } from "./movement";
 
 // スティーヴ・ライヒがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.  フェイズ: 両手が同じ 12 音の型を弾き、片方の手だけがほんの少し速くなって 1 音ずつ前へずれ、また重なる。12 回ずれると、元のそろった形に戻る。
@@ -19,6 +19,8 @@ const middleNotes = (count: number, size: number) => {
   return Array.from({ length: Math.min(size, count) }, (_, i) => from + i);
 };
 
+const PAD = 22; // 音部記号・調号と、いちばん左の音のあいだ（px）
+
 // --- I. フェイズ ---
 
 const PATTERN_LENGTH = 12;
@@ -29,6 +31,7 @@ const STAGES_PER_CHORD = 3; // ずれが 3 回進むごとに和音が変わる�
 
 const phase: Movement = {
   title: { ja: "I. フェイズ", en: "I. Phase" },
+  noStaff: true, // 型を円に並べて描く
   duration: 300,
   start(ctx) {
     const { transport, piano } = ctx;
@@ -136,7 +139,7 @@ const phase: Movement = {
 
         const cx = (MARGIN_LEFT + width - MARGIN_RIGHT) / 2;
         const cy = height / 2 + 10;
-        const radius = Math.min(width - MARGIN_LEFT - MARGIN_RIGHT, height - 120) * 0.38;
+        const radius = Math.min(width - MARGIN_LEFT - MARGIN_RIGHT, height - 120) * 0.46;
         const count = ctx.pitches().length;
         const ring = (r: number, rotate: number, hue: number, list: number[], playing: number) => {
           const angle = (i: number) => ((i - rotate) / PATTERN_LENGTH) * Math.PI * 2 - Math.PI / 2;
@@ -147,18 +150,18 @@ const phase: Movement = {
           g.stroke();
           pattern.forEach((note, i) => {
             // 音の高さは、輪からの張り出しで示す
-            const reach = r + (((note + transpose) / Math.max(count - 1, 1)) - 0.5) * 40;
+            const reach = r + (((note + transpose) / Math.max(count - 1, 1)) - 0.5) * 60;
             const x = cx + Math.cos(angle(i)) * reach;
             const y = cy + Math.sin(angle(i)) * reach;
             g.fillStyle = `hsla(${hue}, 80%, ${55 + 25 * list[i]}%, ${0.35 + 0.65 * list[i]})`;
             g.beginPath();
-            g.arc(x, y, 3 + 5 * list[i], 0, Math.PI * 2);
+            g.arc(x, y, 4.5 + 7.5 * list[i], 0, Math.PI * 2);
             g.fill();
             if (i === playing) {
               g.strokeStyle = `hsla(${hue}, 90%, 80%, 0.9)`;
               g.lineWidth = 2;
               g.beginPath();
-              g.arc(x, y, 11, 0, Math.PI * 2);
+              g.arc(x, y, 16.5, 0, Math.PI * 2);
               g.stroke();
             }
           });
@@ -166,13 +169,13 @@ const phase: Movement = {
         ring(radius, 0, 28, glow.a, playingA);
         ring(radius * 0.62, -shift, 200, glow.b, playingB);
 
-        g.font = "13px system-ui, sans-serif";
+        g.font = "19px system-ui, sans-serif";
         g.textAlign = "center";
         g.fillStyle = "rgba(255, 255, 255, 0.5)";
         const label = shift >= PATTERN_LENGTH || shift === 0 ? t({ ja: "そろっている", en: "in unison" }) : `${Math.floor(shift)} / ${PATTERN_LENGTH}`;
-        g.fillText(label, cx, cy - 4);
+        g.fillText(label, cx, cy - 6);
         g.fillStyle = "rgba(255, 255, 255, 0.35)";
-        g.fillText(`${t({ ja: "和音", en: "chord" })} ${chord + 1} / ${chords.length}`, cx, cy + 16);
+        g.fillText(`${t({ ja: "和音", en: "chord" })} ${chord + 1} / ${chords.length}`, cx, cy + 24);
       },
       finished: () => Tone.now() >= endAt,
       stop() {
@@ -265,16 +268,17 @@ const pulses: Movement = {
           g.strokeStyle = `hsla(170, 60%, 65%, ${0.12 + 0.7 * level})`;
           g.lineWidth = 2 + 6 * level;
           g.beginPath();
-          g.moveTo(MARGIN_LEFT, y);
+          g.moveTo(musicFrom(), y);
           g.lineTo(width - MARGIN_RIGHT, y);
           g.stroke();
         }
         // 下に和音の巡り（今の和音を明るく）
-        const step = (width - MARGIN_LEFT - MARGIN_RIGHT) / chords.length;
+        const from = musicFrom(PAD);
+        const step = (width - from - MARGIN_RIGHT) / chords.length;
         chords.forEach((_, i) => {
           g.fillStyle = i === breaths[current].chord ? "rgba(255, 255, 255, 0.7)" : i < breaths[current].chord ? "rgba(255, 255, 255, 0.3)" : "rgba(255, 255, 255, 0.1)";
           g.beginPath();
-          g.arc(MARGIN_LEFT + (i + 0.5) * step, height - 70, 4, 0, Math.PI * 2);
+          g.arc(from + (i + 0.5) * step, height - 70, 4, 0, Math.PI * 2);
           g.fill();
         });
       },
@@ -390,8 +394,9 @@ const buildUp: Movement = {
         const dt = Math.min((now - last) / 1000, 0.05);
         last = now;
         const count = ctx.pitches().length;
-        const step = (width - MARGIN_LEFT - MARGIN_RIGHT) / SLOTS;
-        const xOf = (i: number) => MARGIN_LEFT + (i + 0.5) * step;
+        const from = musicFrom(PAD);
+        const step = (width - from - MARGIN_RIGHT) / SLOTS;
+        const xOf = (i: number) => from + (i + 0.5) * step;
 
         if (playing >= 0) {
           g.fillStyle = "rgba(255, 255, 255, 0.04)";
