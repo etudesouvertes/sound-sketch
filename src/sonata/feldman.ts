@@ -10,6 +10,11 @@ import { musicLeft } from "./staff";
 // II.  和音の陰影: 広く散らばった柔らかい和音を長く置き、繰り返すたびに 1 音だけ半音ずらす。和音はだんだん薄くなり、最後は 1 音になる
 // III. 記憶の層: 左手が近い音どうしの小さな型を刻み続け、その上に、右手の型が長さを違えて現れては消える
 // 時刻はすべて音の時計で持ち、テンポの設定で 1 拍の長さが決まる。音はどれもごく弱い
+// ルバートは、気づくか気づかないかくらいに、型を繰り返すたびに速さをわずかに変える（1 音ごとのずれや和音の崩しは、設定の「揺らぎ」が受け持つ）。
+// 揺れは毎回違う（曲の中身は Op. の番号で決まるが、揺れ方は決まらない）。III の左手は、時計として揺らさない
+
+const PACE = 0.015; // 型を 1 回鳴らすときの、拍の長さの揺れ（倍率の幅）
+const pace = () => 1 + random(-PACE, PACE);
 
 // 半音階での音程を、今の音階の段数に直す（半音階以外を選んだときも、音域の広がりがおおよそ保たれる）
 const steps = (ctx: MovementContext, semitones: number) => Math.round((semitones * layout(ctx, 12).perOctave) / 12);
@@ -167,8 +172,9 @@ const repetitions: Movement = {
       }
 
       // 型の 1 回目はそのまま、2 回目からはときどき少し変える（最初の型に帰ったときは変えない）
-      playPattern(ctx, queue, view, playing, nextAt, b, 0.17, 0);
-      nextAt += playing.length * b;
+      const paced = b * pace();
+      playPattern(ctx, queue, view, playing, nextAt, paced, 0.17, 0);
+      nextAt += playing.length * paced;
       repeatsLeft--;
       if (!returning && rand() < 0.5) playing = vary(ctx, playing);
     });
@@ -346,8 +352,9 @@ const memoryLayers: Movement = {
         rightRepeats = 2 + Math.floor(rand() * 4);
         return;
       }
-      playPattern(ctx, queue, view, right!, rightAt, b, 0.16, 1);
-      rightAt += right!.length * b;
+      const paced = b * pace();
+      playPattern(ctx, queue, view, right!, rightAt, paced, 0.16, 1);
+      rightAt += right!.length * paced;
       rightRepeats--;
       if (rand() < 0.4) right = vary(ctx, right!);
     });
