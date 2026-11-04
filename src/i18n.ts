@@ -44,6 +44,11 @@ function applyStatic() {
   document.documentElement.lang = lang;
   for (const el of document.querySelectorAll<HTMLElement>("[data-i18n]")) {
     const lines = tk(el.dataset.i18n!).split("\n");
+    // 画面の中央の案内（.hint）は、行ごとに段落のように分ける。行ごとに text-wrap: balance が効き、1 文字だけ次の行に回らない
+    if (el.classList.contains("hint")) {
+      el.replaceChildren(...lines.map((line) => Object.assign(document.createElement("span"), { textContent: line, style: "display: block" })));
+      continue;
+    }
     el.replaceChildren(...lines.flatMap((line, i) => (i === 0 ? [line] : [document.createElement("br"), line])));
   }
   for (const el of document.querySelectorAll<HTMLElement>("[data-i18n-aria]")) {

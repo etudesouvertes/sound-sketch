@@ -134,7 +134,7 @@ canvas {
 
 .settings {
   position: fixed;
-  top: 56px;
+  top: var(--bar-bottom, 56px);
   right: 16px;
   bottom: 40px;
   z-index: 10;
@@ -367,6 +367,7 @@ input:disabled {
   margin: 0;
   padding: 0 16px;
   text-align: center;
+  text-wrap: balance; /* 狭い画面で、1 文字だけ次の行に回らないよう、行の長さをそろえて折り返す */
   color: var(--muted);
   pointer-events: none;
   transition: opacity 1s;

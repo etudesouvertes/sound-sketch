@@ -25,7 +25,12 @@ export function setupChrome() {
   let hovering = false;
   let timer: number | undefined;
 
+  // 設定パネルは、バーのすぐ下に開く。バーは幅が足りないと折り返して 2 段以上になるので、開くときと画面の大きさが変わったときに合わせる
+  const placePanel = () => document.documentElement.style.setProperty("--bar-bottom", `${bar.getBoundingClientRect().bottom + 4}px`);
+  window.addEventListener("resize", placePanel);
+
   const setOpen = (open: boolean) => {
+    if (open) placePanel();
     panel.hidden = !open;
     toggle.setAttribute("aria-expanded", String(open));
     restart();

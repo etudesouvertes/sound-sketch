@@ -1,7 +1,8 @@
 import * as Tone from "tone";
 import { type L, t } from "../i18n";
 import { pitchIndexAt } from "../scales";
-import { DORIAN, flowView, type HueMark, type Layout, layout, MARGIN_LEFT, type Movement, type MovementContext, note, pendingQueue, type Queue, rand, random, scheduler, type Sonata, TICK } from "./movement";
+import { DORIAN, flowView, type HueMark, type Layout, layout, type Movement, type MovementContext, musicFrom, note, pendingQueue, type Queue, rand, random, scheduler, type Sonata, staffPen, TICK } from "./movement";
+import { staffTop } from "./staff";
 
 // エリック・サティがピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
 // I.   ゆるやかな舞曲: 3 拍子。左手は 1 拍目に低い音、2 拍目に和音。2 つの和音を揺り返す上に、素朴な旋律が浮かび、同じ節がそのまま戻ってくる
@@ -59,7 +60,9 @@ function markView(ctx: MovementContext) {
         g.font = "italic 15px Georgia, 'Times New Roman', serif";
         g.textAlign = "left";
         g.fillStyle = `rgba(255, 255, 255, ${0.6 * alpha})`;
-        g.fillText(t(direction.text), MARGIN_LEFT, 92);
+        // 楽譜の発想記号のように、調号の右で、ト音記号の五線より上に置く。高さの低い画面（スマホの横向き）では五線が上に寄るので、そのすぐ上に
+        const top = staffTop() - staffPen(ctx, height).top;
+        g.fillText(t(direction.text), musicFrom(), Math.min(92, top - 10));
       }
     },
   };

@@ -136,6 +136,9 @@ export const musicLeft = () => left;
 // ト音記号とヘ音記号のあいだの真ん中（x は音部記号の中央、y は 2 つの五線のあいだ）。最後に描いた大譜表で決まる
 let gap = { x: STAFF_LEFT, y: 0 };
 export const clefGap = () => gap;
+// ト音記号の五線のいちばん上の線の y 座標。最後に描いた大譜表で決まる
+let trebleTop = 0;
+export const staffTop = () => trebleTop;
 
 export function drawStaff(g: CanvasRenderingContext2D, width: number, height: number, pitches: Pitch[]) {
   left = STAFF_LEFT;
@@ -170,6 +173,7 @@ export function drawStaff(g: CanvasRenderingContext2D, width: number, height: nu
     g.fillText(glyph, STAFF_LEFT + 2, lineY(anchor) + size * shift);
     const glyphWidth = g.measureText(glyph).width;
     gap = { x: STAFF_LEFT + 2 + glyphWidth / 2, y: (lineY(TREBLE[0]) + lineY(BASS[4])) / 2 };
+    trebleTop = lineY(TREBLE[4]);
     let x = STAFF_LEFT + 2 + glyphWidth;
 
     // 調号
