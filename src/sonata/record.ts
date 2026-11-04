@@ -74,12 +74,8 @@ export function recordSonata(options: {
 
     const info = options.info();
     const now = () => performance.now() / 1000;
-    card = {
-      lines: ["Études ouvertes", `Sonata — ${info.composer}`],
-      footer: `Op. ${info.seed}`,
-      from: now(),
-      until: now() + INTRO,
-    };
+    // 始まりのカードは名乗りだけ。曲名・調・作曲家（after …）・Op. は、楽章の始めに出る表題（main.ts の drawTitle）に任せる
+    card = { lines: ["Études ouvertes"], from: now(), until: now() + INTRO };
     await wait(INTRO);
     card = null;
     options.start();
