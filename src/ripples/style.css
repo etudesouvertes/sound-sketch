@@ -31,6 +31,7 @@ canvas {
 
 /* --- 上のバー: ナビと、演奏中にすぐ押したいボタンだけを置く --- */
 
+/* 1 行に収まらない幅（スマホの横向きなど）では、ボタンの塊ごと次の行へ折り返す（ボタンの中の文字は折り返さない） */
 .bar {
   position: fixed;
   top: 0;
@@ -38,8 +39,9 @@ canvas {
   right: 0;
   z-index: 10;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
   padding: 12px 16px;
   font-size: 14px;
   color: var(--muted);
@@ -62,6 +64,7 @@ canvas {
   border-radius: 999px;
   color: var(--muted);
   text-decoration: none;
+  white-space: nowrap;
 }
 
 .nav a:hover {
@@ -75,8 +78,15 @@ canvas {
 
 .bar-actions {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
   align-items: center;
   gap: 8px;
+  margin-left: auto;
+}
+
+.bar-actions > * {
+  white-space: nowrap;
 }
 
 .bar-actions .status {

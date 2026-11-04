@@ -135,6 +135,34 @@
 .recording .bar,
 .recording .chrome-show,
 .recording .hint,
+.recording .rotate-hint,
 .recording .rating {
   display: none;
+}
+
+/* スマホの縦向き: 横向きにすすめる案内を下に出す（横にすると消える。iPhone では向きを固定できないので、案内だけにする） */
+
+.rotate-hint {
+  display: none;
+}
+
+@media (orientation: portrait) and (max-width: 640px) {
+  .rotate-hint {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: calc(96px + env(safe-area-inset-bottom));
+    margin: 0;
+    padding: 0 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    opacity: 0.8;
+    pointer-events: none;
+  }
+
+  .rotate-hint::before {
+    content: "⟲ ";
+  }
 }
