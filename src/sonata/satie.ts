@@ -417,5 +417,6 @@ export const satie: Sonata = {
   initials: "E.S.",
   // ドリアン。旋法の素朴な響きで、IV の和音が長三和音になる（I の揺り返しに使う）
   scale: DORIAN,
+  root: "D", // 主音。D のドリアン
   movements: [dance, song, furniture],
 };

@@ -427,5 +427,6 @@ export const messiaen: Sonata = {
   initials: "O.M.",
   // 移調の限られた旋法の第 2 番（半音と全音が交互に並ぶ 8 音の音階）。3 回移調すると元に戻る
   scale: { id: "messiaen-mode-2", group: "", name: { ja: "移調の限られた旋法 第 2 番", en: "Mode of limited transposition 2" }, steps: [0, 1, 3, 4, 6, 7, 9, 10] },
+  root: "C", // 主音。旋法を C から
   movements: [birdsong, characters, valuesMode],
 };

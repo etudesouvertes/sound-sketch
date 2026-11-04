@@ -1,4 +1,4 @@
-import type { Pitch } from "../scales";
+import { type Pitch, ROOTS } from "../scales";
 
 // 背景の大譜表。画面は音高の帯で縦に等分しているので、五線はその帯の上の、線の音の高さの位置に引く
 // （7 音の音階ならほぼ等間隔、半音階や 5 音の音階では、線の間隔が少し揃わない）。
@@ -32,13 +32,11 @@ const FLATS = [
 ];
 const WHITE = [0, 2, 4, 5, 7, 9, 11];
 
-// ♭ の調として書くことの多い主音（ヘ・変ロ・変ホ・変イ）では ♭ を、ほかは ♯ を先に探す
-const FLAT_ROOTS = ["F", "A#", "D#", "G#"];
-
 // 調号の決め方。"mode" は音階の音そのまま（C ドリアンなら ♭ 2 つ）。
-// "root" は主音の長調（C ドリアンでも調号なし）で、調号と違う音には、音符ごとに臨時記号を付ける
+// "root" は主音の調で、短 3 度があって長 3 度がない音階は短調、ほかは長調（C ドリアンなら ハ短調の ♭ 3 つ、D エオリアンなら ニ短調の ♭ 1 つ）。
+// 調号と違う音には、音符ごとに臨時記号を付ける
 const SIGNATURE: "mode" | "root" = "root";
-// 主音ごとの長調の調号。正は ♯ の数、負は ♭ の数（C♯ は変ニ長調として書く）
+// 長調の主音ごとの調号。正は ♯ の数、負は ♭ の数（C♯ は変ニ長調として書く）
 const KEY_SIGNATURES: Record<string, number> = { C: 0, G: 1, D: 2, A: 3, E: 4, B: 5, "F#": 6, "C#": -5, F: -1, "A#": -2, "D#": -3, "G#": -4 };
 
 const midiOf = (freq: number) => 69 + 12 * Math.log2(freq / 440);
@@ -74,7 +72,12 @@ export function staffLayout(pitches: Pitch[], height: number) {
   const rounded = pitches.map((p) => Math.round(midiOf(p.freq)));
   const inScale = new Set(rounded.map((m) => ((m % 12) + 12) % 12));
   const root = pitches.find((p) => p.isRoot)?.label.replace(/[0-9↑↓-]/g, "") ?? "C";
-  const flatsFirst = FLAT_ROOTS.includes(root);
+  const rootPc = Math.max(ROOTS.indexOf(root), 0);
+  const minor = inScale.has((rootPc + 3) % 12) && !inScale.has((rootPc + 4) % 12);
+  // 調号の数。短調は、短 3 度上の長調と同じ調号
+  const keyCount = KEY_SIGNATURES[ROOTS[(rootPc + (minor ? 3 : 0)) % 12]] ?? 0;
+  // ♭ の調号の調では、音階にない黒鍵を ♭ で、ほかは ♯ で読む
+  const flatsFirst = keyCount < 0;
   const band = height / pitches.length;
 
   // 幹音（音名の pc）に付ける変化。音階にあれば 0、なければ黒鍵の ♯（+1）か ♭（-1）、どちらもなければ 0
@@ -92,7 +95,6 @@ export function staffLayout(pitches: Pitch[], height: number) {
   };
 
   // 調号で幹音に付ける変化
-  const keyCount = KEY_SIGNATURES[root] ?? 0;
   const signature = (pc: number): number => {
     if (SIGNATURE === "mode") return accidental(pc);
     if (keyCount > 0) return SHARPS.slice(0, keyCount).some((k) => k.pc === pc) ? 1 : 0;

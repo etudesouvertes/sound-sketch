@@ -371,5 +371,6 @@ export const feldman: Sonata = {
   initials: "M.F.",
   // 半音階。柔らかくぶつかる音程（短 2 度・長 7 度・短 9 度）を自由に使う
   scale: CHROMATIC,
+  root: "C", // 主音。半音階なので、調号のない C
   movements: [repetitions, shadedChords, memoryLayers],
 };

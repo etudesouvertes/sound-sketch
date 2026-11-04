@@ -29,13 +29,13 @@ function formatTime(seconds: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-// 変化スイッチがオンの間、1 秒ごとに経過時間を進めて apply に渡し、転調の時刻が来たら modulate を呼ぶ。
+// 変化スイッチがオンの間、1 秒ごとに経過時間を進めて apply に渡し、転調の時刻が来たら modulate を呼ぶ（modulate がなければ転調しない）。
 // 速さ（×1 / ×10 / ×60）は経過時間の進み方だけを変える
 export function setupDrift(
   toggleEl: HTMLInputElement,
   speedEl: HTMLSelectElement,
   statusEl: HTMLElement,
-  handlers: { apply: (drift: Drift | null) => void; modulate: () => void; root: () => string },
+  handlers: { apply: (drift: Drift | null) => void; modulate?: () => void; root: () => string },
 ) {
   let elapsed = 0;
   let timer: number | undefined;
@@ -44,7 +44,7 @@ export function setupDrift(
     const speed = Number(speedEl.value);
     const before = Math.floor(elapsed / MODULATION_PERIOD);
     elapsed += (speed * TICK_MS) / 1000;
-    if (Math.floor(elapsed / MODULATION_PERIOD) > before) handlers.modulate();
+    if (Math.floor(elapsed / MODULATION_PERIOD) > before) handlers.modulate?.();
 
     const drift = Object.fromEntries(
       Object.entries(PERIODS).map(([key, period]) => [key, Math.sin((2 * Math.PI * elapsed) / period)]),
@@ -53,8 +53,10 @@ export function setupDrift(
 
     const remain = (MODULATION_PERIOD - (elapsed % MODULATION_PERIOD)) / speed;
     // 1 秒ごとに書き直すので、言語を切り替えても次の更新で新しい言語になる
-    statusEl.textContent =
-      getLang() === "ja"
+    const ja = getLang() === "ja";
+    statusEl.textContent = !handlers.modulate
+      ? `${ja ? "主音" : "Root"} ${handlers.root()}`
+      : ja
         ? `主音 ${handlers.root()} · 次の転調まで ${formatTime(remain)}`
         : `Root ${handlers.root()} · next key change in ${formatTime(remain)}`;
   };

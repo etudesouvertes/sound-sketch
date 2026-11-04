@@ -525,6 +525,7 @@ export const ichiyanagi: Sonata = {
   initials: "T.I.",
   // 調性に寄らない 12 音すべて
   scale: CHROMATIC,
+  root: "C", // 主音。半音階なので、調号のない C
   movements: [shifting, silences, toccata],
 };
 

@@ -383,5 +383,6 @@ export const eno: Sonata = {
   initials: "B.E.",
   // ループやこだまがどう重なっても濁らないよう、半音を含まない 5 音
   scale: { id: "major-pentatonic", group: "", name: { ja: "メジャーペンタトニック", en: "Major pentatonic" }, steps: [0, 2, 4, 7, 9] },
+  root: "D", // 主音。大譜表が画面に収まる D
   movements: [tapeLoops, echoes, rules],
 };

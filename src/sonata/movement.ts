@@ -28,10 +28,10 @@ export type Movement = {
   start: (ctx: MovementContext) => MovementRun;
 };
 
-// scale は、設定のスケールで「指定しない」を選んだときに使う、その作曲家の音階
+// scale と root は、その作曲家の音階と主音（Sonata では、スケールと主音を設定で選ばず、作曲家にまかせる）
 // initials は、作曲家のプルダウンに出す頭文字（右下の表示とヘルプはフルネーム）
 // tuning と prepared は、その作曲家を選んだときの設定の「調律」と「プリペアド・ピアノ」の初めの値（書かなければ、ぴったり・切）
-export type Sonata = { id: string; composer: L; initials: string; scale: Scale; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
+export type Sonata = { id: string; composer: L; initials: string; scale: Scale; root: string; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
 export type Tuning = "exact" | "loose" | "old";
 
 // 作曲家の音階のうち、何人かで共有するもの

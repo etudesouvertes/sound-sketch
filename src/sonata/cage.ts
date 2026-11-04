@@ -458,6 +458,7 @@ export const cage: Sonata = {
   initials: "J.C.",
   // 半音階。音の手持ちや偶然で選ぶ音は、調や和音にとらわれない
   scale: CHROMATIC,
+  root: "C", // 主音。半音階なので、調号のない C
   movements: [squareRoot, chance, brackets],
   prepared: true,
 };

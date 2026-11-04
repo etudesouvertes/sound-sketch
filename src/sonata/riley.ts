@@ -428,5 +428,6 @@ export const riley: Sonata = {
   initials: "T.R.",
   // 長音階。主和音のまわりを巡る型と、純正律の明るい長三和音になじむ
   scale: { id: "major", group: "", name: { ja: "長音階（イオニアン）", en: "Major (Ionian)" }, steps: [0, 2, 4, 5, 7, 9, 11] },
+  root: "C", // 主音。『In C』にちなんで C
   movements: [players, just, rainbow],
 };

@@ -371,5 +371,6 @@ export const glass: Sonata = {
   initials: "P.G.",
   // エオリアン（自然的短音階）。短調の分散和音の揺り返しになじむ
   scale: AEOLIAN,
+  root: "D", // 主音。D のエオリアン（ニ短調）
   movements: [additive, rocking, threeTwo],
 };

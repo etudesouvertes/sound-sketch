@@ -259,14 +259,12 @@ let reverbLevel = setupLevel(reverbEl, reverbValueEl, "reverb", (level) => {
   if (lastParams) applyReverb(level, { ...lastParams, ramp: 0.5 });
 });
 
-// スケールで「指定しない」を選ぶと、今の作曲家の音階を使う（作曲家を変えると音階も変わる）。URL の ?composer=satie などで作曲家を選んで開ける。
+// 音階と主音は作曲家にまかせる（作曲家を変えると両方変わる）。URL の ?composer=satie などで作曲家を選んで開ける。
 // 録音モードで作曲家を選ばなかったときは、でたらめに選ぶ
 let sonata =
   SONATAS.find((s) => s.id === query.get("composer")) ?? (RECORD ? SONATAS[Math.floor(Math.random() * SONATAS.length)] : SONATAS[0]);
-// 初めて開いたときは「指定しない」（作曲家ごとの音階）にしておく
 const page = setupGenerativePage({
-  defaults: { scale: "composer", root: "D" },
-  freeScale: { id: "composer", name: { ja: "指定しない（作曲家にまかせる）", en: "None (composer's choice)" }, scale: () => sonata.scale },
+  fixedScale: () => ({ scale: sonata.scale, root: sonata.root }),
   applyParams: (params) => {
     lastParams = params;
     applyReverb(reverbLevel, params);
@@ -387,8 +385,8 @@ function newListening(i: number): Listening {
     playIndex: nextPlayIndex(),
     rootPc: root ? ((Math.round(midiOf(root.freq)) % 12) + 12) % 12 : 0,
     settings: {
-      scale: value("scale"),
-      root: value("root"),
+      scale: sonata.scale.id,
+      root: sonata.root,
       register: Number(value("register")),
       density: Number(value("density")),
       reverb: Number(value("reverb")),
@@ -547,7 +545,7 @@ showMode();
 // ?shuffle で開いたときは、最初の作曲家も混ぜて選ぶ
 if (mode === "shuffle") switchSonata(SONATAS[Math.floor(Math.random() * SONATAS.length)]);
 
-// 作曲家を移す（音階と、調律・プリペアド・ピアノも、その作曲家に合わせる）
+// 作曲家を移す（音階と主音、調律・プリペアド・ピアノも、その作曲家に合わせる）
 function switchSonata(next: Sonata) {
   sonata = next;
   movementEl.value = "0";

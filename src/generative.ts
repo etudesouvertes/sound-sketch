@@ -6,7 +6,7 @@ import { setupHelp } from "./help";
 import { setupI18n } from "./i18n";
 import { densityLevelFactor, registerOffset, setupLevel } from "./levels";
 import { clamp01 } from "./math";
-import { type FreeScale, type Pitch, setupScalePicker, visiblePitches } from "./scales";
+import { type Pitch, pitchesOf, type Scale, setupScalePicker, visiblePitches } from "./scales";
 import { type Mood, NEUTRAL_MOOD, setupWeather } from "./weather";
 
 // Ripples / Phase / Loops に共通の土台。
@@ -25,8 +25,9 @@ export function reverbWet(base: number, { mood, drift }: SoundParams): number {
 }
 
 export function setupGenerativePage(options: {
-  defaults: { scale: string; root: string };
-  freeScale?: FreeScale; // スケールの先頭に足す「指定しない」の選択肢
+  defaults?: { scale: string; root: string }; // 設定のスケールと主音の初めの値（fixedScale のときは要らない）
+  // ページが音階と主音を決めるとき（Sonata は作曲家ごと）。設定のスケールと主音は使わず、変化でも転調しない
+  fixedScale?: () => { scale: Scale; root: string };
   // 天気・変化の値が変わったときに、ページ固有の音に反映する
   applyParams: (params: SoundParams) => void;
 }) {
@@ -62,18 +63,27 @@ export function setupGenerativePage(options: {
     "density",
     (level) => (densityLevel = level),
   );
-  const scalePicker = setupScalePicker(
-    document.querySelector<HTMLSelectElement>("#scale")!,
-    document.querySelector<HTMLSelectElement>("#root")!,
-    options.defaults,
-    (next) => {
-      allPitches = next;
-      updatePitches();
-    },
-    options.freeScale,
-  );
-  allPitches = scalePicker.pitches;
-  updatePitches();
+  const fixed = options.fixedScale;
+  const fixedPitches = () => {
+    const { scale, root } = fixed!();
+    allPitches = pitchesOf(scale, root);
+    updatePitches();
+  };
+  const scalePicker = fixed
+    ? null
+    : setupScalePicker(
+        document.querySelector<HTMLSelectElement>("#scale")!,
+        document.querySelector<HTMLSelectElement>("#root")!,
+        options.defaults!,
+        (next) => {
+          allPitches = next;
+          updatePitches();
+        },
+      );
+  if (scalePicker) {
+    allPitches = scalePicker.pitches;
+    updatePitches();
+  } else fixedPitches();
 
   const apply = (ramp: number) => {
     options.applyParams({ mood: weather ?? NEUTRAL_MOOD, drift: drift ?? NEUTRAL_DRIFT, ramp });
@@ -99,8 +109,8 @@ export function setupGenerativePage(options: {
         apply(1);
         updatePitches(); // 音域は変化でも揺れる（天気では変わらない）
       },
-      modulate: () => scalePicker.transposeRoot(7),
-      root: scalePicker.root,
+      modulate: scalePicker ? () => scalePicker.transposeRoot(7) : undefined,
+      root: scalePicker ? scalePicker.root : () => fixed!().root,
     },
   );
 
@@ -151,8 +161,8 @@ export function setupGenerativePage(options: {
     // 自動で置く頻度の倍率
     autoDensity: () =>
       (weather ?? NEUTRAL_MOOD).density * densityFactor(drift ?? NEUTRAL_DRIFT) * densityLevelFactor(densityLevel),
-    // 「指定しない」の音階が変わったときに、音高を作り直す
-    refreshScale: scalePicker.refresh,
+    // ページが決める音階と主音が変わったときに、音高を作り直す
+    refreshScale: () => (scalePicker ? scalePicker.refresh() : fixedPitches()),
     started: () => started,
     ensureStarted,
   };

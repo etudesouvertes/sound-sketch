@@ -381,5 +381,6 @@ export const ligeti: Sonata = {
   initials: "G.L.",
   // 半音階。I は音名を 1 つずつ加え、III は白鍵と黒鍵に両手を分ける
   scale: CHROMATIC,
+  root: "C", // 主音。半音階なので、調号のない C
   movements: [repeatedNote, metronomes, disorder],
 };

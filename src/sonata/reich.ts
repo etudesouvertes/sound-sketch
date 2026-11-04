@@ -432,5 +432,6 @@ export const reich: Sonata = {
   initials: "S.R.",
   // 長調とも短調ともつかない、教会旋法の響き
   scale: DORIAN,
+  root: "E", // 主音。『ピアノ・フェイズ』の型の E にちなんで、E のドリアン
   movements: [phase, pulses, buildUp],
 };

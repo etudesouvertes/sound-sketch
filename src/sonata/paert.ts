@@ -352,5 +352,6 @@ export const paert: Sonata = {
   initials: "A.P.",
   // 自然短音階。主和音（1・3・5 番目の音）は短三和音になる
   scale: AEOLIAN,
+  root: "D", // 主音。D のエオリアン（ニ短調）
   movements: [tintinnabuli, canon, mirror],
 };

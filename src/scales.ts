@@ -107,18 +107,13 @@ export function drawPitchGuides(g: CanvasRenderingContext2D, width: number, heig
   });
 }
 
-// スケールを選ばず、ページに決めてもらう選択肢（Sonata では作曲家ごとの音階）。scale() は選ぶたびに呼ぶ
-export type FreeScale = { id: string; name: L; scale: () => Scale };
-
 // スケールと主音のプルダウンを用意し、選択を URL (?scale=…&root=…) と同期する。
 // transposeRoot はプログラムから変えるとき（転調）に使う。
-// free を渡すと、その選択肢を先頭に足す。free.scale() の答えが変わったときは refresh で音高を作り直す
 export function setupScalePicker(
   scaleEl: HTMLSelectElement,
   rootEl: HTMLSelectElement,
   defaults: { scale: string; root: string },
   onChange: (pitches: Pitch[]) => void,
-  free?: FreeScale,
 ): {
   pitches: Pitch[];
   transposeRoot: (semitones: number) => void;
@@ -127,10 +122,7 @@ export function setupScalePicker(
 } {
   fillGroupedSelect(
     scaleEl,
-    [
-      ...(free ? [{ value: free.id, name: free.name }] : []),
-      ...SCALES.map((s) => ({ value: s.id, group: s.group, name: s.name })),
-    ],
+    SCALES.map((s) => ({ value: s.id, group: s.group, name: s.name })),
     GROUP_NAMES,
   );
   for (const r of ROOTS) rootEl.append(new Option(r, r));
@@ -138,12 +130,11 @@ export function setupScalePicker(
   const params = new URLSearchParams(location.search);
   const scaleParam = params.get("scale");
   const rootParam = params.get("root");
-  const known = (id: string | null) => SCALES.some((s) => s.id === id) || (free !== undefined && id === free.id);
+  const known = (id: string | null) => SCALES.some((s) => s.id === id);
   scaleEl.value = known(scaleParam) ? scaleParam! : defaults.scale;
   rootEl.value = rootParam && ROOTS.includes(rootParam) ? rootParam : defaults.root;
 
-  const current = () =>
-    pitchesOf(free && scaleEl.value === free.id ? free.scale() : SCALES.find((s) => s.id === scaleEl.value)!, rootEl.value);
+  const current = () => pitchesOf(SCALES.find((s) => s.id === scaleEl.value)!, rootEl.value);
   // 初期値も URL に書いておき、別ページへ移ったときにそのページの初期値で上書きされないようにする
   const writeUrl = () => {
     const url = new URL(location.href);
