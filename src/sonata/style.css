@@ -45,7 +45,8 @@
   top: 56px;
   left: 50%;
   z-index: 12;
-  width: min(760px, calc(100vw - 32px));
+  /* 広い画面では 4 列（12 人が 3 段）に並べ、縦に長くならないようにする。高さの上限は開くときに JS で合わせる */
+  width: min(980px, calc(100vw - 32px));
   max-height: 70vh;
   overflow-y: auto;
   transform: translateX(-50%);
@@ -83,6 +84,14 @@
   color: var(--fg);
   font-weight: 600;
   text-align: left;
+}
+
+/* 名前が長いと次の行に送られる。そのときも「の手法による」を途中で切らない */
+.composer-after {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .composer-initials {

@@ -2,7 +2,7 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import "./style.css";
 import { reverbWet, setupCanvas, setupGenerativePage, type SoundParams } from "../generative";
-import { onLangChange, t } from "../i18n";
+import { getLang, onLangChange, t } from "../i18n";
 import { setupLevel } from "../levels";
 import { syncNavQuery } from "../nav";
 import { cage } from "./cage";
@@ -316,12 +316,15 @@ const context: MovementContext = {
 
 // --- 作曲家と楽章 ---
 
+// 実在の曲と思われないよう、作曲家は「〜の手法による」「after 〜」と書く
+const afterComposer = (s: Sonata) => t({ ja: `${s.composer.ja}の手法による`, en: `after ${s.composer.en}` });
+
 // 選択の表示は、いま鳴らしているソナタ（sonata）に合わせる。
 // ブラウザが再読み込みや「戻る」で選択だけを前の値に戻すことがあるので、autocomplete="off" でも防いでいる
 function fillSelects() {
   // バーのボタンには頭文字を出し、フルネームは重ねたときの表示（title）に残す
   composerEl.textContent = `${sonata.initials} ▾`;
-  composerEl.title = t(sonata.composer);
+  composerEl.title = afterComposer(sonata);
   if (!composersEl.hidden) fillComposers();
   const movement = movementEl.value || "0";
   movementEl.replaceChildren(...sonata.movements.map((m, i) => new Option(t(m.title), String(i))));
@@ -568,7 +571,18 @@ function fillComposers() {
       const initials = document.createElement("span");
       initials.className = "composer-initials";
       initials.textContent = s.initials;
-      name.append(t(s.composer), initials);
+      // 名前を目立たせ、「の手法による」「after」は小さく添える
+      const label = document.createElement("span");
+      const after = document.createElement("span");
+      after.className = "composer-after";
+      if (getLang() === "ja") {
+        after.textContent = "の手法による";
+        label.append(t(s.composer), after);
+      } else {
+        after.textContent = "after ";
+        label.append(after, t(s.composer));
+      }
+      name.append(label, initials);
       name.addEventListener("click", () => choose(s, 0));
       const list = document.createElement("ol");
       list.append(
@@ -598,8 +612,14 @@ function markComposers() {
     for (const b of card.querySelectorAll<HTMLElement>("[data-movement]")) markCurrent(b, current && run !== null && Number(b.dataset.movement) === index);
   }
 }
-// パネルはバーのすぐ下に開く（スマホでバーが折り返すと高さが変わるので、開くときと画面の大きさが変わったときに合わせる）
-const placeComposers = () => (composersEl.style.top = `${document.querySelector(".bar")!.getBoundingClientRect().bottom + 4}px`);
+// パネルはバーのすぐ下に開く（スマホでバーが折り返すと高さが変わるので、開くときと画面の大きさが変わったときに合わせる）。
+// 高さは、バーの下から画面の下までに収め、それでも入りきらないときだけ縦にスクロールする
+const PANEL_BOTTOM_GAP = 12;
+const placeComposers = () => {
+  const top = document.querySelector(".bar")!.getBoundingClientRect().bottom + 4;
+  composersEl.style.top = `${top}px`;
+  composersEl.style.maxHeight = `${window.innerHeight - top - PANEL_BOTTOM_GAP}px`;
+};
 window.addEventListener("resize", () => {
   if (!composersEl.hidden) placeComposers();
 });
@@ -735,8 +755,8 @@ function draw() {
       : "";
   g.textAlign = "right";
   g.font = "13px system-ui, sans-serif";
-  // 実在の曲と思われないよう、作曲家は「〜の手法による」と書く。1 行に収まらない狭い画面（スマホ）では、1 段上に分ける
-  const after = t({ ja: `${sonata.composer.ja}の手法による`, en: `after ${sonata.composer.en}` });
+  // 1 行に収まらない狭い画面（スマホ）では、作曲家を 1 段上に分ける
+  const after = afterComposer(sonata);
   const line = `${after}  ${t(movement.title)}  ${status}`;
   const lines = g.measureText(line).width <= width - 48 ? [line] : [after, `${t(movement.title)}  ${status}`];
   const seedText = run || ended ? `Op. ${seed} in ${keyName(sonata)}` : "";
