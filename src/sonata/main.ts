@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import "../ripples/style.css";
 import "./style.css";
-import { reverbWet, setupCanvas, setupGenerativePage, type SoundParams } from "../generative";
+import { setupCanvas, setupGenerativePage } from "../generative";
 import { getLang, onLangChange, t } from "../i18n";
 import { setupLevel } from "../levels";
 import { syncNavQuery } from "../nav";
@@ -52,8 +52,6 @@ const playEl = document.querySelector<HTMLButtonElement>("#play")!;
 const stopEl = document.querySelector<HTMLButtonElement>("#stop")!;
 const repeatEl = document.querySelector<HTMLButtonElement>("#repeat")!;
 const shuffleEl = document.querySelector<HTMLButtonElement>("#shuffle")!;
-const reverbEl = document.querySelector<HTMLInputElement>("#reverb")!;
-const reverbValueEl = document.querySelector<HTMLOutputElement>("#reverb-value")!;
 const swayEl = document.querySelector<HTMLInputElement>("#sway")!;
 const swayValueEl = document.querySelector<HTMLOutputElement>("#sway-value")!;
 const tuningEl = document.querySelector<HTMLSelectElement>("#tuning")!;
@@ -246,18 +244,6 @@ thud.connect(filter);
 // 変化: 天気で決まった値を中心に、音域・音色の明るさ・リバーブがゆっくり揺れ、20 分ごとに 5 度上へ転調する
 let speed = 1;
 
-// 響き（1〜5）: リバーブの深さの基準と残響の長さ。天気（雲）と変化は、この基準を中心に揺らす。3 が今までの響き
-const REVERB_BASES = [-0.22, -0.1, 0.05, 0.2, 0.35]; // 天気を使わないときの深さは、およそ 0.03・0.15・0.3・0.45・0.6
-const REVERB_DECAYS = [1.5, 2.5, 3.5, 5, 7];
-let lastParams: SoundParams | null = null;
-const applyReverb = (level: number, params: SoundParams) => {
-  reverb.wet.rampTo(reverbWet(REVERB_BASES[level - 1], params), params.ramp);
-  if (reverb.decay !== REVERB_DECAYS[level - 1]) reverb.decay = REVERB_DECAYS[level - 1];
-};
-let reverbLevel = setupLevel(reverbEl, reverbValueEl, "reverb", (level) => {
-  reverbLevel = level;
-  if (lastParams) applyReverb(level, { ...lastParams, ramp: 0.5 });
-});
 
 // 音階と主音は作曲家にまかせる（作曲家を変えると両方変わる）。URL の ?composer=satie などで作曲家を選んで開ける。
 // 録音モードで作曲家を選ばなかったときは、でたらめに選ぶ
@@ -265,9 +251,9 @@ let sonata =
   SONATAS.find((s) => s.id === query.get("composer")) ?? (RECORD ? SONATAS[Math.floor(Math.random() * SONATAS.length)] : SONATAS[0]);
 const page = setupGenerativePage({
   fixedScale: () => ({ scale: sonata.scale, root: sonata.root }),
+  // 響き 3 の深さ（天気を使わないときは、標準の雲の分を足しておよそ 0.3）
+  reverb: { node: reverb, wet: 0.05, decay: 3.5 },
   applyParams: (params) => {
-    lastParams = params;
-    applyReverb(reverbLevel, params);
     filter.frequency.rampTo(6000 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
     speed = params.mood.speed;
     sustain = params.mood.sustain;

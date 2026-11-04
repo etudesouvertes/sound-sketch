@@ -1,7 +1,7 @@
 import * as Tone from "tone";
 import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
-import { reverbWet, setupCanvas, setupGenerativePage } from "../generative";
+import { setupCanvas, setupGenerativePage } from "../generative";
 import { getLang, tk } from "../i18n";
 
 // 長さが大きく違うテープループを重ねる（イーノ『Music for Airports』の手法）。
@@ -75,8 +75,8 @@ let sustain = 1; // 1 音の長さの倍率（空模様で変わる）
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "F" },
+  reverb: { node: reverb, wet: 0.35, decay: 10 },
   applyParams: (params) => {
-    reverb.wet.rampTo(reverbWet(0.35, params), params.ramp);
     filter.frequency.rampTo(1800 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
     sustain = params.mood.sustain;
   },

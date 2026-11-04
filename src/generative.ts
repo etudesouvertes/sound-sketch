@@ -10,7 +10,7 @@ import { type Pitch, pitchesOf, type Scale, setupScalePicker, visiblePitches } f
 import { type Mood, NEUTRAL_MOOD, setupWeather } from "./weather";
 
 // Ripples / Phase / Loops に共通の土台。
-// スケール・主音・音域・密度・天気・変化をつなぎ、画面に割り当てる音高と、ページ固有の音（テンポ・リバーブ・音色など）を更新する。
+// スケール・主音・音域・密度・響き・天気・変化をつなぎ、画面に割り当てる音高と、リバーブと、ページ固有の音（テンポ・音色など）を更新する。
 // 音域は「段階 + 変化の揺れ」、自動で置く頻度は「天気 × 変化 × 密度の段階」で決まる
 
 export type SoundParams = {
@@ -24,12 +24,25 @@ export function reverbWet(base: number, { mood, drift }: SoundParams): number {
   return clamp01(base + 0.5 * mood.wetness + 0.15 * drift.reverb);
 }
 
+// 設定の「響き」（1〜5）。3 がページごとの標準の響きで、残響の長さは段階ごとに倍率を掛ける。
+// 深さは、3 より下では標準の深さ（天気を使わないとき）を縮め（1 でほぼ響きなし）、上では足す（5 でホールのように深く）。
+// 天気（雲）と変化は、ここで決まった深さを中心に揺らす
+const REVERB_SCALES = [0.1, 0.55]; // 響き 1・2 の深さ（標準の何倍か）
+const REVERB_ADDS = [0, 0.15, 0.3]; // 響き 3・4・5 で足す深さ
+const reverbOffset = (wet: number, level: number) => {
+  const standard = reverbWet(wet, { mood: NEUTRAL_MOOD, drift: NEUTRAL_DRIFT, ramp: 0 });
+  return level < 3 ? standard * (REVERB_SCALES[level - 1] - 1) : REVERB_ADDS[level - 3];
+};
+const REVERB_DECAYS = [1.5, 2.5, 3.5, 5, 7].map((d) => d / 3.5);
+
 export function setupGenerativePage(options: {
   defaults?: { scale: string; root: string }; // 設定のスケールと主音の初めの値（fixedScale のときは要らない）
   // ページが音階と主音を決めるとき（Sonata は作曲家ごと）。設定のスケールと主音は使わず、変化でも転調しない
   fixedScale?: () => { scale: Scale; root: string };
   // 天気・変化の値が変わったときに、ページ固有の音に反映する
   applyParams: (params: SoundParams) => void;
+  // ページのリバーブと、響きが 3（標準）のときの深さ・残響の長さ。設定の「響き」・天気・変化で動かす
+  reverb: { node: Tone.Reverb; wet: number; decay: number };
 }) {
   protectOutput();
   setupI18n();
@@ -85,8 +98,26 @@ export function setupGenerativePage(options: {
     updatePitches();
   } else fixedPitches();
 
+  const applyReverb = (params: SoundParams) => {
+    const { node, wet, decay } = options.reverb;
+    node.wet.rampTo(reverbWet(wet + reverbOffset(wet, reverbLevel), params), params.ramp);
+    const length = decay * REVERB_DECAYS[reverbLevel - 1];
+    if (node.decay !== length) node.decay = length;
+  };
+  let reverbLevel = setupLevel(
+    document.querySelector<HTMLInputElement>("#reverb")!,
+    document.querySelector<HTMLOutputElement>("#reverb-value")!,
+    "reverb",
+    (level) => {
+      reverbLevel = level;
+      applyReverb({ mood: weather ?? NEUTRAL_MOOD, drift: drift ?? NEUTRAL_DRIFT, ramp: 0.5 });
+    },
+  );
+
   const apply = (ramp: number) => {
-    options.applyParams({ mood: weather ?? NEUTRAL_MOOD, drift: drift ?? NEUTRAL_DRIFT, ramp });
+    const params = { mood: weather ?? NEUTRAL_MOOD, drift: drift ?? NEUTRAL_DRIFT, ramp };
+    applyReverb(params);
+    options.applyParams(params);
   };
 
   setupWeather(

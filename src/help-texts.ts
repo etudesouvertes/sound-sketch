@@ -80,6 +80,13 @@ export const HELP_COMMON: Record<string, HelpText> = {
       en: "How often sounds are placed automatically. 1 is sparse, 5 is busy. It doesn't affect what you place by clicking.",
     },
   },
+  "#reverb": {
+    title: { ja: "響き", en: "Reverb" },
+    text: {
+      ja: "リバーブの深さと残響の長さです。1 でほぼ響きなし、3 が標準、5 でホールのように深く長く響きます。天気を使うと雲の量で、変化をオンにすると時間とともに、ここで選んだ響きを中心に深さが揺れます。",
+      en: "Reverb depth and length. 1 is nearly dry, 3 is the default and 5 is deep and long like a hall. With weather on, cloud cover moves the depth around this setting, and Drift sways it over time.",
+    },
+  },
   "#weather": {
     title: { ja: "天気", en: "Weather" },
     text: {
@@ -262,13 +269,6 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "オンにすると、音域・密度・音色の明るさ・響きが何分もかけてゆっくり揺れます。Sonata の音階と主音は作曲家ごとに決まっているので、転調はしません。",
         en: "When on, register, density, brightness and reverb sway slowly over many minutes. Sonata's scale and root are set by each composer, so the key doesn't change.",
-      },
-    },
-    "#reverb": {
-      title: { ja: "響き", en: "Reverb" },
-      text: {
-        ja: "リバーブの深さと残響の長さです。1 でほぼ響きなし、3 が標準、5 でホールのように深く長く響きます。天気を使うと雲の量で、変化をオンにすると時間とともに、ここで選んだ響きを中心に深さが揺れます。",
-        en: "Reverb depth and length. 1 is nearly dry, 3 is the default and 5 is deep and long like a hall. With weather on, cloud cover moves the depth around this setting, and Drift sways it over time.",
       },
     },
     "#sway": {

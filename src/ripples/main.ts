@@ -2,7 +2,7 @@ import * as Tone from "tone";
 import "./style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
 import { steppedRamp } from "../audio";
-import { reverbWet, setupCanvas, setupGenerativePage } from "../generative";
+import { setupCanvas, setupGenerativePage } from "../generative";
 
 // クリックした場所から波紋が広がり、画面の端や他の波紋にぶつかると音が鳴る。
 // 発音は Transport の 16 分音符に揃えるので、どこを叩いてもリズムが崩れない。
@@ -65,9 +65,9 @@ const rampBrightness = steppedRamp(8, (modulationIndex) => bell.set({ modulation
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "C" },
+  reverb: { node: reverb, wet: 0.2, decay: 6 },
   applyParams: (params) => {
     transport.bpm.rampTo(BPM * params.mood.speed, params.ramp);
-    reverb.wet.rampTo(reverbWet(0.2, params), params.ramp);
     rampBrightness(8 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
     const sustain = params.mood.sustain;
     pluck.set({ envelope: { decay: 0.4 * sustain, release: 1.2 * sustain } });

@@ -2,7 +2,7 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
 import { steppedRamp } from "../audio";
-import { reverbWet, setupCanvas, setupGenerativePage } from "../generative";
+import { setupCanvas, setupGenerativePage } from "../generative";
 
 // 置いた音が、それぞれ少しずつ違う周期でループする。
 // 周期のわずかな差で音どうしの重なり方がゆっくりずれていく（スティーヴ・ライヒのフェイジング）。
@@ -57,8 +57,8 @@ const rampBrightness = steppedRamp(2.5, (modulationIndex) => synth.set({ modulat
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "D" },
+  reverb: { node: reverb, wet: 0.25, decay: 8 },
   applyParams: (params) => {
-    reverb.wet.rampTo(reverbWet(0.25, params), params.ramp);
     rampBrightness(2.5 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
     synth.set({ envelope: { decay: 2 * params.mood.sustain, release: 2 * params.mood.sustain } });
   },
