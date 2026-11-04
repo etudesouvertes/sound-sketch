@@ -209,6 +209,14 @@ export function staffPen(ctx: MovementContext, height: number) {
   return { band, top, left, shown, ledgers, note, ottava };
 }
 
+// 最後に描いた流れる表示の、時刻と位置の対応（曲名を、流れてきた音で押し出すのに使う）
+let flowFrame: { drawnAt: number; now: number; windowSeconds: number; right: number; span: number } | null = null;
+// その時刻に鳴った音が今ある x 座標。流れる表示を描いていない楽章では null
+export function flowXOf(time: number): number | null {
+  if (!flowFrame || performance.now() - flowFrame.drawnAt > 200) return null;
+  return flowFrame.right - ((flowFrame.now - time) / flowFrame.windowSeconds) * flowFrame.span;
+}
+
 export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds: number, paint: PaintMark<M>): FlowView<M> {
   let marks: M[] = [];
   return {
@@ -220,6 +228,7 @@ export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds
       const pen = staffPen(ctx, height);
       const { band, left } = pen;
       const span = width - left - MARGIN_RIGHT;
+      flowFrame = { drawnAt: performance.now(), now, windowSeconds, right: width - MARGIN_RIGHT, span };
       const placed = marks
         .map((m) => ({ m, x: width - MARGIN_RIGHT - ((now - m.time) / windowSeconds) * span, ...pen.shown(m.index) }))
         .filter((p) => p.x >= left)

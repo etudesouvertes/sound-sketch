@@ -18,9 +18,9 @@ import { reich } from "./reich";
 import { riley } from "./riley";
 import { satie } from "./satie";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
-import { keepRandom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
+import { flowXOf, keepRandom, musicFrom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
 import { recordSonata } from "./record";
-import { drawStaff, viewRange } from "./staff";
+import { drawStaff, staffTop, viewRange } from "./staff";
 
 // 作曲家ごとに独立したピアノソナタ（3 楽章）。作曲家を選ぶと、I → II → III がその作曲家の作り方で続けて鳴り、
 // III が終わるとソナタも終わる。楽章は自分の流れ（始まり・盛り上がり・終わり）を持つ
@@ -719,6 +719,7 @@ function draw() {
   g.translate(0, music.top);
   run?.draw(g, width, music.height);
   g.restore();
+  drawTitle();
   drawCard?.(g, width, height);
 
   // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種を作品番号（Op.）として出す（設定に入れると、同じ演奏をもう一度聴ける）
@@ -734,11 +735,15 @@ function draw() {
       : "";
   g.textAlign = "right";
   g.font = "13px system-ui, sans-serif";
-  // 1 行に収まらない狭い画面（スマホ）では、作曲家を 1 段上に分ける
-  const line = `${t(sonata.composer)}  ${t(movement.title)}  ${status}`;
-  const lines = g.measureText(line).width <= width - 48 ? [line] : [t(sonata.composer), `${t(movement.title)}  ${status}`];
-  const seedText = run || ended ? `Op. ${seed}` : "";
-  const widest = Math.max(...lines.map((l) => g.measureText(l).width), seedText.length * 7);
+  // 実在の曲と思われないよう、作曲家は「〜の手法による」と書く。1 行に収まらない狭い画面（スマホ）では、1 段上に分ける
+  const after = t({ ja: `${sonata.composer.ja}の手法による`, en: `after ${sonata.composer.en}` });
+  const line = `${after}  ${t(movement.title)}  ${status}`;
+  const lines = g.measureText(line).width <= width - 48 ? [line] : [after, `${t(movement.title)}  ${status}`];
+  const seedText = run || ended ? `Op. ${seed} in ${keyName(sonata)}` : "";
+  const lineWidth = Math.max(...lines.map((l) => g.measureText(l).width));
+  g.font = "11px system-ui, sans-serif";
+  const widest = Math.max(lineWidth, g.measureText(seedText).width);
+  g.font = "13px system-ui, sans-serif";
   const bottom = freeBottom(width - 24 - widest);
   g.fillStyle = "rgba(255, 255, 255, 0.55)";
   lines.forEach((l, i) => g.fillText(l, width - 24, bottom - 40 - 18 * (lines.length - 1 - i)));
@@ -748,6 +753,51 @@ function draw() {
     g.fillText(seedText, width - 24, bottom - 22);
   }
 }
+
+// 楽章の始めに、楽譜の表題のように曲名を五線の上の中央に出す（英語だけ）。流れてきた音がそこまで来たら、音に押されて左へ動き、
+// 音部記号と調号のところで消える。音が流れない楽章では、しばらくして消える
+const TITLE_GAP = 16; // 曲名と、押してくる音のあいだ（px）
+function drawTitle() {
+  if (!run) return;
+  const movement = sonata.movements[index];
+  const age = Tone.now() - startedAt;
+  const top = movement.noStaff ? 120 : staffTop();
+  const k = Math.min(Math.max((top - 60) / 110, 0.6), 1); // 五線の上が狭い画面（スマホの横向き）では小さく
+  const lines = [
+    { text: `Sonata in ${keyName(sonata)}`, font: `${22 * k}px Georgia, "Times New Roman", serif`, height: 28 * k },
+    { text: movement.title.en, font: `italic ${15 * k}px Georgia, "Times New Roman", serif`, height: 20 * k },
+    { text: `after ${sonata.composer.en} · Op. ${seed}`, font: `${12 * k}px Georgia, "Times New Roman", serif`, height: 16 * k },
+  ];
+  const half = Math.max(...lines.map((l) => ((g.font = l.font), g.measureText(l.text).width))) / 2;
+  let centre = width / 2;
+  let alpha = Math.min(age / 1, 1);
+  const pushed = flowXOf(startedAt);
+  if (pushed === null) alpha *= Math.min(Math.max((10 - age) / 2, 0), 1);
+  else {
+    centre = Math.min(centre, pushed - TITLE_GAP - half);
+    alpha *= Math.min(Math.max((centre - half - musicFrom()) / 60, 0), 1);
+  }
+  if (alpha <= 0) return;
+  g.textAlign = "center";
+  g.fillStyle = `rgba(255, 255, 255, ${0.6 * alpha})`;
+  let y = top - 18 * k - lines.reduce((sum, l) => sum + l.height, 0);
+  for (const l of lines) {
+    y += l.height;
+    g.font = l.font;
+    g.fillText(l.text, centre, y);
+  }
+}
+
+// 作品番号に添える調。旋法の名前で書き、エオリアンは minor、長音階は major と書く。半音階は主音だけ（言語によらず英語）
+const MODE_NAMES: Record<string, string> = {
+  major: "major",
+  aeolian: "minor",
+  dorian: "Dorian",
+  mixolydian: "Mixolydian",
+  "major-pentatonic": "major pentatonic",
+  "messiaen-mode-2": "(Mode 2)",
+};
+const keyName = (s: Sonata) => [s.root.replace("#", "♯"), MODE_NAMES[s.scale.id]].filter(Boolean).join(" ");
 
 function frame() {
   draw();
