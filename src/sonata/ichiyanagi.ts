@@ -1,10 +1,11 @@
 import * as Tone from "tone";
 import { pitchAt, pitchIndexAt } from "../scales";
 import { t } from "../i18n";
-import { after, CHROMATIC, MARGIN_LEFT, MARGIN_RIGHT, type Movement, rand, random, type Sonata, yOf } from "./movement";
+import { after, CHROMATIC, layout, MARGIN_RIGHT, type Movement, rand, random, type Sonata, staffPen, yOf } from "./movement";
+import { clefGap } from "./staff";
 
 // 一柳慧がピアノソナタを書いたら、という試み。曲そのものは引用せず、作り方だけを借りている。
-// I.  反復のずれ（『ピアノ・メディア』のころ）: 両手が長さの違う短い型を同じ刻みで繰り返し、重なり方がずれていく
+// I.  反復のずれ（『ピアノ・メディア』のころ）: 両手が長さの違う型を同じ刻みで繰り返し、重なり方がずれていく。最後は両手のユニゾンで 1 周して終える
 // II. 間（ケージの影響を受けたころ）: ペダルを踏んだまま、偶然で決めた音がぽつんと鳴り、長い沈黙をはさむ
 // III. トッカータ: 速い旋律が 1 周ごとに 1 音ずつ伸び（1、1-2、1-2-3…）、両手で交互に弾きながら音域が広がり、加速する
 
@@ -25,11 +26,13 @@ type Hand = {
   hue: number;
 };
 
-const MIN_LENGTH = 3;
-const MAX_LENGTH = 12;
+const MIN_LENGTH = 7;
+const MAX_LENGTH = 20;
 const LEFT_ENTERS = 0.08; // 左手が入る位置（楽章の長さに対する割合）
-const ENDING_AT = 0.82; // ここから両手の長さを 5 と 6 に寄せ、頭がそろった瞬間に終える
-const SETTLED_RIGHT = 5;
+const ENDING_AT = 0.82; // ここから両手の長さを 15 と 17 に寄せ、頭がそろったら、両手のユニゾンで 1 周してから終える
+const SETTLED_RIGHT = 15;
+const SETTLED_LEFT = 17;
+const PAD = 22; // 音部記号・調号と、いちばん左の音のあいだ（px）
 
 const shifting: Movement = {
   title: { ja: "I. 反復のずれ", en: "I. Shifting repetitions" },
@@ -71,9 +74,9 @@ const shifting: Movement = {
       while (hand.pattern.length < length) hand.pattern.push((note = randomNote(hand, note)));
       hand.glow = hand.pattern.map(() => 0);
     };
-    const length = 5 + Math.floor(rand() * 3);
+    const length = 11 + Math.floor(rand() * 4);
     generate(right, length);
-    generate(left, length + 1);
+    generate(left, length + 2);
 
     const insertAt = (hand: Hand, at: number, note: number, glow = 0) => {
       hand.pattern.splice(at, 0, note);
@@ -102,25 +105,40 @@ const shifting: Movement = {
       }
       hand.position %= p.length;
     };
-    // 終盤: 右手 5 音・左手 6 音に 1 音ずつ寄せる（そろうと、30 拍ごとに両手の頭が重なる）
+    // 終盤: 右手 15 音・左手 17 音に 1 音ずつ寄せる（そろうと、255 音ごとに両手の頭が重なる）
     const settle = (hand: Hand) => {
-      const target = hand.upper ? SETTLED_RIGHT : SETTLED_RIGHT + 1;
+      const target = hand.upper ? SETTLED_RIGHT : SETTLED_LEFT;
       if (hand.pattern.length > target) removeAt(hand, Math.floor(rand() * hand.pattern.length));
       else if (hand.pattern.length < target) insertAt(hand, hand.pattern.length, randomNote(hand, hand.pattern[hand.pattern.length - 1]));
       hand.position %= hand.pattern.length;
     };
-    const settled = () => right.pattern.length === SETTLED_RIGHT && left.pattern.length === SETTLED_RIGHT + 1;
+    const settled = () => right.pattern.length === SETTLED_RIGHT && left.pattern.length === SETTLED_LEFT;
 
     // 型が変わる頻度。始めは少なく、中ほどで多く、終盤は寄せるだけ
     const mutateChance = (progress: number) => Math.min(0.9, 0.2 * (0.3 + 1.7 * Math.sin(Math.PI * Math.min(progress / ENDING_AT, 1))) * ctx.density());
     // 強さ。弱く始め、7 割のところで最も強くなり、そのまま終わる
     const dynamics = (progress: number) => 0.4 + 0.6 * Math.min(progress / 0.7, 1);
 
+    // 最後の 1 周: 左手も右手の型をオクターブ下で弾き、両手のユニゾンで強くなっていく
+    let unison = false;
+    const startUnison = () => {
+      unison = true;
+      const h = layout(ctx);
+      left.pattern = right.pattern.map((note) => {
+        let index = absoluteIndex(right, note);
+        while (index >= rangeOf(left).size) index -= h.perOctave;
+        return Math.max(index, 0);
+      });
+      left.glow = left.pattern.map(() => 0);
+      left.position = 0;
+      right.position = 0;
+    };
+
     const finalChord = (time: number) => {
       const pitches = ctx.pitches();
       const top = pitchAt(pitches, absoluteIndex(right, right.pattern[0])).freq;
       const bass = pitchAt(pitches, absoluteIndex(left, left.pattern[0])).freq;
-      for (const freq of [top, bass, bass / 2]) piano.triggerAttackRelease(freq, 5, time, 0.95);
+      for (const freq of [top * 2, top, bass, bass / 2]) piano.triggerAttackRelease(freq, 5, time, 1);
       Tone.getDraw().schedule(() => (aligned = 1.5), time);
       endAt = time + 6;
     };
@@ -131,20 +149,27 @@ const shifting: Movement = {
       const progress = elapsedOf(startAt, time) / shifting.duration;
       maxStep = progress < 0.3 ? 2 : progress < 0.6 ? 3 : 4;
       const bothAtStart = right.position === 0 && left.position === 0;
-      // 頭がそろった瞬間に終える。そろわないまま長引いたら、そこで終える
-      if ((progress >= ENDING_AT && settled() && bothAtStart) || progress > 1.2) {
+      // ユニゾンの 1 周を弾き終えたら、両手の頭で強く終える。そろわないまま長引いたら、そこで終える
+      if ((unison && bothAtStart) || progress > 1.25) {
         finalChord(time);
         return;
       }
+      // 頭がそろったら、最後の 1 周（ユニゾン）に入る
+      if (!unison && progress >= ENDING_AT && settled() && bothAtStart) startUnison();
 
       const sixteenth = Tone.Time("16n").toSeconds();
       for (const hand of hands) {
         if (!hand.upper && progress < LEFT_ENTERS) continue; // 左手は、入るまで頭で待つ
         const at = hand.position;
         const accent = hand.count % hand.accentCycle === 0;
-        const velocity = (accent ? 0.9 : 0.55 + rand() * 0.08) * dynamics(progress) * (hand.upper ? 1 : 0.9);
+        // ユニゾンでは、両手とも同じ所にアクセントを置き、1 周かけて強くなる
+        const velocity = unison
+          ? ((at % 3 === 0 ? 0.85 : 0.65) + 0.15 * (at / hand.pattern.length)) * (hand.upper ? 1 : 0.95)
+          : (accent ? 0.9 : 0.55 + rand() * 0.08) * dynamics(progress) * (hand.upper ? 1 : 0.9);
         const freq = pitchAt(ctx.pitches(), absoluteIndex(hand, hand.pattern[at])).freq;
         piano.triggerAttackRelease(freq, sixteenth * 1.6, time + rand() * 0.006, velocity);
+        // ユニゾンの左手は、さらに 1 オクターブ下を重ねて厚くする
+        if (unison && !hand.upper) piano.triggerAttackRelease(freq / 2, sixteenth * 1.6, time + rand() * 0.006, velocity * 0.8);
         Tone.getDraw().schedule(() => {
           hand.playing = at;
           if (at < hand.glow.length) hand.glow[at] = accent ? 1 : 0.7;
@@ -152,18 +177,20 @@ const shifting: Movement = {
 
         hand.count++;
         hand.position = (at + 1) % hand.pattern.length;
-        if (hand.position !== 0) continue;
+        if (hand.position !== 0 || unison) continue;
         if (progress >= ENDING_AT) settle(hand);
         else if (rand() < mutateChance(progress)) mutate(hand);
       }
       if (bothAtStart && progress >= LEFT_ENTERS) Tone.getDraw().schedule(() => (aligned = 1), time);
     }, "16n").start(after(transport, 0.05));
 
+    // 型は音部記号と調号の右に並べる
     const drawHand = (g: CanvasRenderingContext2D, width: number, height: number, hand: Hand, alpha: number) => {
       const count = ctx.pitches().length;
       const p = hand.pattern;
-      const step = (width - MARGIN_LEFT - MARGIN_RIGHT) / p.length;
-      const xOf = (i: number) => MARGIN_LEFT + (i + 0.5) * step;
+      const from = staffPen(ctx, height).left + PAD;
+      const step = (width - from - MARGIN_RIGHT) / p.length;
+      const xOf = (i: number) => from + (i + 0.5) * step;
       const y = (note: number) => yOf(absoluteIndex(hand, note), height, count);
 
       g.strokeStyle = `hsla(${hand.hue}, 40%, 60%, ${0.25 * alpha})`;
@@ -179,18 +206,18 @@ const shifting: Movement = {
           g.strokeStyle = `hsla(${hand.hue}, 60%, 70%, ${0.5 * alpha})`;
           g.lineWidth = 1;
           g.beginPath();
-          g.arc(xOf(i), y(note), 9, 0, Math.PI * 2);
+          g.arc(xOf(i), y(note), 13.5, 0, Math.PI * 2);
           g.stroke();
         }
         g.fillStyle = `hsla(${hand.hue}, 80%, ${55 + 25 * glow}%, ${(0.35 + 0.65 * glow) * alpha})`;
         g.beginPath();
-        g.arc(xOf(i), y(note), 3 + 5 * glow, 0, Math.PI * 2);
+        g.arc(xOf(i), y(note), 4.5 + 7.5 * glow, 0, Math.PI * 2);
         g.fill();
         if (i === hand.playing) {
           g.strokeStyle = `hsla(${hand.hue}, 90%, 80%, ${0.9 * alpha})`;
           g.lineWidth = 2;
           g.beginPath();
-          g.arc(xOf(i), y(note), 12, 0, Math.PI * 2);
+          g.arc(xOf(i), y(note), 18, 0, Math.PI * 2);
           g.stroke();
         }
       });
@@ -200,7 +227,7 @@ const shifting: Movement = {
     return {
       // クリックした高さの音を、その手が次に鳴らす位置に入れる（型が 1 音長くなり、ずれ方が変わる）。いっぱいなら置き換える
       pointer(_x, y, height) {
-        if (endAt !== Infinity) return;
+        if (endAt !== Infinity || unison) return; // 最後のユニゾンの 1 周は崩さない
         const index = pitchIndexAt(y, height, ctx.pitches().length);
         const hand = index >= rangeOf(right).base ? right : left;
         const note = index - rangeOf(hand).base;
@@ -217,20 +244,21 @@ const shifting: Movement = {
         for (const hand of hands) hand.glow = hand.glow.map((v) => Math.max(0, v - dt * 3));
         aligned = Math.max(0, aligned - dt * 2);
 
-        const count = ctx.pitches().length;
-        const middle = yOf(rangeOf(right).base - 0.5, height, count);
+        // 両手の境の線と、両手の型の長さは、ト音記号とヘ音記号のあいだに（線は 2 つの表示のあいだを通る）
+        const gap = clefGap();
+        const middle = gap.y - staffPen(ctx, height).top;
         g.strokeStyle = `rgba(255, 255, 255, ${0.08 + 0.5 * Math.min(aligned, 1)})`;
         g.lineWidth = 1 + 2 * Math.min(aligned, 1);
         g.beginPath();
-        g.moveTo(MARGIN_LEFT, middle);
+        g.moveTo(gap.x - 28, middle);
         g.lineTo(width - MARGIN_RIGHT, middle);
         g.stroke();
 
         g.font = "12px system-ui, sans-serif";
-        g.textAlign = "right";
+        g.textAlign = "center";
         g.fillStyle = "rgba(255, 255, 255, 0.45)";
-        g.fillText(`${t({ ja: "右手", en: "R.H." })} ${right.pattern.length}`, width - MARGIN_RIGHT, middle - 10);
-        g.fillText(`${t({ ja: "左手", en: "L.H." })} ${left.pattern.length}`, width - MARGIN_RIGHT, middle + 20);
+        g.fillText(`${t({ ja: "右手", en: "R.H." })} ${right.pattern.length}`, gap.x, middle - 6);
+        g.fillText(`${t({ ja: "左手", en: "L.H." })} ${left.pattern.length}`, gap.x, middle + 15);
 
         const leftIn = (Tone.now() - startAt) / shifting.duration >= LEFT_ENTERS;
         drawHand(g, width, height, right, 1);
@@ -314,27 +342,29 @@ const silences: Movement = {
         last = now;
         for (const m of marks) m.life = Math.max(0.2, m.life - dt / 8);
 
+        // 音は音部記号と調号の右に置く
         const count = ctx.pitches().length;
-        const span = width - MARGIN_LEFT - MARGIN_RIGHT;
+        const from = staffPen(ctx, height).left + PAD;
+        const span = width - from - MARGIN_RIGHT;
         const progress = Math.min((Tone.now() - startAt) / silences.duration, 1);
         g.strokeStyle = "rgba(255, 255, 255, 0.08)";
         g.lineWidth = 1;
         g.beginPath();
-        g.moveTo(MARGIN_LEFT + progress * span, 52);
-        g.lineTo(MARGIN_LEFT + progress * span, height);
+        g.moveTo(from + progress * span, 52);
+        g.lineTo(from + progress * span, height);
         g.stroke();
 
         for (const m of marks) {
-          const x = MARGIN_LEFT + Math.min(m.at, 1) * span;
+          const x = from + Math.min(m.at, 1) * span;
           const y = yOf(m.index, height, count);
           g.fillStyle = `hsla(45, 70%, 75%, ${m.life * (0.4 + m.velocity)})`;
           g.beginPath();
-          g.arc(x, y, 2 + 6 * m.velocity, 0, Math.PI * 2);
+          g.arc(x, y, 3 + 9 * m.velocity, 0, Math.PI * 2);
           g.fill();
           if (m.life > 0.5) {
             g.strokeStyle = `hsla(45, 70%, 75%, ${(m.life - 0.5) * 0.6})`;
             g.beginPath();
-            g.arc(x, y, 6 + (1 - m.life) * 60, 0, Math.PI * 2);
+            g.arc(x, y, 9 + (1 - m.life) * 90, 0, Math.PI * 2);
             g.stroke();
           }
         }
@@ -451,8 +481,10 @@ const toccata: Movement = {
         last = now;
         glow = glow.map((v) => Math.max(0, v - dt * 3));
 
-        const step = (width - MARGIN_LEFT - MARGIN_RIGHT) / MAX_MELODY;
-        const xOf = (i: number) => MARGIN_LEFT + (i + 0.5) * step;
+        // 旋律は音部記号と調号の右に並べる
+        const from = staffPen(ctx, height).left + PAD;
+        const step = (width - from - MARGIN_RIGHT) / MAX_MELODY;
+        const xOf = (i: number) => from + (i + 0.5) * step;
         g.strokeStyle = "hsla(340, 40%, 60%, 0.25)";
         g.lineWidth = 1.5;
         g.beginPath();
@@ -468,13 +500,13 @@ const toccata: Movement = {
           const y = yOf(note, height, count());
           g.fillStyle = `hsla(${hue}, 80%, ${55 + 25 * glow[i]}%, ${inWindow ? 0.4 + 0.6 * glow[i] : 0.15})`;
           g.beginPath();
-          g.arc(xOf(i), y, 3 + 5 * glow[i], 0, Math.PI * 2);
+          g.arc(xOf(i), y, 4.5 + 7.5 * glow[i], 0, Math.PI * 2);
           g.fill();
           if (i === playing) {
             g.strokeStyle = `hsla(${hue}, 90%, 80%, 0.9)`;
             g.lineWidth = 2;
             g.beginPath();
-            g.arc(xOf(i), y, 12, 0, Math.PI * 2);
+            g.arc(xOf(i), y, 18, 0, Math.PI * 2);
             g.stroke();
           }
         });

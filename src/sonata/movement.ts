@@ -203,7 +203,7 @@ export function staffPen(ctx: MovementContext, height: number) {
     g.fillText(`${["8", "15", "22"][Math.abs(octave) - 1]}${octave > 0 ? (octave > 1 ? "ma" : "va") : octave < -1 ? "mb" : "vb"}`, x, y - Math.sign(octave) * band * 0.9);
     g.textBaseline = "alphabetic";
   };
-  return { band, left, shown, ledgers, note, ottava };
+  return { band, top, left, shown, ledgers, note, ottava };
 }
 
 export function flowView<M extends FlowMark>(ctx: MovementContext, windowSeconds: number, paint: PaintMark<M>): FlowView<M> {
