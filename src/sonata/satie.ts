@@ -100,6 +100,13 @@ const SECTION_A = [3, 0, 3, 0, 3, 0, 3, 0, 1, 4, 1, 4, 5, 2, 3, 0];
 const SECTION_B = [2, 5, 2, 5, 1, 4, 1, 4, 6, 3, 6, 3, 4, 4, 0, 0];
 const OUTRO = [3, 0, 3, 0];
 
+// ルバート。気づくか気づかないかくらいに、小節の長さを伸び縮みさせる（倍率）。
+// 節（4 小節）の中ほどで少し前へ進み、節の終わりで少しゆるめる。区切りの最後の小節はもう少しゆるめ、終わりの区切りでは少しずつ遅くする
+const PHRASE_SHAPE = [1, 0.98, 0.99, 1.04];
+const SECTION_END = 1.07;
+const OUTRO_SHAPE = [1.02, 1.05, 1.09, 1.14];
+const LAST_CHORD = 1.18;
+
 // 旋律の 1 小節のリズム（拍の位置と長さ）。3 拍子
 const BAR_RHYTHMS: [number, number][][] = [[[0, 3]], [[1, 2]], [[0, 1], [1, 2]], [[0, 2], [2, 1]], [[1, 1], [2, 1]], []];
 
@@ -150,10 +157,11 @@ const dance: Movement = {
         if (plan[section - 1].chords === OUTRO) {
           // 終わり: 最後の和音を長く置く
           ending = true;
-          bass(h, queue, view, 0, barAt, 0.28, b * 8);
-          chord(h, queue, view, 0, barAt + b, 0.2, b * 7);
-          note(h, queue, view, h.centre + h.degree(4), barAt + b * 2, 0.24, b * 6, MELODY);
-          endAt = barAt + b * 8;
+          const last = b * LAST_CHORD;
+          bass(h, queue, view, 0, barAt, 0.28, last * 8);
+          chord(h, queue, view, 0, barAt + last, 0.2, last * 7);
+          note(h, queue, view, h.centre + h.degree(4), barAt + last * 2, 0.24, last * 6, MELODY);
+          endAt = barAt + last * 8;
           return;
         }
         if (remaining < (SECTION_A.length + OUTRO.length) * 3 * b || progress > 0.9) plan.push({ chords: OUTRO, melody: null });
@@ -166,8 +174,10 @@ const dance: Movement = {
       }
       const current = plan[section];
       const root = current.chords[bar];
-      bass(h, queue, view, root, barAt, 0.26, b * 3.2);
-      chord(h, queue, view, root, barAt + b, 0.17, b * 2.2);
+      const stretch = current.chords === OUTRO ? OUTRO_SHAPE[bar] : bar === current.chords.length - 1 ? SECTION_END : PHRASE_SHAPE[bar % 4];
+      const bb = b * stretch * random(0.99, 1.01); // この小節の 1 拍
+      bass(h, queue, view, root, barAt, 0.26, bb * 3.2);
+      chord(h, queue, view, root, barAt + bb, 0.17, bb * 2.2);
       if (current.melody) {
         const phrase = current.melody[Math.floor(bar / 4) % current.melody.length];
         const events = phrase.bars[bar % 4];
@@ -179,11 +189,11 @@ const dance: Movement = {
             degree = tones.reduce((best, d) => (Math.abs(d - degree) < Math.abs(best - degree) ? d : best), tones[0]);
           }
           const velocity = 0.3 * random(0.92, 1.08) * (1 + 0.15 * Math.sin(Math.PI * Math.min(progress, 1)));
-          note(h, queue, view, h.centre + h.degree(degree), barAt + e.at * b, velocity, e.beats * b * 1.25, MELODY);
+          note(h, queue, view, h.centre + h.degree(degree), barAt + e.at * bb, velocity, e.beats * bb * 1.25, MELODY);
         });
       }
       bar++;
-      barAt += 3 * b;
+      barAt += 3 * bb;
     });
 
     return {
@@ -201,18 +211,28 @@ const dance: Movement = {
 
 // --- II. 小節線のない歌 ---
 
-type Note = { degree: number; beats: number; turn: boolean };
+// stretch は、ルバートで音の長さに掛ける倍率。左手は刻みを変えないので、旋律だけが前へ出たり遅れたりする
+type Note = { degree: number; beats: number; turn: boolean; stretch: number };
+
+// 節の初めは気づかないくらいに前へ進み、終わりへ向けてゆるめる。進んだ分とゆるめた分は節の中で釣り合うので、
+// 最後の長い音は左手の刻みにぴったり戻る
+const LEAN = 0.05;
 
 // 短い節: 中心の 5 度上あたりを、隣の音へ動きながらうろつき、最後は長い音で止まる。ときどき回り込む飾り（上・元・下）が付く
 function newMotif(): Note[] {
   const length = 4 + Math.floor(rand() * 4);
   let degree = 4 + Math.floor(rand() * 3);
-  return Array.from({ length }, (_, i) => {
+  const notes = Array.from({ length }, (_, i) => {
     if (i > 0) degree = Math.min(Math.max(degree + [-1, -1, 1, 1, -2, 2, 0][Math.floor(rand() * 7)], 0), 8);
     const last = i === length - 1;
     const beats = last ? [2, 3][Math.floor(rand() * 2)] : [0.5, 0.5, 1, 1, 1, 1.5][Math.floor(rand() * 6)];
-    return { degree, beats, turn: !last && rand() < 0.3 };
+    return { degree, beats, turn: !last && rand() < 0.3, stretch: 1 };
   });
+  const leading = notes.slice(0, -1);
+  leading.forEach((n, i) => (n.stretch = 1 + LEAN * ((2 * i) / (leading.length - 1) - 1)));
+  const balance = leading.reduce((sum, n) => sum + n.beats, 0) / leading.reduce((sum, n) => sum + n.beats * n.stretch, 0);
+  for (const n of leading) n.stretch *= balance;
+  return notes;
 }
 
 const song: Movement = {
@@ -223,7 +243,8 @@ const song: Movement = {
     let endAt = Infinity;
     const queue = pendingQueue(ctx);
     const view = markView(ctx);
-    const beat = () => 110 / ctx.bpm();
+    let slowing = 1; // 最後の節で、両手とも少しずつ遅くする
+    const beat = () => (110 / ctx.bpm()) * slowing;
     const motifs = [newMotif(), newMotif(), newMotif()];
     // 節を並べる順番。最初の節がよく戻ってくる
     const pick = () => [0, 0, 0, 1, 1, 2][Math.floor(rand() * 6)];
@@ -288,6 +309,7 @@ const song: Movement = {
         return;
       }
       const n = notes[position];
+      if (finalMotif) slowing = 1 + 0.12 * ((position + 1) / notes.length);
       const at = melodyAt;
       const index = h.centre + h.degree(n.degree);
       const velocity = 0.3 * random(0.92, 1.08);
@@ -297,7 +319,7 @@ const song: Movement = {
       }
       note(h, queue, view, index, at, velocity, n.beats * b * 1.2, MELODY);
       position++;
-      melodyAt += n.beats * b;
+      melodyAt += n.beats * b * n.stretch;
     });
 
     return {
