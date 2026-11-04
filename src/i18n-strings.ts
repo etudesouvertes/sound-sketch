@@ -34,6 +34,13 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "sec.weather": { ja: "天気", en: "Weather" },
   "sec.drift": { ja: "変化", en: "Drift" },
   "sec.auto": { ja: "自動", en: "Auto" },
+  "sec.tape": { ja: "テープ", en: "Tape" },
+  tapeLength: { ja: "1 周の長さ", en: "Loop length" },
+  tapeFeedback: { ja: "残り方", en: "Feedback" },
+  tapeSaturation: { ja: "歪み", en: "Saturation" },
+  timbre: { ja: "音色", en: "Timbre" },
+  "timbre.clean": { ja: "クリーン", en: "Clean" },
+  "timbre.drive": { ja: "ドライブ", en: "Drive" },
   "sec.repeat": { ja: "反復", en: "Repetition" },
 
   // 設定パネルの項目
@@ -85,6 +92,13 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "クリックでテープループを置く。縦の位置で音の高さ、横の位置でループの長さ（15〜35 秒）が決まります\n長さの違うループが重なり、同じ響きはほとんど二度と来ません。ループの中心をクリックすると外せます\n「録音」を押してクリックで演奏し、「停止」を押すと、そのフレーズが録音した長さのループになります" + SILENT_NOTE.ja,
     en: "Click to place a tape loop. Height sets the pitch, horizontal position sets the loop length (15–35 s).\nLoops of different lengths overlap, so the same harmony almost never returns. Click a loop's center to remove it.\nPress “Rec”, play by clicking, then press “Stop” to turn the phrase into a loop of the recorded length." + SILENT_NOTE.en,
   },
+  "hint.tape": {
+    ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます" + SILENT_NOTE.ja,
+    en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round." + SILENT_NOTE.en,
+  },
+  // Tape のヘッドの名前（画面に描く）
+  "tape.playHead": { ja: "再生", en: "Play" },
+  "tape.recHead": { ja: "録音", en: "Rec" },
   // スマホを縦向きにしているときだけ出す
   rotateHint: {
     ja: "横向きにすると、大譜表が大きく見やすくなります",

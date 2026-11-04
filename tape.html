@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Tape - sound-sketch</title>
+  </head>
+  <body>
+    <header class="bar">
+      <nav class="nav">
+        <a href="./">sound-sketch</a>
+        <a href="./ripples.html">Ripples</a>
+        <a href="./phase.html">Phase</a>
+        <a href="./loops.html">Loops</a>
+        <a href="./tape.html" aria-current="page">Tape</a>
+        <a href="./sonata.html">Sonata</a>
+      </nav>
+      <div class="bar-actions">
+        <button id="clear" type="button" data-i18n="clear">クリア</button>
+        <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings" data-i18n="settings">⚙ 設定</button>
+      </div>
+    </header>
+    <aside id="settings" class="settings" aria-label="設定" data-i18n-aria="settingsPanel" hidden>
+      <button id="settings-close" class="settings-close" type="button" aria-label="設定を閉じる" data-i18n-aria="settingsClose">×</button>
+      <section data-section="sound">
+        <h2 data-i18n="sec.sound">音</h2>
+        <label><span data-i18n="scale">スケール</span> <select id="scale"></select></label>
+        <label><span data-i18n="root">主音</span> <select id="root"></select></label>
+        <label>
+          <span data-i18n="timbre">音色</span>
+          <select id="timbre">
+            <option value="clean" data-i18n="timbre.clean">クリーン</option>
+            <option value="drive" data-i18n="timbre.drive">ドライブ</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="register">音域</span>
+          <span class="range"><input id="register" type="range" min="1" max="5" step="1" /><output id="register-value"></output></span>
+        </label>
+        <!-- 自動で入れる頻度。自動を作るまでは隠しておく -->
+        <label hidden>
+          <span data-i18n="density">密度</span>
+          <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="reverbLevel">響き</span>
+          <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
+        </label>
+      </section>
+      <section data-section="tape">
+        <h2 data-i18n="sec.tape">テープ</h2>
+        <label>
+          <span data-i18n="tapeLength">1 周の長さ</span>
+          <span class="range"><input id="tape-length" type="range" min="3" max="20" step="any" value="7" /><output id="tape-length-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="tapeFeedback">残り方</span>
+          <span class="range"><input id="tape-feedback" type="range" min="0" max="98" step="1" value="80" /><output id="tape-feedback-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="tapeSaturation">歪み</span>
+          <span class="range"><input id="tape-saturation" type="range" min="0" max="100" step="1" value="0" /><output id="tape-saturation-value"></output></span>
+        </label>
+      </section>
+      <section data-section="weather">
+        <h2 data-i18n="sec.weather">天気</h2>
+        <label><span data-i18n="useWeather">天気を使う</span> <input id="weather" type="checkbox" /></label>
+        <label><span data-i18n="place">場所</span> <select id="place"></select></label>
+        <p class="credit"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a></p>
+      </section>
+      <section data-section="drift">
+        <h2 data-i18n="sec.drift">変化</h2>
+        <label><span data-i18n="driftOn">ゆっくり変化させる</span> <input id="drift" type="checkbox" /></label>
+        <label>
+          <span data-i18n="driftSpeed">速さ</span>
+          <select id="drift-speed">
+            <option value="1">×1</option>
+            <option value="10">×10</option>
+            <option value="60">×60</option>
+          </select>
+        </label>
+      </section>
+    </aside>
+    <footer class="status-line">
+      <span id="weather-status"></span>
+      <span id="drift-status"></span>
+    </footer>
+    <canvas id="canvas"></canvas>
+    <p id="hint" class="hint" data-i18n="hint.tape">
+      クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます<br />
+      弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます
+    </p>
+    <script type="module" src="/src/tape/main.ts"></script>
+  </body>
+</html>
