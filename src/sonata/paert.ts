@@ -9,6 +9,14 @@ import { AEOLIAN, MARGIN_RIGHT, type Movement, type MovementContext, musicFrom, 
 // II.  鐘とカノン: 同じ下行の句を、1・2・4 倍の遅さで 3 つの声部が重ね、鐘が鳴る。最後は声部が主音に着いて止まる
 // III. 鏡: 2 つの旋律が中心の音から鏡のように上下へ開いては閉じ、左手が主和音を分散して刻み続ける
 // 時刻はすべて音の時計で持ち、テンポの設定で 1 音の長さが決まる
+// ルバートは、気づくか気づかないかくらいに、息をつくように。I は句の終わりへ向けて少しずつゆるめ、句のあいだの休みを毎回わずかに変える。
+// III は左手の刻みごと、終わりで閉じていくにつれて遅くする。II はカノンの比（1・2・4 倍）が崩れないよう、揺らさない
+// （1 音ごとのずれや和音の崩しは、設定の「揺らぎ」が受け持つ）
+
+const PHRASE_EASE = 0.04; // I: 句の最後の音へ向けて、1 音の長さを最大でこれだけ伸ばす（倍率）
+const BREATH = [0.97, 1.06]; // I: 句のあいだの休みの揺れ（倍率）
+const CLOSING = 0.03; // III: 終わりで 1 段閉じるごとに遅くする割合
+const CLOSING_MAX = 1.15;
 
 // 今の音高の並びでの、主和音の音（音階の 1・3・5 番目の音）と、中心の主音
 function harmony(ctx: MovementContext) {
@@ -144,8 +152,11 @@ const tintinnabuli: Movement = {
         const at = nextAt;
         queue.add({ time: at, index: h.lowRoot, octave: -1, velocity: dynamics * 0.8, seconds: u * 6, onPlay: view.add({ time: at, index: h.lowRoot, kind: "bell", seconds: u * 6 }) });
       }
+      // 句の最後の音へ向けて、少しずつゆるめる
+      const ease = (i: number) => 1 + (notes.length > 1 ? PHRASE_EASE * (i / (notes.length - 1)) : 0);
+      let at = nextAt;
       notes.forEach((m, i) => {
-        const at = nextAt + i * u;
+        if (i > 0) at += u * ease(i);
         const last = i === notes.length - 1;
         // T 声部は、すぐ下とすぐ上の主和音の音を交互に（1 オクターブ下、左手で）
         const t = i % 2 === 0 ? h.inferior(m) : h.superior(m);
@@ -153,7 +164,7 @@ const tintinnabuli: Movement = {
         queue.add({ time: at, index: m, velocity: dynamics * (last ? 1.1 : 1), seconds, onPlay: view.add({ time: at, index: m, kind: "m", seconds, partner: t }) });
         queue.add({ time: at, index: t, octave: -1, velocity: dynamics * 0.7, seconds, onPlay: view.add({ time: at, index: t, kind: "t", seconds }) });
       });
-      nextAt += (notes.length + 2) * u; // 最後の音を 2 倍に伸ばし、1 音分休む
+      nextAt = at + 3 * u * ease(notes.length - 1) * random(BREATH[0], BREATH[1]); // 最後の音を 2 倍に伸ばし、1 音分休む
 
       // 上と下の句を弾き終えたら、句の長さを 1 つ伸ばす（後半は縮める）。楽章の中ほどで最も長い
       if (!fromAbove) {
@@ -280,7 +291,8 @@ const mirror: Movement = {
     let endAt = Infinity;
     const queue = pendingQueue(ctx);
     const view = traceView(ctx);
-    const eighth = () => 30 / ctx.bpm();
+    let slowing = 1; // 終わりで閉じていくにつれて、両手とも遅くする
+    const eighth = () => (30 / ctx.bpm()) * slowing;
     let arpeggioAt = startAt + 0.5;
     let arpeggioStep = 0;
     let melodyAt = startAt + 0.5 + 8 * eighth(); // 左手が 1 小節刻んでから入る
@@ -320,7 +332,10 @@ const mirror: Movement = {
         return;
       }
       // 終わりに入ったら 1 段ずつ閉じ、中心で重なった次の音で終える
-      if (progress >= MIRROR_END) distance = Math.max(0, distance - 1);
+      if (progress >= MIRROR_END) {
+        distance = Math.max(0, distance - 1);
+        slowing = Math.min(slowing + CLOSING, CLOSING_MAX);
+      }
       else if (distance > span) distance--;
       else if (distance === 0) distance = 1;
       else distance += distance >= span || rand() < 0.4 ? -1 : 1;
