@@ -508,6 +508,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "How hard the tape saturates when recording again. Quiet sounds last the same; the thicker the layers, the sooner and harder they distort. Even at 0% heavy stacking distorts a little.",
       },
     },
+    "#tape-wear": {
+      title: { ja: "傷み", en: "Wear" },
+      text: {
+        ja: "回るたびにテープが少しずつ傷む度合いです。上げるほど、録り直すたびに音がこもり、回転の揺れで音程がわずかに揺らぎ、ザーというノイズが混ざります。どれも 1 周ごとに重なるので、古い層ほど遠く、ぼやけて聞こえます。ノイズはテープに載っている音の大きさに合わせて入るので、テープが空になると消えます。ホールド中は傷みません。",
+        en: "How much the tape wears each time round. The higher it is, the darker each repeat gets, the more the pitch wavers with the tape's speed, and the more hiss creeps in. All of it builds up turn by turn, so older layers sound more distant and blurred. The hiss follows the level of what's on the tape, so it disappears when the tape is empty. Nothing wears during Hold.",
+      },
+    },
     "#extra-heads": {
       title: { ja: "足す再生ヘッド", en: "Extra play heads" },
       text: {

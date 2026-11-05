@@ -71,6 +71,18 @@ const REC_HEAD = 0.82; // 録音ヘッドの横位置
 const EXTRA_HEADS = [0.5, 0.25, 0.75]; // 足せる数と、はじめの位置
 const EXTRA_HEAD_LEVEL = 0.7; // 足した再生ヘッドの大きさ（元の再生ヘッドに対して）
 const EXTRA_HEAD_MIN = 0.03; // つまみで動かせる範囲（録音ヘッド・再生ヘッドと重ならないように）
+// 傷み: 回るたびにテープが少しずつ傷む。1 周ごとに高い音を削り（こもり）、回転の揺れ（ワウ・フラッター）とノイズを入れる。
+// どれも 1 周ごとに重なるので、古い層ほど傷む。
+// こもりは、テープが削る高さとは別に、削る高さを 20 kHz からこれだけ (オクターブ) 下げて作る
+const WEAR_DARKEN = 4.5;
+// テープが削るフィルターの Q (dB)。削る高さのすぐ手前に山のない（バターワースの）形にする。
+// 山があると、その高さの音が 1 周ごとに持ち上がって積み重なり、残り方が高いと周を追うごとに大きくなってしまう。
+// Tone のフィルターは負の Q を受け付けないので、Web Audio のフィルターを使う
+const FLAT_Q = -3.01;
+const WOW = { rate: 0.6, depth: 0.0015 }; // ゆっくりした揺れ（速さ Hz、ずれる時間の幅 秒）。100% で 1 周ごとに ±10 セントほど
+const FLUTTER = { rate: 6.5, depth: 0.00012 }; // 細かい揺れ。100% で 1 周ごとに ±8 セントほど
+const WOW_BASE = 0.005; // 揺れを作る短い遅れ (秒)。その分、テープの遅れを短くして 1 周の長さを保つ
+const HISS = 0.25; // 100% で、1 周ごとに入れるノイズの大きさ（テープに載っている音に対して）。およそ -20 dB
 const GRIP = { width: 34, height: 18, bottom: 30 }; // つまみの大きさと、下端から上げる高さ (px)
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -90,6 +102,8 @@ const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-va
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
 const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
+const wearEl = document.querySelector<HTMLInputElement>("#tape-wear")!;
+const wearValueEl = document.querySelector<HTMLOutputElement>("#tape-wear-value")!;
 const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
 const extraHeadsEl = document.querySelector<HTMLInputElement>("#extra-heads")!;
 const extraHeadsValueEl = document.querySelector<HTMLOutputElement>("#extra-heads-value")!;
@@ -98,6 +112,7 @@ const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
 // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように。下げるとコントラバスの低音も繰り返し残る
 const lowCut = () => Number(lowCutEl.value);
+const wear = () => Number(wearEl.value) / 100;
 
 // --- 演奏の状態 ---
 
@@ -125,9 +140,16 @@ const reverb = new Tone.Reverb({ decay: 6, wet: 0.35 }).toDestination();
 // 小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪む
 const recordIn = new Tone.Gain(1);
 const writeBus = new Tone.Gain(1); // 録音ヘッドでテープに書く音（弾いた音と、戻した音）
-const tapeDelay = new Tone.Delay({ delayTime: loopSeconds(), maxDelay: 30 });
-const loopLowpass = new Tone.Filter({ type: "lowpass", frequency: LOOP_LOWPASS, Q: 0.5 });
-const loopHighpass = new Tone.Filter({ type: "highpass", frequency: lowCut(), Q: 0.5 });
+const tapeDelay = new Tone.Delay({ delayTime: loopSeconds() - WOW_BASE, maxDelay: 30 });
+function flatFilter(type: BiquadFilterType, frequency: number) {
+  const filter = Tone.getContext().createBiquadFilter();
+  filter.type = type;
+  filter.frequency.value = frequency;
+  filter.Q.value = FLAT_Q;
+  return filter;
+}
+const loopLowpass = flatFilter("lowpass", LOOP_LOWPASS);
+const loopHighpass = flatFilter("highpass", lowCut());
 const saturateIn = new Tone.Gain(1);
 const saturate = new Tone.WaveShaper((x) => Math.tanh(x), 4096);
 const saturateOut = new Tone.Gain(1);
@@ -135,9 +157,30 @@ const feedback = new Tone.Gain(feedbackAmount());
 const tapeOut = new Tone.Gain(1).connect(reverb);
 recordIn.connect(writeBus);
 writeBus.connect(tapeDelay);
-tapeDelay.chain(loopLowpass, loopHighpass, saturateIn, saturate, saturateOut);
+
+// 傷み。回転の揺れは、テープの遅れに続く短い遅れの長さを 2 つの LFO で揺らして作る
+// （LFO をつなぐと、つないだ先の値は上書きされるので、ゆっくりした揺れの中心を WOW_BASE にする）。
+// ノイズは、テープに載っている音の大きさに合わせて、再生ヘッドで入れる（空のテープでは鳴らない。フェードやクリアで一緒に消える）。
+// 入れたノイズも録音ヘッドへ戻されるので、回るたびに積もり、古いものほどこもっていく
+const wearLowpass = flatFilter("lowpass", 20000);
+const wobble = new Tone.Delay({ delayTime: WOW_BASE, maxDelay: 0.05 });
+const wow = new Tone.LFO({ frequency: WOW.rate, min: WOW_BASE, max: WOW_BASE }).start();
+const flutter = new Tone.LFO({ frequency: FLUTTER.rate, min: 0, max: 0 }).start();
+wow.connect(wobble.delayTime);
+flutter.connect(wobble.delayTime);
+const hiss = new Tone.Noise("white").start();
+const hissFilter = new Tone.Filter({ type: "bandpass", frequency: 5000, Q: 0.4 });
+const hissLevel = new Tone.Gain(0);
+const follower = new Tone.Follower(0.05);
+const hissAmount = new Tone.Gain(0);
+hiss.chain(hissFilter, hissLevel, saturateIn);
+follower.connect(hissAmount);
+hissAmount.connect(hissLevel.gain);
+
+tapeDelay.chain(wobble, wearLowpass, loopLowpass, loopHighpass, saturateIn, saturate, saturateOut);
 saturateOut.connect(feedback);
 feedback.connect(writeBus);
+Tone.connect(loopHighpass, follower); // ノイズを入れる前の大きさを見る
 saturateOut.connect(tapeOut);
 
 // 足す再生ヘッド。書いた音を u 周分遅らせて鳴らす。使わないヘッドは絞っておく
@@ -301,12 +344,13 @@ micIn.gain.value = Number(micLevelEl.value) / 100;
 // 天気: 空模様でテープが削る高さ（晴れで明るく、雨でこもる）、雲でリバーブが変わる。
 // 変化: 天気で決まった値を中心に、音域・テープの明るさ・リバーブがゆっくり揺れ、20 分ごとに 5 度上へ転調する
 let lowpass = LOOP_LOWPASS;
+const wearCutoff = (w = wear()) => 20000 * 2 ** (-WEAR_DARKEN * w);
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "A" },
   reverb: { node: reverb, wet: 0.35, decay: 6 },
   applyParams: (params) => {
     lowpass = LOOP_LOWPASS * 2 ** (params.drift.brightness + params.mood.brightness);
-    if (!held) loopLowpass.frequency.rampTo(lowpass, params.ramp);
+    if (!held) loopLowpass.frequency.setTargetAtTime(lowpass, Tone.immediate(), Math.max(params.ramp / 3, 0.01));
   },
 });
 
@@ -325,7 +369,7 @@ const currentPart = (): PartId => (solo() ? "solo" : "tape");
 // ホールド中はフィルターを開けて、そのまま残す
 function turnLoss(freq: number): number {
   if (held) return 1;
-  const low = 1 / Math.sqrt(1 + (freq / lowpass) ** 4);
+  const low = 1 / Math.sqrt((1 + (freq / lowpass) ** 4) * (1 + (freq / wearCutoff()) ** 4));
   const high = 1 / Math.sqrt(1 + (lowCut() / freq) ** 4);
   return feedback.gain.value * low * high;
 }
@@ -341,7 +385,7 @@ lengthEl.addEventListener("input", () => {
   showLength();
   const now = Tone.immediate();
   clock = { time: now, turns: tapeAt(now), seconds: loopSeconds() };
-  tapeDelay.delayTime.rampTo(loopSeconds(), LENGTH_RAMP, now);
+  tapeDelay.delayTime.rampTo(loopSeconds() - WOW_BASE, LENGTH_RAMP, now);
   for (const head of extraHeads) head.delay.delayTime.rampTo(head.u * loopSeconds(), LENGTH_RAMP, now);
 });
 showLength();
@@ -415,8 +459,16 @@ function applyLoop() {
   }
   tapeOut.gain.cancelScheduledValues(now).setTargetAtTime(clearing ? 0 : 1, now, 0.05);
   recordGate.gain.cancelScheduledValues(now).setTargetAtTime(recording() ? 1 : 0, now, 0.02);
-  loopLowpass.frequency.rampTo(held ? 20000 : lowpass, 0.1);
-  loopHighpass.frequency.rampTo(held ? 10 : lowCut(), 0.1);
+  loopLowpass.frequency.setTargetAtTime(held ? 20000 : lowpass, now, 0.03);
+  // ホールド中は傷ませない（中身をそのまま回し続ける）
+  const w = held ? 0 : wear();
+  wearLowpass.frequency.setTargetAtTime(wearCutoff(w), now, 0.05);
+  wow.min = WOW_BASE - WOW.depth * w;
+  wow.max = WOW_BASE + WOW.depth * w;
+  flutter.min = -FLUTTER.depth * w;
+  flutter.max = FLUTTER.depth * w;
+  hissAmount.gain.rampTo(HISS * w, 0.1);
+  loopHighpass.frequency.setTargetAtTime(held ? 10 : lowCut(), now, 0.03);
 
   if (recording() !== wasRecording) {
     for (const touch of touches.values()) {
@@ -428,6 +480,13 @@ function applyLoop() {
 }
 
 soloRecordEl.addEventListener("change", applyLoop);
+
+const showWear = () => (wearValueEl.value = `${wearEl.value}%`);
+wearEl.addEventListener("input", () => {
+  showWear();
+  applyLoop();
+});
+showWear();
 
 const showLowCut = () => (lowCutValueEl.value = `${lowCutEl.value} Hz`);
 lowCutEl.addEventListener("input", () => {
@@ -775,6 +834,8 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   const length = Math.min(Math.min(m.end ?? tape, tape) - m.start, 1); // 自動で弾いた音は、終わりを先に決めてある
   const alpha = Math.min(1, m.level) * 0.9;
   const hue = m.part === "tape" ? 200 : 280; // テープの音は青、ソロの音は紫
+  // 傷んだテープでは、回った数だけ色があせる
+  const fade = Math.min(0.8, m.turns * wear() * 0.15);
 
   // 音の頭からの距離 (周) と縦位置の点を並べる。音程を変えていなければ、頭と終わりの 2 点
   const points = [{ offset: 0, y: yOf(m.freq, pitches) }];
@@ -786,7 +847,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   points.push({ offset: length, y: points[points.length - 1].y });
 
   // テープの上の位置は head - offset。負になったところは前の周の分で、再生ヘッドの手前（+1）に描く
-  g.strokeStyle = `hsla(${hue}, 85%, 72%, ${alpha})`;
+  g.strokeStyle = `hsla(${hue}, ${85 * (1 - fade)}%, 72%, ${alpha})`;
   g.lineWidth = 3;
   g.lineCap = "round";
   g.lineJoin = "round";
@@ -808,7 +869,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   g.stroke();
 
   const y = points[0].y;
-  g.fillStyle = `hsla(${hue}, 90%, 82%, ${alpha})`;
+  g.fillStyle = `hsla(${hue}, ${90 * (1 - fade)}%, 82%, ${alpha})`;
   g.beginPath();
   g.arc(xAt(head), y, 3.5, 0, Math.PI * 2);
   g.fill();
