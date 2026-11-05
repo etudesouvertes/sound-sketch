@@ -2,13 +2,13 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
-import { tk } from "../i18n";
+import { onLangChange, tk } from "../i18n";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
 // 戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえる。
 // 画面は流れるテープで、右の録音ヘッドで録られた音が左へ流れ、左の再生ヘッドで鳴って、また右から（薄くなって）出てくる。
-// 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェードのボタンを置く
+// 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェード・マイクのボタンを置く
 
 // 弾いた 1 音。テープに録られた音はスケールを変えても変わらないので、周波数で持つ。
 // 位置はテープが進んだ周の数（tapeAt）で持つ。1 周の長さを変えても、テープの上の位置は変わらない
@@ -22,7 +22,7 @@ type Mark = {
 type Glow = { x: number; y: number; life: number; strength: number };
 // 押している指（マウス）ごとに、今鳴らしている音。テープに録っていない（ソロなど）ときは mark が null
 type Touch = { index: number; freq: number; mark: Mark | null };
-type Button = "solo" | "hold" | "fade";
+type Button = "solo" | "hold" | "fade" | "mic";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
 const LOOP_HIGHPASS = 90; // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように
@@ -32,6 +32,8 @@ const LENGTH_RAMP = 0.08;
 const MAX_SATURATION = 16; // 歪み 100% で、戻す音を飽和させる前に何倍にするか
 const MAX_FEEDBACK = 98; // 残り方の上限 (%)。100% はホールドだけ
 const SILENT_LEVEL = 0.02; // これより小さくなった音は画面から消す
+const MIC_GATE = -50; // マイクの音がこれ (dB) より小さいあいだは録らない（部屋の雑音を積もらせない）
+const MIC_BINS = 400; // マイクの音の大きさを、テープ 1 周あたりこの数に分けて覚えておく（画面に描く用）
 const PLAY_HEAD = 0.18; // 再生ヘッドの横位置（画面の幅に対する割合）
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
 
@@ -46,6 +48,10 @@ const saturationValueEl = document.querySelector<HTMLOutputElement>("#tape-satur
 const fadeLengthEl = document.querySelector<HTMLInputElement>("#fade-length")!;
 const fadeLengthValueEl = document.querySelector<HTMLOutputElement>("#fade-length-value")!;
 const timbreEl = document.querySelector<HTMLSelectElement>("#timbre")!;
+const micLevelEl = document.querySelector<HTMLInputElement>("#mic-level")!;
+const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-value")!;
+const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
+const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
@@ -126,6 +132,74 @@ function applyTimbre() {
 timbreEl.addEventListener("change", applyTimbre);
 applyTimbre();
 
+// --- マイク ---
+
+// マイクの音は、部屋で生の音が聞こえているので、そのまま鳴らさずテープにだけ録る（スピーカーから鳴らすとすぐハウリングする）。
+// 小さい音はゲートで切り、強弱はコンプレッサーで揃え、低い雑音（机の振動など）は削る。
+// ソロ・ホールド・フェード中は、弾いた音と同じく録らない
+const micIn = new Tone.Gain(1);
+const micGate = new Tone.Gate({ threshold: MIC_GATE, smoothing: 0.1 });
+const micCompressor = new Tone.Compressor({ threshold: -24, ratio: 4 });
+const micHighpass = new Tone.Filter({ type: "highpass", frequency: 80 });
+const micMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+micIn.chain(micGate, micCompressor, micHighpass, recordGate);
+micHighpass.connect(micMeter);
+
+let micStream: MediaStream | null = null;
+let micSource: MediaStreamAudioSourceNode | null = null;
+let micOpening = false;
+let micStatus: string | null = null; // 表示している文言のキー
+const micOn = () => micStream !== null;
+
+function showMicStatus(key: string | null) {
+  micStatus = key;
+  micStatusEl.textContent = key ? tk(key) : "";
+}
+onLangChange(() => showMicStatus(micStatus));
+
+// ブラウザのノイズ除去と自動音量調整は切る（伸ばした音を雑音として消してしまうため）。
+// エコー除去はスピーカーで聴くとき用で、テープから鳴った音がまたマイクに入って積もるのを抑える。ヘッドホンなら切ったほうが音がよい
+async function openMic() {
+  micOpening = true;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: micEchoCancelEl.checked, noiseSuppression: false, autoGainControl: false },
+    });
+  } catch (e) {
+    console.warn(e);
+    showMicStatus("micStatus.denied");
+    return;
+  } finally {
+    micOpening = false;
+  }
+  micSource = Tone.getContext().createMediaStreamSource(micStream);
+  Tone.connect(micSource, micIn);
+  showMicStatus(micEchoCancelEl.checked ? "micStatus.on" : "micStatus.headphones");
+}
+
+function closeMic() {
+  micSource?.disconnect();
+  for (const track of micStream?.getTracks() ?? []) track.stop();
+  micSource = null;
+  micStream = null;
+  showMicStatus(null);
+}
+
+// エコー除去を切り替えたら、マイクを開き直す
+micEchoCancelEl.addEventListener("change", () => {
+  if (!micOn()) return;
+  closeMic();
+  void openMic();
+});
+
+const showMicLevel = () => (micLevelValueEl.value = `${micLevelEl.value}%`);
+micLevelEl.addEventListener("input", () => {
+  showMicLevel();
+  micIn.gain.rampTo(Number(micLevelEl.value) / 100, 0.05);
+});
+showMicLevel();
+micIn.gain.value = Number(micLevelEl.value) / 100;
+
 // 天気: 空模様でテープが削る高さ（晴れで明るく、雨でこもる）、雲でリバーブが変わる。
 // 変化: 天気で決まった値を中心に、音域・テープの明るさ・リバーブがゆっくり揺れ、20 分ごとに 5 度上へ転調する
 let lowpass = LOOP_LOWPASS;
@@ -193,6 +267,9 @@ const g = setupCanvas(canvas, (w, h) => {
 let marks: Mark[] = [];
 let glows: Glow[] = [];
 const touches = new Map<number, Touch>();
+// テープの位置ごとの、マイクの音の大きさ。添え字は 1 周の中の位置
+const micTrack = new Float32Array(MIC_BINS);
+let lastTape: number | null = null;
 
 const playX = () => width * PLAY_HEAD;
 const recX = () => width * REC_HEAD;
@@ -252,6 +329,10 @@ function toggle(button: Button) {
     held = !held;
     fading = false;
   }
+  if (button === "mic") {
+    if (micOn()) closeMic();
+    else if (!micOpening) void openMic();
+  }
   if (button === "fade") {
     fading = !fading;
     fadeStart = Tone.immediate();
@@ -288,7 +369,7 @@ function noteOff(pointerId: number) {
 
 // --- 操作盤（録音ヘッドの右） ---
 
-const BUTTONS: Button[] = ["solo", "hold", "fade"];
+const BUTTONS: Button[] = ["solo", "hold", "fade", "mic"];
 const BUTTON_HEIGHT = 30;
 const BUTTON_GAP = 8;
 
@@ -365,7 +446,7 @@ for (const type of ["pointerup", "pointercancel"]) {
   });
 }
 
-// キー: Shift を押している間はソロ、Space でホールド、F でフェード。
+// キー: Shift を押している間はソロ、Space でホールド、F でフェード、M でマイク。
 // 設定の入力欄やボタンを操作しているとき（Space でボタンが押される）は使わない
 const typing = (target: EventTarget | null) =>
   target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement;
@@ -380,6 +461,7 @@ window.addEventListener("keydown", (e) => {
     toggle("hold");
   }
   if (e.key === "f" || e.key === "F") toggle("fade");
+  if (e.key === "m" || e.key === "M") toggle("mic");
 });
 const releaseShift = () => {
   if (!shiftDown) return;
@@ -404,6 +486,7 @@ clearEl.addEventListener("click", () => {
   // 押している音は、ここから録り直す
   for (const m of marks) Object.assign(m, { start: tapeAt(now), level: 1, turns: 0 });
   glows = [];
+  micTrack.fill(0);
   clearTimer = setTimeout(() => {
     clearing = false;
     applyLoop();
@@ -443,6 +526,20 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   g.fill();
 }
 
+// マイクの音は音程を持たないので、テープの縦の中央に、波形のような濃淡で描く
+function drawMicTrack(tape: number) {
+  const barWidth = (recX() - playX()) / MIC_BINS + 1;
+  const middle = height / 2;
+  for (let b = 0; b < MIC_BINS; b++) {
+    const level = Math.min(1, micTrack[b] * 2.5);
+    if (level < 0.01) continue;
+    const u = (((tape - b / MIC_BINS) % 1) + 1) % 1;
+    const half = level * height * 0.3;
+    g.fillStyle = `rgba(255, 196, 140, ${0.04 + 0.16 * level})`;
+    g.fillRect(xAt(u) - barWidth / 2, middle - half, barWidth, half * 2);
+  }
+}
+
 function drawHead(x: number, label: string, active: boolean) {
   g.strokeStyle = active ? "rgba(232, 232, 236, 0.35)" : "rgba(232, 232, 236, 0.12)";
   g.lineWidth = 1.5;
@@ -478,7 +575,7 @@ function drawPanel() {
   g.fillStyle = "rgba(232, 232, 236, 0.7)";
   g.fillText(held ? "∞" : `${Math.round(feedback.gain.value * 100)}%`, fader.x, fader.bottom + 22);
 
-  const on: Record<Button, boolean> = { solo: solo(), hold: held, fade: fading };
+  const on: Record<Button, boolean> = { solo: solo(), hold: held, fade: fading, mic: micOn() };
   g.font = "12px system-ui, sans-serif";
   for (const b of buttons) {
     g.fillStyle = on[b.id] ? "rgba(108, 196, 255, 0.18)" : "rgba(35, 37, 45, 0.9)";
@@ -513,11 +610,30 @@ function draw(tape: number) {
     g.stroke();
   }
 
+  drawMicTrack(tape);
   for (const m of marks) drawMark(m, tape, pitches);
   drawHead(playX(), tk("tape.playHead"), true);
   // 録っていない間（ソロ・ホールド・フェード）は、録音ヘッドを淡くする
   drawHead(recX(), tk("tape.recHead"), recording());
   drawPanel();
+}
+
+// 録音ヘッドを通り過ぎたテープの位置に、前の周の分（1 周分小さくなる）と、今マイクから入った分を足して書く。
+// テープに残っている一番大きな値を返す
+function updateMicTrack(tape: number): number {
+  const input = micOn() && recording() ? (micMeter.getValue() as number) : 0;
+  const loss = held ? 1 : feedback.gain.value;
+  const to = Math.floor(tape * MIC_BINS);
+  const from = Math.max(Math.floor((lastTape ?? tape) * MIC_BINS), to - MIC_BINS);
+  for (let i = from + 1; i <= to; i++) {
+    const b = ((i % MIC_BINS) + MIC_BINS) % MIC_BINS;
+    micTrack[b] = Math.min(1, micTrack[b] * loss + input);
+    if (micTrack[b] < 0.001) micTrack[b] = 0;
+  }
+  lastTape = tape;
+  let max = 0;
+  for (const v of micTrack) max = Math.max(max, v);
+  return max;
 }
 
 let last = performance.now();
@@ -537,9 +653,10 @@ function frame(t: number) {
     m.turns = turns;
   }
   marks = marks.filter((m) => m.level >= SILENT_LEVEL);
+  const micLeft = updateMicTrack(tape);
 
   // フェードで消えきったら、元に戻す
-  if (fading && marks.length === 0) {
+  if (fading && marks.length === 0 && micLeft < SILENT_LEVEL) {
     fading = false;
     applyLoop();
   }

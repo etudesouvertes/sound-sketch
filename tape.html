@@ -67,6 +67,14 @@
           <span class="range"><input id="fade-length" type="range" min="5" max="300" step="5" value="30" /><output id="fade-length-value"></output></span>
         </label>
       </section>
+      <section data-section="mic">
+        <h2 data-i18n="sec.mic">マイク</h2>
+        <label>
+          <span data-i18n="micLevel">入力の大きさ</span>
+          <span class="range"><input id="mic-level" type="range" min="0" max="200" step="5" value="100" /><output id="mic-level-value"></output></span>
+        </label>
+        <label><span data-i18n="micEchoCancel">エコー除去（スピーカーで聴くとき）</span> <input id="mic-echo-cancel" type="checkbox" checked /></label>
+      </section>
       <section data-section="weather">
         <h2 data-i18n="sec.weather">天気</h2>
         <label><span data-i18n="useWeather">天気を使う</span> <input id="weather" type="checkbox" /></label>
@@ -89,12 +97,13 @@
     <footer class="status-line">
       <span id="weather-status"></span>
       <span id="drift-status"></span>
+      <span id="mic-status"></span>
     </footer>
     <canvas id="canvas"></canvas>
     <p id="hint" class="hint" data-i18n="hint.tape">
       クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます<br />
       弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます<br />
-      右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）を使えます
+      右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・マイク（M）を使えます
     </p>
     <script type="module" src="/src/tape/main.ts"></script>
   </body>
