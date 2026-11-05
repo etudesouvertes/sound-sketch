@@ -409,18 +409,61 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, Solo, Hold, Fade and Mic.",
       }),
     },
-    "#timbre": {
-      title: { ja: "音色", en: "Timbre" },
+    '[data-section="tape-voice"] h2': {
+      title: { ja: "テープの音", en: "Tape voice" },
       text: {
-        ja: "弾く音の音色です。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です（フリップの歪んだギターのように）。",
-        en: "The sound you play. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer (like Fripp's distorted guitar).",
+        ja: "テープに録る音の設定です。ソロのとき以外は、この音で鳴ります。自動もこの音で弾きます。",
+        en: "Settings for the sound recorded onto the tape. It's what plays except during Solo, and what Auto plays.",
       },
     },
-    "#drag-mode": {
+    '[data-section="solo-voice"] h2': {
+      title: { ja: "ソロの音", en: "Solo voice" },
+      text: {
+        ja: "ソロ（操作盤のソロか Shift）のときに鳴る音の設定です。テープには録らないので、テープの音の土台の上で、別の音色で即興できます（フリップがループの上でギターを弾いたように）。画面の音名も、ソロの間はこちらの音域に変わります。",
+        en: "Settings for the sound you play during Solo (the Solo button or Shift). It isn't recorded, so you can improvise in another voice over the tape's bed, as Fripp played guitar over his loops. During Solo the note names on screen follow this register.",
+      },
+    },
+    "#tape-timbre": {
+      title: { ja: "音色", en: "Timbre" },
+      text: {
+        ja: "テープの音の音色です。チェロは弓で弾くように立ち上がり、少し遅れてビブラートがかかる、伸ばす音です（合成した音）。チェロ＋コントラバスは、そのオクターブ下でコントラバスが一緒に弾きます。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です。",
+        en: "The tape voice's timbre. Cello swells like a bowed string and gains vibrato after a moment (a synthesized cello). Cello + double bass adds a double bass an octave below. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer.",
+      },
+    },
+    "#solo-timbre": {
+      title: { ja: "音色", en: "Timbre" },
+      text: {
+        ja: "ソロの音の音色です。選べる音はテープの音と同じです。",
+        en: "The solo voice's timbre. The choices are the same as for the tape voice.",
+      },
+    },
+    "#solo-register": {
+      title: { ja: "音域", en: "Register" },
+      text: {
+        ja: "ソロの音で、画面に割り当てる音の高さの範囲です。1 で 1 オクターブ低く、5 で 1 オクターブ高くなります。",
+        en: "The pitch range mapped to the screen for the solo voice. 1 is an octave lower, 5 an octave higher.",
+      },
+    },
+    "#tape-volume": {
+      title: { ja: "大きさ", en: "Volume" },
+      text: { ja: "テープの音の大きさです。80% が元の大きさです。", en: "The tape voice's volume. 80% is the original level." },
+    },
+    "#solo-volume": {
+      title: { ja: "大きさ", en: "Volume" },
+      text: { ja: "ソロの音の大きさです。80% が元の大きさです。", en: "The solo voice's volume. 80% is the original level." },
+    },
+    "#tape-drag": {
       title: { ja: "ドラッグ", en: "Drag" },
       text: {
-        ja: "ドラッグしたときの弾き方です。「音階で弾く」は、なぞった高さのスケールの音を順に弾きます。「なめらかにつなぐ」は、1 つの音を伸ばしたまま、指の高さに合わせて音程を連続して動かします（スライドギターのように）。指を止めると、近くのスケールの音へ寄っていきます。",
+        ja: "ドラッグしたときの弾き方です。「音階で弾く」は、なぞった高さのスケールの音を順に弾きます。「なめらかにつなぐ」は、1 つの音を伸ばしたまま、指の動きに合わせて音程を連続して動かします（スライドギターのように）。指を止めると、近くのスケールの音へ寄っていきます。",
         en: "How dragging plays. “Play scale notes” plays the scale notes you pass over one by one. “Glide” keeps one note ringing and bends its pitch smoothly with your finger, like a slide guitar; when you stop, it settles onto the nearest scale note.",
+      },
+    },
+    "#solo-drag": {
+      title: { ja: "ドラッグ", en: "Drag" },
+      text: {
+        ja: "ソロの音で、ドラッグしたときの弾き方です。選べる弾き方はテープの音と同じです。",
+        en: "How dragging plays the solo voice. The choices are the same as for the tape voice.",
       },
     },
     "#density": {

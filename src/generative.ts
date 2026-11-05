@@ -184,6 +184,9 @@ export function setupGenerativePage(options: {
     transport,
     // 画面に割り当てている音高（低い順）
     pitches: () => pitches,
+    // 音域の段階 level（1〜5）で割り当てる音高（低い順）。設定の音域とは別の音域を持つ声（Tape のソロ）に使う
+    pitchesFor: (level: number) =>
+      visiblePitches(allPitches, registerOffset(level) + (drift ?? NEUTRAL_DRIFT).register),
     weatherOn: () => weather !== null,
     // 天気（オフのときは標準値）
     mood: () => weather ?? NEUTRAL_MOOD,

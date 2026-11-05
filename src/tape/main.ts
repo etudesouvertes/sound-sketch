@@ -3,12 +3,16 @@ import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
+import { setupLevel } from "../levels";
+import { celloBassVoice, celloVoice, sawVoice, type Voice } from "./voices";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
 // 戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえる。
 // 画面は流れるテープで、右の録音ヘッドで録られた音が左へ流れ、左の再生ヘッドで鳴って、また右から（薄くなって）出てくる。
-// 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェード・マイクのボタンを置く
+// 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェード・マイクのボタンを置く。
+// 弾く音は「テープの音」と「ソロの音」の 2 つのパートに分かれ、それぞれ音色・音域・大きさ・ドラッグを持つ。
+// ソロのときはソロの音で鳴り、テープには録らない（フリップのように、テープの土台の上で別の音色で即興する）
 
 // 弾いた 1 音。テープに録られた音はスケールを変えても変わらないので、周波数で持つ。
 // 位置はテープが進んだ周の数（tapeAt）で持つ。1 周の長さを変えても、テープの上の位置は変わらない
@@ -21,13 +25,14 @@ type Mark = {
   bends: { at: number; freq: number }[]; // 「なめらかにつなぐ」で、途中で変えた音程（テープの位置 (周) と周波数）
 };
 type Glow = { x: number; y: number; life: number; strength: number };
-// 押している指（マウス）ごとに、今鳴らしている音。テープに録っていない（ソロなど）ときは mark が null
+// 押している指（マウス）ごとに、今鳴らしている音。テープに録っていない（ソロなど）ときは mark が null。
 // 指ごとに鳴らしている声（voice）。「なめらかにつなぐ」（glide）では、その声の音程を動かす。freq は今の（向かっている）音程
 type Touch = {
+  part: PartId;
   index: number;
   freq: number;
   mark: Mark | null;
-  voice: Tone.MonoSynth;
+  voice: Voice;
   glide: boolean;
   lastMove: number; // 最後に指が動いた時刻 (performance.now)
   settled: boolean; // 指が止まって、スケールの音へ寄せたあとか
@@ -35,6 +40,7 @@ type Touch = {
   sliding: boolean; // 押した高さから DRAG_DISTANCE 以上動いて、音程を動かし始めたか
 };
 type Button = "solo" | "hold" | "fade" | "mic";
+type PartId = "tape" | "solo";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
 const LOOP_HIGHPASS = 90; // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように
@@ -70,8 +76,6 @@ const saturationEl = document.querySelector<HTMLInputElement>("#tape-saturation"
 const saturationValueEl = document.querySelector<HTMLOutputElement>("#tape-saturation-value")!;
 const fadeLengthEl = document.querySelector<HTMLInputElement>("#fade-length")!;
 const fadeLengthValueEl = document.querySelector<HTMLOutputElement>("#fade-length-value")!;
-const timbreEl = document.querySelector<HTMLSelectElement>("#timbre")!;
-const dragModeEl = document.querySelector<HTMLSelectElement>("#drag-mode")!;
 const micLevelEl = document.querySelector<HTMLInputElement>("#mic-level")!;
 const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-value")!;
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
@@ -120,56 +124,78 @@ saturateOut.connect(feedback);
 feedback.connect(tapeDelay);
 saturateOut.connect(tapeOut);
 
-// 倍音の多い、少しずらした 2 本のノコギリ波。弾いた瞬間は明るく、すぐ落ち着く。
-// テープを回るたびに高い倍音から削られていくので、層の新しさが音色でも分かる
-const VOICE = {
-  oscillator: { type: "fatsawtooth", count: 2, spread: 12 },
-  filter: { type: "lowpass", Q: 1, rolloff: -24 },
-  filterEnvelope: { attack: 0.005, decay: 0.8, sustain: 0.45, release: 1.5, baseFrequency: 350, octaves: 3.5 },
-  envelope: { attack: 0.005, decay: 1.2, sustain: 0.35, release: 1.8 },
-} as const;
-const VOICE_VOLUME = -20;
+// --- 2 つのパート ---
 
-// 音色の「ドライブ」: 歪ませてからギターアンプのスピーカーのように高音を丸め、長く伸ばす（フリップの歪んだギターのように）。
-// クリーンと切り替えられるよう、両方の道を作っておき、大きさで選ぶ。
-// 弾いた音はそのまま聞かせ、テープへは録音の入口（recordGate）を通して送る
-const clean = new Tone.Gain(1);
-const distortion = new Tone.Distortion({ distortion: 0.8, oversample: "4x" });
-const drive = new Tone.Gain(0);
-const cabinet = new Tone.Filter({ type: "lowpass", frequency: 18000, Q: 0.7 });
+// 録音の入口。テープの音とマイクはここを通ってテープへ入る（ソロ・ホールド・フェード中は閉じる）
 const recordGate = new Tone.Gain(1).connect(recordIn);
-distortion.connect(drive);
-clean.connect(cabinet);
-drive.connect(cabinet);
-cabinet.connect(reverb);
-cabinet.connect(recordGate);
+
+// パートごとの音色と大きさ。声はパートの入口（clean と distortion の両方）へつなぎ、音色の「ドライブ」では
+// 歪ませてからギターアンプのスピーカーのように高音を丸める（フリップの歪んだギターのように）。
+// クリーンと切り替えられるよう両方の道を作っておき、大きさで選ぶ。チェロとクリーンは歪ませない道を通る
+type Part = {
+  timbreEl: HTMLSelectElement;
+  dragEl: HTMLSelectElement;
+  clean: Tone.Gain;
+  distortion: Tone.Distortion;
+};
 
 const DRIVE_LEVEL = 0.12; // 歪ませると大きくなるので、クリーンと同じくらいに揃える
-const envelopeOf = () => (timbreEl.value === "drive" ? { sustain: 0.6, release: 2.5 } : { sustain: 0.35, release: 1.8 });
-function applyTimbre() {
-  const driven = timbreEl.value === "drive";
-  clean.gain.rampTo(driven ? 0 : 1, 0.05);
-  drive.gain.rampTo(driven ? DRIVE_LEVEL : 0, 0.05);
-  cabinet.frequency.rampTo(driven ? 3800 : 18000, 0.05);
+const NORMAL_VOLUME = 80; // 大きさのスライダーで、元の大きさ（1 倍）になる値
+
+function createPart(id: PartId, destinations: Tone.InputNode[]): Part {
+  const timbreEl = document.querySelector<HTMLSelectElement>(`#${id}-timbre`)!;
+  const dragEl = document.querySelector<HTMLSelectElement>(`#${id}-drag`)!;
+  const volumeEl = document.querySelector<HTMLInputElement>(`#${id}-volume`)!;
+  const volumeValueEl = document.querySelector<HTMLOutputElement>(`#${id}-volume-value`)!;
+  const clean = new Tone.Gain(1);
+  const distortion = new Tone.Distortion({ distortion: 0.8, oversample: "4x" });
+  const drive = new Tone.Gain(0);
+  const cabinet = new Tone.Filter({ type: "lowpass", frequency: 18000, Q: 0.7 });
+  const volume = new Tone.Gain(1);
+  distortion.connect(drive);
+  clean.connect(cabinet);
+  drive.connect(cabinet);
+  cabinet.connect(volume);
+  volume.fan(...destinations);
+
+  const applyTimbre = () => {
+    const driven = timbreEl.value === "drive";
+    clean.gain.rampTo(driven ? 0 : 1, 0.05);
+    drive.gain.rampTo(driven ? DRIVE_LEVEL : 0, 0.05);
+    cabinet.frequency.rampTo(driven ? 3800 : 18000, 0.05);
+  };
+  timbreEl.addEventListener("change", applyTimbre);
+  applyTimbre();
+
+  // 大きさは、スライダーの値の 2 乗で（耳に自然な変わり方で）変える
+  const applyVolume = () => {
+    volumeValueEl.value = `${volumeEl.value}%`;
+    volume.gain.rampTo((Number(volumeEl.value) / NORMAL_VOLUME) ** 2, 0.05);
+  };
+  volumeEl.addEventListener("input", applyVolume);
+  applyVolume();
+
+  return { timbreEl, dragEl, clean, distortion };
 }
 
-// 1 音ごとに声を作って鳴らし、鳴り終わったら捨てる（音色の長さは作るときの設定で決まる）。
-// 「音階で弾く」も「なめらかにつなぐ」も自動も同じ作り方にして、同じ音で鳴るようにする
-// （PolySynth の声は音程を途中で動かせないので、「なめらかにつなぐ」のために、すべてこの形にそろえる）
-function makeVoice(): Tone.MonoSynth {
-  // 音量は作るときに渡す。あとから volume.value に代入すると先読みの分（0.1 秒）遅れて効き、鳴り始めだけ 20 dB 大きくなる
-  const voice = new Tone.MonoSynth({ ...VOICE, envelope: { ...VOICE.envelope, ...envelopeOf() }, volume: VOICE_VOLUME });
-  voice.fan(clean, distortion);
-  return voice;
+const parts: Record<PartId, Part> = {
+  tape: createPart("tape", [reverb, recordGate]),
+  solo: createPart("solo", [reverb]),
+};
+
+// 1 音ごとに声を作って鳴らし、鳴り終わったら捨てる。どの弾き方でも、自動でも、同じ作り方で同じ音にする
+function makeVoice(id: PartId): Voice {
+  const { timbreEl, clean, distortion } = parts[id];
+  if (timbreEl.value === "cello") return celloVoice([clean, distortion]);
+  if (timbreEl.value === "cello-bass") return celloBassVoice([clean, distortion]);
+  return sawVoice(timbreEl.value === "drive", [clean, distortion]);
 }
 
 // 離した（release を始めた）声を、余韻が消えたあとに捨てる
-function disposeAfter(voice: Tone.MonoSynth, releaseAt: number) {
-  const ms = (releaseAt - Tone.immediate() + envelopeOf().release + 1) * 1000;
+function disposeAfter(voice: Voice, releaseAt: number) {
+  const ms = (releaseAt - Tone.immediate() + voice.release + 1) * 1000;
   setTimeout(() => voice.dispose(), ms);
 }
-timbreEl.addEventListener("change", applyTimbre);
-applyTimbre();
 
 // --- マイク ---
 
@@ -250,6 +276,17 @@ const page = setupGenerativePage({
     if (!held) loopLowpass.frequency.rampTo(lowpass, params.ramp);
   },
 });
+
+// ソロの音域。テープの音の音域は、設定の「音域」（ほかのページと共通）
+let soloRegister = setupLevel(
+  document.querySelector<HTMLInputElement>("#solo-register")!,
+  document.querySelector<HTMLOutputElement>("#solo-register-value")!,
+  "solo-register",
+  (level) => (soloRegister = level),
+);
+const pitchesOf = (part: PartId) => (part === "tape" ? page.pitches() : page.pitchesFor(soloRegister));
+// 今弾くと鳴るパート
+const currentPart = (): PartId => (solo() ? "solo" : "tape");
 
 // 1 周で残る大きさ。戻す量と、テープが削る高さ・低さ（2 次のフィルターの、基音での減り方）で決まる。
 // ホールド中はフィルターを開けて、そのまま残す
@@ -349,6 +386,7 @@ function applyLoop() {
 
   if (recording() !== wasRecording) {
     for (const touch of touches.values()) {
+      if (touch.part !== "tape") continue; // ソロの音はテープへつながっていない
       if (touch.mark) touch.mark.end = tapeAt(now);
       touch.mark = recording() ? startMark(touch.freq, now) : null;
     }
@@ -432,8 +470,9 @@ function playAuto() {
   const { freq } = autoPitch(pitches);
   const now = Tone.immediate();
   const duration = 0.4 + Math.random() * 2.2;
-  const voice = makeVoice();
-  voice.triggerAttackRelease(freq, duration, now, 0.45 + Math.random() * 0.25);
+  const voice = makeVoice("tape");
+  voice.triggerAttack(freq, now, 0.45 + Math.random() * 0.25);
+  voice.triggerRelease(now + duration);
   disposeAfter(voice, now + duration);
   const mark = startMark(freq, now);
   mark.end = tapeAt(now + duration);
@@ -458,7 +497,8 @@ function updateAuto(dt: number, tape: number) {
   untilAuto = (AUTO_INTERVAL / page.autoDensity()) * (0.5 + Math.random());
 }
 
-// 押した瞬間に鳴らし、離すまで伸ばす。「なめらかにつなぐ」では、動かすと音程が滑る
+// 押した瞬間に鳴らし、離すまで伸ばす。「なめらかにつなぐ」では、動かすと音程が滑る。
+// ソロのときはソロの音（テープへはつながっていない）で、それ以外はテープの音で鳴らす
 function noteOn(pointerId: number, y: number) {
   idle = 0;
   // フェード中に弾くと、元に戻して録り始める
@@ -466,15 +506,17 @@ function noteOn(pointerId: number, y: number) {
     fading = false;
     applyLoop();
   }
-  const pitches = page.pitches();
+  const part = currentPart();
+  const pitches = pitchesOf(part);
   const index = pitchIndexAt(y, height, pitches.length);
   const { freq } = pitchAt(pitches, index);
   const now = Tone.immediate();
-  const voice = makeVoice();
+  const voice = makeVoice(part);
   voice.triggerAttack(freq, now, 0.8);
-  const mark = recording() ? startMark(freq, now) : null;
+  const mark = part === "tape" && recording() ? startMark(freq, now) : null;
   if (!mark) glows.push({ x: recX(), y: yOf(freq, pitches), life: 1, strength: 0.5 });
-  touches.set(pointerId, { index, freq, mark, voice, glide: dragModeEl.value === "glide", lastMove: performance.now(), settled: true, pressY: y, sliding: false });
+  const glide = parts[part].dragEl.value === "glide";
+  touches.set(pointerId, { part, index, freq, mark, voice, glide, lastMove: performance.now(), settled: true, pressY: y, sliding: false });
 }
 
 // 「なめらかにつなぐ」の音程を freq へ動かし、テープに録っていれば、その音程の変化も覚えておく
@@ -487,9 +529,9 @@ function bend(touch: Touch, freq: number, timeConstant: number) {
 
 // 指が止まった音を、近くのスケールの音へ寄せる（毎フレーム呼ぶ）
 function settleGlides() {
-  const pitches = page.pitches();
   for (const touch of touches.values()) {
     if (!touch.glide || touch.settled || performance.now() - touch.lastMove < SETTLE_AFTER) continue;
+    const pitches = pitchesOf(touch.part);
     bend(touch, pitches[nearestIndex(pitches, touch.freq)].freq, SETTLE_TIME);
     touch.settled = true;
   }
@@ -576,14 +618,14 @@ canvas.addEventListener("pointermove", (e) => {
     if (!touch.sliding && Math.abs(e.clientY - touch.pressY) < DRAG_DISTANCE) return;
     touch.sliding = true;
     // 押した高さからの移動の分だけ音程を動かす。押した位置が帯の中心からずれていても、押した瞬間の音から滑らかに始まる
-    const pitches = page.pitches();
+    const pitches = pitchesOf(touch.part);
     const start = pitchAt(pitches, touch.index);
     bend(touch, (start.freq * freqAtY(e.clientY, pitches)) / freqAtY(touch.pressY, pitches), GLIDE_FOLLOW);
     touch.lastMove = performance.now();
     touch.settled = false;
     return;
   }
-  if (pitchIndexAt(e.clientY, height, page.pitches().length) === touch.index) return;
+  if (pitchIndexAt(e.clientY, height, pitchesOf(touch.part).length) === touch.index) return;
   noteOff(e.pointerId);
   noteOn(e.pointerId, e.clientY);
 });
@@ -761,8 +803,9 @@ function drawPanel() {
 function draw(tape: number) {
   g.fillStyle = "#1b1d23";
   g.fillRect(0, 0, width, height);
+  // 音名の線は、今弾くと鳴るパートの音域で引く。テープの音は、テープの音の音域で描く
+  drawPitchGuides(g, width, height, pitchesOf(currentPart()));
   const pitches = page.pitches();
-  drawPitchGuides(g, width, height, pitches);
 
   // テープの帯（2 つのヘッドの間が、ちょうど 1 周分）。操作盤の下には音名の線を引かない
   g.fillStyle = "rgba(255, 255, 255, 0.025)";

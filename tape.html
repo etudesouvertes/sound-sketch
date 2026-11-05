@@ -28,17 +28,23 @@
         <label><span data-i18n="scale">スケール</span> <select id="scale"></select></label>
         <label><span data-i18n="root">主音</span> <select id="root"></select></label>
         <label>
-          <span data-i18n="timbre">音色</span>
-          <select id="timbre">
-            <option value="clean" data-i18n="timbre.clean">クリーン</option>
-            <option value="drive" data-i18n="timbre.drive">ドライブ</option>
-          </select>
+          <span data-i18n="density">密度</span>
+          <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
         </label>
         <label>
-          <span data-i18n="dragMode">ドラッグ</span>
-          <select id="drag-mode">
-            <option value="steps" data-i18n="dragMode.steps">音階で弾く</option>
-            <option value="glide" data-i18n="dragMode.glide">なめらかにつなぐ</option>
+          <span data-i18n="reverbLevel">響き</span>
+          <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
+        </label>
+      </section>
+      <section data-section="tape-voice">
+        <h2 data-i18n="sec.tapeVoice">テープの音</h2>
+        <label>
+          <span data-i18n="timbre">音色</span>
+          <select id="tape-timbre">
+            <option value="cello" data-i18n="timbre.cello" selected>チェロ</option>
+            <option value="cello-bass" data-i18n="timbre.celloBass">チェロ＋コントラバス</option>
+            <option value="clean" data-i18n="timbre.clean">クリーン</option>
+            <option value="drive" data-i18n="timbre.drive">ドライブ</option>
           </select>
         </label>
         <label>
@@ -46,12 +52,42 @@
           <span class="range"><input id="register" type="range" min="1" max="5" step="1" /><output id="register-value"></output></span>
         </label>
         <label>
-          <span data-i18n="density">密度</span>
-          <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
+          <span data-i18n="voiceVolume">大きさ</span>
+          <span class="range"><input id="tape-volume" type="range" min="0" max="100" step="1" value="80" /><output id="tape-volume-value"></output></span>
         </label>
         <label>
-          <span data-i18n="reverbLevel">響き</span>
-          <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
+          <span data-i18n="dragMode">ドラッグ</span>
+          <select id="tape-drag">
+            <option value="steps" data-i18n="dragMode.steps">音階で弾く</option>
+            <option value="glide" data-i18n="dragMode.glide">なめらかにつなぐ</option>
+          </select>
+        </label>
+      </section>
+      <section data-section="solo-voice">
+        <h2 data-i18n="sec.soloVoice">ソロの音</h2>
+        <label>
+          <span data-i18n="timbre">音色</span>
+          <select id="solo-timbre">
+            <option value="cello" data-i18n="timbre.cello">チェロ</option>
+            <option value="cello-bass" data-i18n="timbre.celloBass">チェロ＋コントラバス</option>
+            <option value="clean" data-i18n="timbre.clean" selected>クリーン</option>
+            <option value="drive" data-i18n="timbre.drive">ドライブ</option>
+          </select>
+        </label>
+        <label>
+          <span data-i18n="register">音域</span>
+          <span class="range"><input id="solo-register" type="range" min="1" max="5" step="1" /><output id="solo-register-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="voiceVolume">大きさ</span>
+          <span class="range"><input id="solo-volume" type="range" min="0" max="100" step="1" value="80" /><output id="solo-volume-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="dragMode">ドラッグ</span>
+          <select id="solo-drag">
+            <option value="steps" data-i18n="dragMode.steps">音階で弾く</option>
+            <option value="glide" data-i18n="dragMode.glide">なめらかにつなぐ</option>
+          </select>
         </label>
       </section>
       <section data-section="tape">
