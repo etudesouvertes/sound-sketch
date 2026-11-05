@@ -433,8 +433,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#tape-timbre": {
       title: { ja: "音色", en: "Timbre" },
       text: {
-        ja: "テープの音の音色です。チェロは弓で弾くように立ち上がり、少し遅れてビブラートがかかる、伸ばす音です（合成した音）。チェロ＋コントラバスは、そのオクターブ下でコントラバスが一緒に弾きます。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です。",
-        en: "The tape voice's timbre. Cello swells like a bowed string and gains vibrato after a moment (a synthesized cello). Cello + double bass adds a double bass an octave below. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer.",
+        ja: "テープの音の音色です。チェロは弓で弾くように立ち上がり、少し遅れてビブラートがかかる、伸ばす音です（合成した音）。チェロ＋コントラバスは、そのオクターブ下でコントラバスが一緒に弾きます。ストリングスは、同じ高さを 3 人、オクターブ下を 2 人で、少しずつずれながらゆっくり弾く合奏で、輪郭のぼやけた霧のような響きです。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です。",
+        en: "The tape voice's timbre. Cello swells like a bowed string and gains vibrato after a moment (a synthesized cello). Cello + double bass adds a double bass an octave below. Strings is a slow-swelling section, three players at pitch and two an octave below, each slightly out of step, for a misty, blurred bed. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer.",
       },
     },
     "#solo-timbre": {
@@ -506,6 +506,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "録り直すときの飽和の強さです。小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪みます。0% でも、重ねすぎると少し歪みます。",
         en: "How hard the tape saturates when recording again. Quiet sounds last the same; the thicker the layers, the sooner and harder they distort. Even at 0% heavy stacking distorts a little.",
+      },
+    },
+    "#tape-low-cut": {
+      title: { ja: "低音を削る", en: "Low cut" },
+      text: {
+        ja: "録り直すたびに、この高さより下の音を削ります。低音がたまって濁らないようにするためです。下げると、コントラバスなどの低い音も繰り返し残りますが、重ねるほど低音が膨らみやすくなります。",
+        en: "Each time round, sounds below this pitch are trimmed so the low end doesn't build up into mud. Lower it to keep low notes such as the double bass on later repeats, at the cost of a heavier low end as layers pile up.",
       },
     },
     "#fade-length": {

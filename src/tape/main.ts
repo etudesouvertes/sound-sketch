@@ -4,7 +4,7 @@ import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
-import { celloBassVoice, celloVoice, sawVoice, type Voice } from "./voices";
+import { celloBassVoice, celloVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
@@ -45,7 +45,6 @@ type Button = "solo" | "hold" | "fade" | "mic";
 type PartId = "tape" | "solo";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
-const LOOP_HIGHPASS = 90; // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように
 // 1 周の長さを変えるときに移す時間 (秒)。スライダーの動きにすぐ付いていくよう短くする。
 // 長さが変わる間は、ヘッドを動かしたのと同じで、速く動かすほど音程が大きくうねる（長くすると下がり、短くすると上がる）
 const LENGTH_RAMP = 0.08;
@@ -78,6 +77,8 @@ const saturationEl = document.querySelector<HTMLInputElement>("#tape-saturation"
 const saturationValueEl = document.querySelector<HTMLOutputElement>("#tape-saturation-value")!;
 const fadeLengthEl = document.querySelector<HTMLInputElement>("#fade-length")!;
 const fadeLengthValueEl = document.querySelector<HTMLOutputElement>("#fade-length-value")!;
+const lowCutEl = document.querySelector<HTMLInputElement>("#tape-low-cut")!;
+const lowCutValueEl = document.querySelector<HTMLOutputElement>("#tape-low-cut-value")!;
 const micLevelEl = document.querySelector<HTMLInputElement>("#mic-level")!;
 const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-value")!;
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
@@ -87,6 +88,8 @@ const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
+// 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように。下げるとコントラバスの低音も繰り返し残る
+const lowCut = () => Number(lowCutEl.value);
 
 // --- 演奏の状態 ---
 
@@ -115,7 +118,7 @@ const reverb = new Tone.Reverb({ decay: 6, wet: 0.35 }).toDestination();
 const recordIn = new Tone.Gain(1);
 const tapeDelay = new Tone.Delay({ delayTime: loopSeconds(), maxDelay: 30 });
 const loopLowpass = new Tone.Filter({ type: "lowpass", frequency: LOOP_LOWPASS, Q: 0.5 });
-const loopHighpass = new Tone.Filter({ type: "highpass", frequency: LOOP_HIGHPASS, Q: 0.5 });
+const loopHighpass = new Tone.Filter({ type: "highpass", frequency: lowCut(), Q: 0.5 });
 const saturateIn = new Tone.Gain(1);
 const saturate = new Tone.WaveShaper((x) => Math.tanh(x), 4096);
 const saturateOut = new Tone.Gain(1);
@@ -191,6 +194,7 @@ function makeVoice(id: PartId): Voice {
   const { timbreEl, clean, distortion } = parts[id];
   if (timbreEl.value === "cello") return celloVoice([clean, distortion]);
   if (timbreEl.value === "cello-bass") return celloBassVoice([clean, distortion]);
+  if (timbreEl.value === "strings") return stringsVoice([clean, distortion]);
   return sawVoice(timbreEl.value === "drive", [clean, distortion]);
 }
 
@@ -296,7 +300,7 @@ const currentPart = (): PartId => (solo() ? "solo" : "tape");
 function turnLoss(freq: number): number {
   if (held) return 1;
   const low = 1 / Math.sqrt(1 + (freq / lowpass) ** 4);
-  const high = 1 / Math.sqrt(1 + (LOOP_HIGHPASS / freq) ** 4);
+  const high = 1 / Math.sqrt(1 + (lowCut() / freq) ** 4);
   return feedback.gain.value * low * high;
 }
 
@@ -385,7 +389,7 @@ function applyLoop() {
   tapeOut.gain.cancelScheduledValues(now).setTargetAtTime(clearing ? 0 : 1, now, 0.05);
   recordGate.gain.cancelScheduledValues(now).setTargetAtTime(recording() ? 1 : 0, now, 0.02);
   loopLowpass.frequency.rampTo(held ? 20000 : lowpass, 0.1);
-  loopHighpass.frequency.rampTo(held ? 10 : LOOP_HIGHPASS, 0.1);
+  loopHighpass.frequency.rampTo(held ? 10 : lowCut(), 0.1);
 
   if (recording() !== wasRecording) {
     for (const touch of touches.values()) {
@@ -397,6 +401,13 @@ function applyLoop() {
 }
 
 soloRecordEl.addEventListener("change", applyLoop);
+
+const showLowCut = () => (lowCutValueEl.value = `${lowCutEl.value} Hz`);
+lowCutEl.addEventListener("input", () => {
+  showLowCut();
+  applyLoop();
+});
+showLowCut();
 
 feedbackEl.addEventListener("input", () => {
   feedbackValueEl.value = `${feedbackEl.value}%`;

@@ -67,8 +67,17 @@ const CONTRABASS: Bowed = {
   bow: { level: 0.025, freq: 1500 },
 };
 
-// 1 本の弦楽器の音のつながりを作る。音程は frequency（外から信号をつなげる）で決まる
-function bowed(spec: Bowed, destinations: Tone.InputNode[]) {
+// 合奏の 1 人分。チェロ・コントラバスを、ゆっくり立ち上げ、弓の音を抜いて小さくしたもの（人数分重ねるので）
+const SECTION_CELLO: Bowed = { ...CELLO, volume: -30, attack: 0.45, release: 1.5, bow: { level: 0, freq: 0 } };
+const SECTION_BASS: Bowed = { ...CONTRABASS, volume: -32, attack: 0.55, release: 1.6, bow: { level: 0, freq: 0 } };
+
+// 重ねる 1 本。ratio は音程の倍率、detune は音程のずれ (セント)、delay は弾き始めの遅れ (秒)、
+// rate はビブラートの速さの倍率（1 人ずつ少し変えて、揺れがそろわないようにする）
+type Layer = { spec: Bowed; ratio: number; detune?: number; delay?: number; rate?: number };
+
+// 1 本の弦楽器の音のつながりを作る。音程は frequency（外から信号をつなげる）で決まる。
+// ずれ（detune）は、ビブラートの揺れの中心をずらして作る（LFO をつなぐと、つないだ先の値は上書きされるため）
+function bowed({ spec, detune = 0, delay: late = 0, rate: rateScale = 1 }: Layer, destinations: Tone.InputNode[]) {
   const out = new Tone.Gain(Tone.dbToGain(spec.volume));
   out.fan(...destinations);
   const highpass = new Tone.Filter({ type: "highpass", frequency: spec.bottom, Q: 0.5 });
@@ -80,19 +89,26 @@ function bowed(spec: Bowed, destinations: Tone.InputNode[]) {
 
   const osc = new Tone.Oscillator({ type: "sawtooth", frequency: 0 }).connect(envelope);
   const { cents, rate, delay, rise } = spec.vibrato;
-  const vibrato = new Tone.LFO({ frequency: rate, min: -cents, max: cents, amplitude: 0 });
+  const vibrato = new Tone.LFO({ frequency: rate * rateScale, min: detune - cents, max: detune + cents, amplitude: 0 });
   vibrato.connect(osc.detune);
-  const noise = new Tone.Noise("pink");
-  const bowFilter = new Tone.Filter({ type: "bandpass", frequency: spec.bow.freq, Q: 1 });
-  const bowLevel = new Tone.Gain(spec.bow.level);
-  noise.chain(bowFilter, bowLevel, envelope);
+  const nodes: { dispose: () => void }[] = [out, highpass, lowBody, midBody, lowpass, envelope, osc, vibrato];
 
-  const nodes = [out, highpass, lowBody, midBody, lowpass, envelope, osc, vibrato, noise, bowFilter, bowLevel];
+  // 弓の擦れる音。合奏では人数分重ねると雑音っぽくなるので、入れない（level 0）
+  let noise: Tone.Noise | null = null;
+  if (spec.bow.level > 0) {
+    noise = new Tone.Noise("pink");
+    const bowFilter = new Tone.Filter({ type: "bandpass", frequency: spec.bow.freq, Q: 1 });
+    const bowLevel = new Tone.Gain(spec.bow.level);
+    noise.chain(bowFilter, bowLevel, envelope);
+    nodes.push(noise, bowFilter, bowLevel);
+  }
+
   return {
     frequency: osc.frequency,
-    attack: (time: number, velocity: number) => {
+    attack: (at: number, velocity: number) => {
+      const time = at + late;
       osc.start(time);
-      noise.start(time);
+      noise?.start(time);
       vibrato.start(time);
       vibrato.amplitude.setValueAtTime(0, time + delay).linearRampToValueAtTime(1, time + delay + rise);
       envelope.triggerAttack(time, velocity);
@@ -106,11 +122,11 @@ function bowed(spec: Bowed, destinations: Tone.InputNode[]) {
 }
 
 // 弦楽器を何本か重ねた声。音程は 1 つの信号で決め、それぞれには ratio 倍してつなぐ（なめらかに滑らせても音程の関係が崩れない）
-function bowedVoice(layers: { spec: Bowed; ratio: number }[], destinations: Tone.InputNode[]): Voice {
+function bowedVoice(layers: Layer[], destinations: Tone.InputNode[]): Voice {
   const frequency = new Tone.Signal<"frequency">({ value: 0, units: "frequency" });
-  const strings = layers.map(({ spec, ratio }) => {
-    const string = bowed(spec, destinations);
-    const scale = new Tone.Multiply(ratio);
+  const strings = layers.map((layer) => {
+    const string = bowed(layer, destinations);
+    const scale = new Tone.Multiply(layer.ratio);
     frequency.chain(scale, string.frequency);
     return { string, scale };
   });
@@ -130,7 +146,7 @@ function bowedVoice(layers: { spec: Bowed; ratio: number }[], destinations: Tone
         scale.dispose();
       }
     },
-    release: Math.max(...strings.map(({ string }) => string.release)),
+    release: Math.max(...strings.map(({ string }) => string.release)) + Math.max(...layers.map((l) => l.delay ?? 0)),
   };
 }
 
@@ -145,3 +161,18 @@ export const celloBassVoice = (destinations: Tone.InputNode[]) =>
     ],
     destinations,
   );
+
+// 弦楽合奏。同じ高さを 3 人、オクターブ下を 2 人で弾く。1 人ずつ音程を数セント、弾き始めを数十ミリ秒、
+// ビブラートの速さを少しずつずらし、その揺らぎの重なりで、輪郭のぼやけた霧のような響きにする
+export const stringsVoice = (destinations: Tone.InputNode[]) =>
+  bowedVoice(
+    [
+      { spec: SECTION_CELLO, ratio: 1, detune: -8, delay: 0, rate: 0.92 },
+      { spec: SECTION_CELLO, ratio: 1, detune: -1, delay: 0.04, rate: 1.07 },
+      { spec: SECTION_CELLO, ratio: 1, detune: 7, delay: 0.09, rate: 1 },
+      { spec: SECTION_BASS, ratio: 0.5, detune: -5, delay: 0.02, rate: 0.95 },
+      { spec: SECTION_BASS, ratio: 0.5, detune: 4, delay: 0.07, rate: 1.1 },
+    ],
+    destinations,
+  );
+

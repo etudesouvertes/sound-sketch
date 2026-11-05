@@ -43,6 +43,7 @@
           <select id="tape-timbre">
             <option value="cello" data-i18n="timbre.cello" selected>チェロ</option>
             <option value="cello-bass" data-i18n="timbre.celloBass">チェロ＋コントラバス</option>
+            <option value="strings" data-i18n="timbre.strings">ストリングス</option>
             <option value="clean" data-i18n="timbre.clean">クリーン</option>
             <option value="drive" data-i18n="timbre.drive">ドライブ</option>
           </select>
@@ -70,6 +71,7 @@
           <select id="solo-timbre">
             <option value="cello" data-i18n="timbre.cello">チェロ</option>
             <option value="cello-bass" data-i18n="timbre.celloBass">チェロ＋コントラバス</option>
+            <option value="strings" data-i18n="timbre.strings">ストリングス</option>
             <option value="clean" data-i18n="timbre.clean" selected>クリーン</option>
             <option value="drive" data-i18n="timbre.drive">ドライブ</option>
           </select>
@@ -104,6 +106,10 @@
         <label>
           <span data-i18n="tapeSaturation">歪み</span>
           <span class="range"><input id="tape-saturation" type="range" min="0" max="100" step="1" value="0" /><output id="tape-saturation-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="tapeLowCut">低音を削る</span>
+          <span class="range"><input id="tape-low-cut" type="range" min="20" max="200" step="5" value="90" /><output id="tape-low-cut-value"></output></span>
         </label>
         <label>
           <span data-i18n="fadeLength">フェードの長さ</span>
