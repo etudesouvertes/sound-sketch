@@ -39,6 +39,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   tapeFeedback: { ja: "残り方", en: "Feedback" },
   tapeSaturation: { ja: "歪み", en: "Saturation" },
   tapeLowCut: { ja: "低音を削る", en: "Low cut" },
+  extraHeads: { ja: "足す再生ヘッド", en: "Extra play heads" },
   fadeLength: { ja: "フェードの長さ", en: "Fade length" },
   timbre: { ja: "音色", en: "Timbre" },
   "timbre.clean": { ja: "クリーン", en: "Clean" },

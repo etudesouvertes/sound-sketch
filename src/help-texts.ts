@@ -508,6 +508,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "How hard the tape saturates when recording again. Quiet sounds last the same; the thicker the layers, the sooner and harder they distort. Even at 0% heavy stacking distorts a little.",
       },
     },
+    "#extra-heads": {
+      title: { ja: "足す再生ヘッド", en: "Extra play heads" },
+      text: {
+        ja: "テープの途中に置く再生ヘッドの数（0〜3）です。録った音が、元の再生ヘッドに着く前にも、ずれて何度か聞こえます。足したヘッドは聞こえるだけで、テープへは戻しません。帯の下のつまみを左右にドラッグすると位置を変えられ、動かしている間はそのヘッドの音の音程がうねります。",
+        en: "How many play heads sit partway along the tape (0–3). A recorded note is heard again, offset, before it reaches the main play head. Extra heads only play; they don't feed back onto the tape. Drag a head's handle at the bottom of the band to move it; its pitch warps while it moves.",
+      },
+    },
     "#tape-low-cut": {
       title: { ja: "低音を削る", en: "Low cut" },
       text: {

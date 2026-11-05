@@ -66,6 +66,12 @@ const MIC_ACTIVE = 0.02; // マイクの音がこれより大きいあいだは�
 const MIC_BINS = 400; // マイクの音の大きさを、テープ 1 周あたりこの数に分けて覚えておく（画面に描く用）
 const PLAY_HEAD = 0.18; // 再生ヘッドの横位置（画面の幅に対する割合）
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
+// 足す再生ヘッド。テープの途中を読んで鳴らすだけで、テープへは戻さない（1 周に同じ音が何度か、ずれて聞こえる）。
+// 位置 u はテープの上の位置（0 = 録音ヘッド、1 = 再生ヘッド）。帯の下のつまみで動かす
+const EXTRA_HEADS = [0.5, 0.25, 0.75]; // 足せる数と、はじめの位置
+const EXTRA_HEAD_LEVEL = 0.7; // 足した再生ヘッドの大きさ（元の再生ヘッドに対して）
+const EXTRA_HEAD_MIN = 0.03; // つまみで動かせる範囲（録音ヘッド・再生ヘッドと重ならないように）
+const GRIP = { width: 34, height: 18, bottom: 30 }; // つまみの大きさと、下端から上げる高さ (px)
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const clearEl = document.querySelector<HTMLButtonElement>("#clear")!;
@@ -85,6 +91,8 @@ const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-canc
 const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
+const extraHeadsEl = document.querySelector<HTMLInputElement>("#extra-heads")!;
+const extraHeadsValueEl = document.querySelector<HTMLOutputElement>("#extra-heads-value")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
@@ -116,6 +124,7 @@ const reverb = new Tone.Reverb({ decay: 6, wet: 0.35 }).toDestination();
 // 戻す音は飽和させ、重ねすぎても大きくなり続けないようにする。「歪み」では、飽和させる前に大きくして後で同じだけ戻す。
 // 小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪む
 const recordIn = new Tone.Gain(1);
+const writeBus = new Tone.Gain(1); // 録音ヘッドでテープに書く音（弾いた音と、戻した音）
 const tapeDelay = new Tone.Delay({ delayTime: loopSeconds(), maxDelay: 30 });
 const loopLowpass = new Tone.Filter({ type: "lowpass", frequency: LOOP_LOWPASS, Q: 0.5 });
 const loopHighpass = new Tone.Filter({ type: "highpass", frequency: lowCut(), Q: 0.5 });
@@ -124,11 +133,28 @@ const saturate = new Tone.WaveShaper((x) => Math.tanh(x), 4096);
 const saturateOut = new Tone.Gain(1);
 const feedback = new Tone.Gain(feedbackAmount());
 const tapeOut = new Tone.Gain(1).connect(reverb);
-recordIn.connect(tapeDelay);
+recordIn.connect(writeBus);
+writeBus.connect(tapeDelay);
 tapeDelay.chain(loopLowpass, loopHighpass, saturateIn, saturate, saturateOut);
 saturateOut.connect(feedback);
-feedback.connect(tapeDelay);
+feedback.connect(writeBus);
 saturateOut.connect(tapeOut);
+
+// 足す再生ヘッド。書いた音を u 周分遅らせて鳴らす。使わないヘッドは絞っておく
+const extraHeads = EXTRA_HEADS.map((u) => {
+  const delay = new Tone.Delay({ delayTime: u * loopSeconds(), maxDelay: 30 });
+  const level = new Tone.Gain(0);
+  writeBus.chain(delay, level, tapeOut);
+  return { u, delay, level };
+});
+const extraHeadCount = () => Number(extraHeadsEl.value);
+const activeHeads = () => extraHeads.slice(0, extraHeadCount());
+function applyExtraHeads() {
+  extraHeadsValueEl.value = extraHeadsEl.value;
+  extraHeads.forEach((head, i) => head.level.gain.rampTo(i < extraHeadCount() ? EXTRA_HEAD_LEVEL : 0, 0.1));
+}
+extraHeadsEl.addEventListener("input", applyExtraHeads);
+applyExtraHeads();
 
 // --- 2 つのパート ---
 
@@ -316,6 +342,7 @@ lengthEl.addEventListener("input", () => {
   const now = Tone.immediate();
   clock = { time: now, turns: tapeAt(now), seconds: loopSeconds() };
   tapeDelay.delayTime.rampTo(loopSeconds(), LENGTH_RAMP, now);
+  for (const head of extraHeads) head.delay.delayTime.rampTo(head.u * loopSeconds(), LENGTH_RAMP, now);
 });
 showLength();
 
@@ -609,11 +636,37 @@ function pressPanel(e: PointerEvent) {
   }
 }
 
+// 足した再生ヘッドのつまみ。重なっていたら、後ろ（上に描いた方）を取る
+function gripRect(u: number) {
+  const x = xAt(u);
+  const bottom = height - GRIP.bottom;
+  return { left: x - GRIP.width / 2, right: x + GRIP.width / 2, top: bottom - GRIP.height, bottom };
+}
+function headAt(x: number, y: number) {
+  return [...activeHeads()].reverse().find((head) => {
+    const r = gripRect(head.u);
+    return x >= r.left - 4 && x <= r.right + 4 && y >= r.top - 4 && y <= r.bottom + 4;
+  });
+}
+
+// つまみで動かす。動かす速さの分だけ、そのヘッドの音の音程がうねる（1 周の長さを変えたときと同じ）
+const headPointers = new Map<number, (typeof extraHeads)[number]>();
+function moveHead(head: (typeof extraHeads)[number], x: number) {
+  const u = (recX() - x) / (recX() - playX());
+  head.u = Math.min(Math.max(u, EXTRA_HEAD_MIN), 1 - EXTRA_HEAD_MIN);
+  head.delay.delayTime.rampTo(head.u * loopSeconds(), LENGTH_RAMP);
+}
+
 canvas.addEventListener("pointerdown", async (e) => {
   canvas.setPointerCapture(e.pointerId);
   await page.ensureStarted();
   if (inPanel(e.clientX)) {
     pressPanel(e);
+    return;
+  }
+  const head = headAt(e.clientX, e.clientY);
+  if (head) {
+    headPointers.set(e.pointerId, head);
     return;
   }
   if (!page.started()) return;
@@ -627,8 +680,16 @@ canvas.addEventListener("pointermove", (e) => {
     setFaderFrom(e.clientY);
     return;
   }
+  const head = headPointers.get(e.pointerId);
+  if (head) {
+    moveHead(head, e.clientX);
+    return;
+  }
   const touch = touches.get(e.pointerId);
-  if (!touch) return;
+  if (!touch) {
+    canvas.style.cursor = headAt(e.clientX, e.clientY) ? "ew-resize" : "";
+    return;
+  }
   if (touch.glide) {
     if (!touch.sliding && Math.abs(e.clientY - touch.pressY) < DRAG_DISTANCE) return;
     touch.sliding = true;
@@ -649,6 +710,7 @@ for (const type of ["pointerup", "pointercancel"]) {
   canvas.addEventListener(type, (e) => {
     const { pointerId } = e as PointerEvent;
     faderPointers.delete(pointerId);
+    headPointers.delete(pointerId);
     noteOff(pointerId);
   });
 }
@@ -779,6 +841,30 @@ function drawHead(x: number, label: string, active: boolean) {
   g.fillText(label, x, height - 36);
 }
 
+// 足した再生ヘッドは、元の再生ヘッドより淡い線と、名前を書いたつまみで描く
+function drawExtraHead(u: number) {
+  const x = xAt(u);
+  g.strokeStyle = "rgba(232, 232, 236, 0.18)";
+  g.lineWidth = 1;
+  g.setLineDash([4, 4]);
+  g.beginPath();
+  g.moveTo(x, 0);
+  g.lineTo(x, height);
+  g.stroke();
+  g.setLineDash([]);
+  const r = gripRect(u);
+  g.fillStyle = "rgba(35, 37, 45, 0.9)";
+  g.strokeStyle = "#3a3d48";
+  g.beginPath();
+  g.roundRect(r.left, r.top, r.right - r.left, r.bottom - r.top, 5);
+  g.fill();
+  g.stroke();
+  g.fillStyle = "rgba(232, 232, 236, 0.7)";
+  g.font = "11px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.fillText(tk("tape.playHead"), x, r.bottom - 5);
+}
+
 function drawPanel() {
   const { buttons, fader } = panel();
   const ratio = held ? 1 : feedback.gain.value / (MAX_FEEDBACK / 100);
@@ -840,6 +926,7 @@ function draw(tape: number) {
   drawMicTrack(tape);
   for (const m of marks) drawMark(m, tape, pitches);
   drawHead(playX(), tk("tape.playHead"), true);
+  for (const head of activeHeads()) drawExtraHead(head.u);
   // 録っていない間（ホールド・フェード、録らない設定のソロ）は、録音ヘッドを淡くする
   drawHead(recX(), tk("tape.recHead"), recording());
   drawPanel();
@@ -864,6 +951,7 @@ function updateMicTrack(tape: number): number {
 }
 
 let last = performance.now();
+let lastFrameTape: number | null = null;
 
 function frame(t: number) {
   const dt = Math.min((t - last) / 1000, 0.05);
@@ -880,6 +968,17 @@ function frame(t: number) {
     m.turns = turns;
   }
   marks = marks.filter((m) => m.level >= SILENT_LEVEL);
+  // 足した再生ヘッドを通った音も光らせる（その周の大きさで）
+  if (lastFrameTape !== null) {
+    for (const head of activeHeads()) {
+      for (const m of marks) {
+        const passed = Math.floor(tape - m.start - head.u) > Math.floor(lastFrameTape - m.start - head.u);
+        if (!passed || tape - m.start < head.u) continue;
+        glows.push({ x: xAt(head.u), y: yOf(m.freq, pitches), life: 1, strength: Math.min(1, m.level) * EXTRA_HEAD_LEVEL });
+      }
+    }
+  }
+  lastFrameTape = tape;
   const micLeft = updateMicTrack(tape);
   updateAuto(dt, tape);
   settleGlides();
