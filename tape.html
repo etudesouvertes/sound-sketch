@@ -38,8 +38,7 @@
           <span data-i18n="register">音域</span>
           <span class="range"><input id="register" type="range" min="1" max="5" step="1" /><output id="register-value"></output></span>
         </label>
-        <!-- 自動で入れる頻度。自動を作るまでは隠しておく -->
-        <label hidden>
+        <label>
           <span data-i18n="density">密度</span>
           <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
         </label>
@@ -66,6 +65,10 @@
           <span data-i18n="fadeLength">フェードの長さ</span>
           <span class="range"><input id="fade-length" type="range" min="5" max="300" step="5" value="30" /><output id="fade-length-value"></output></span>
         </label>
+      </section>
+      <section data-section="auto">
+        <h2 data-i18n="sec.auto">自動</h2>
+        <label><span data-i18n="autoTape">自動で弾く</span> <input id="auto" type="checkbox" checked /></label>
       </section>
       <section data-section="mic">
         <h2 data-i18n="sec.mic">マイク</h2>

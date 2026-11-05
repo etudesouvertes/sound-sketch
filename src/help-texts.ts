@@ -401,4 +401,101 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: { ja: "置いてあるループをすべて消します。", en: "Removes all loops." },
     },
   },
+  tape: {
+    [PAGE_GUIDE]: {
+      title: { ja: "Tape の遊び方", en: "How to play Tape" },
+      text: withBarNote({
+        ja: "1 本のテープで遊ぶ楽器です。クリックで音を弾き、押したままにすると伸び、ドラッグするとなぞった高さの音を順に弾きます。弾いた音は右の録音ヘッドでテープに録られ、左の再生ヘッドで鳴ると、また録音ヘッドへ戻されて録り重ねられます。戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえます（ブライアン・イーノ『Discreet Music』や、ロバート・フリップとイーノが 2 台のテープレコーダーで作った仕組み）。録音ヘッドの右の操作盤で、残り方を変え、ソロ・ホールド・フェード・マイクを使えます。",
+        en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, Solo, Hold, Fade and Mic.",
+      }),
+    },
+    "#timbre": {
+      title: { ja: "音色", en: "Timbre" },
+      text: {
+        ja: "弾く音の音色です。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です（フリップの歪んだギターのように）。",
+        en: "The sound you play. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer (like Fripp's distorted guitar).",
+      },
+    },
+    "#density": {
+      title: { ja: "密度", en: "Density" },
+      text: {
+        ja: "自動で弾く頻度です。1 でまばらに、5 で多くなります。自分で弾く分には影響しません。",
+        en: "How often notes are played automatically. 1 is sparse, 5 is busy. It doesn't affect what you play yourself.",
+      },
+    },
+    '[data-section="tape"] h2': {
+      title: { ja: "テープ", en: "Tape" },
+      text: {
+        ja: "テープの長さと、音の残り方・歪み方の設定です。",
+        en: "Settings for the tape's length and how sounds last and distort on it.",
+      },
+    },
+    "#tape-length": {
+      title: { ja: "1 周の長さ", en: "Loop length" },
+      text: {
+        ja: "テープ 1 周の長さ（3〜20 秒）で、弾いた音が戻ってくるまでの時間です。演奏中に動かすと、ヘッドを動かしたときのように、録ってある音の音程がうねります。長くすると下がり、短くすると上がり、速く動かすほど大きくうねります。",
+        en: "The length of one turn of the tape (3–20 s): how long a note takes to come back. Moving it while playing warps the pitch of what's on the tape, as if moving a head: lower as it lengthens, higher as it shortens, and more the faster you move it.",
+      },
+    },
+    "#tape-feedback": {
+      title: { ja: "残り方", en: "Feedback" },
+      text: {
+        ja: "1 周ごとに、どれだけの大きさで録り直すかです。0% だと 1 回だけ戻ってきて消え、高いほど長く積もります。98% 近くでは層が重なり続け、歪みながらノイズのように育ちます。操作盤のフェーダーと同じです。",
+        en: "How much is recorded again each time round. At 0% a note comes back once and is gone; higher values let layers pile up longer. Near 98% they keep stacking and grow into a distorted, noisy wash. Same as the fader on the panel.",
+      },
+    },
+    "#tape-saturation": {
+      title: { ja: "歪み", en: "Saturation" },
+      text: {
+        ja: "録り直すときの飽和の強さです。小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪みます。0% でも、重ねすぎると少し歪みます。",
+        en: "How hard the tape saturates when recording again. Quiet sounds last the same; the thicker the layers, the sooner and harder they distort. Even at 0% heavy stacking distorts a little.",
+      },
+    },
+    "#fade-length": {
+      title: { ja: "フェードの長さ", en: "Fade length" },
+      text: {
+        ja: "フェードを押してから、残り方が 0% になるまでの時間（5〜300 秒）です。初めはゆっくり、最後は速く消えていきます。",
+        en: "How long Fade takes to bring feedback down to 0% (5–300 s). The tape fades slowly at first and faster at the end.",
+      },
+    },
+    "#auto": {
+      title: { ja: "自動", en: "Auto" },
+      text: {
+        ja: "オンにすると、10 秒ほど弾かない（マイクにも音が入らない）ときに、ひとりでに音を弾きます。テープの薄いところが録音ヘッドに来たときに、今テープに残っている音の近くの音を弾くので、響きに寄り添いながら隙間が埋まっていきます。ソロ・ホールド・フェード中は弾きません。",
+        en: "When on, notes play by themselves after about 10 seconds without you playing (or sound at the mic). They come when a thin stretch of tape reaches the rec head, near the notes already on the tape, so the gaps fill in with the harmony. Nothing plays during Solo, Hold or Fade.",
+      },
+    },
+    '[data-section="mic"] h2': {
+      title: { ja: "マイク", en: "Microphone" },
+      text: {
+        ja: "マイクで楽器や声をテープに録る設定です。操作盤の「マイク」か M キーで開け閉めします。マイクの音はスピーカーからは直接鳴らさず、テープにだけ録ります。ソロ・ホールド・フェード中は録りません。",
+        en: "Settings for recording an instrument or voice onto the tape. Open and close it with Mic on the panel or the M key. The mic is only recorded onto the tape, never sent straight to the speakers, and isn't recorded during Solo, Hold or Fade.",
+      },
+    },
+    "#mic-level": {
+      title: { ja: "入力の大きさ", en: "Input level" },
+      text: {
+        ja: "マイクの音をテープに録る大きさです。部屋の雑音を積もらせないよう、とても小さい音は録りません。",
+        en: "How loud the mic is recorded onto the tape. Very quiet sounds are left out so room noise doesn't pile up.",
+      },
+    },
+    "#mic-echo-cancel": {
+      title: { ja: "エコー除去", en: "Echo cancellation" },
+      text: {
+        ja: "スピーカーで聴くときはオンにすると、テープから鳴った音がまたマイクに入って積もり続けるのを抑えます。ヘッドホンで聴くならオフのほうが音がよくなります。",
+        en: "With speakers, keep it on so the tape's sound doesn't go back into the mic and keep piling up. With headphones, turn it off for better sound.",
+      },
+    },
+    "#weather": {
+      title: { ja: "天気", en: "Weather" },
+      text: {
+        ja: "オンにすると、選んだ場所の今の天気で音が変わります。空模様でテープのこもり方（晴れは明るく、雨や雪はこもる）、雨で自動で弾く頻度、雲で響きの深さが決まります。15 分ごとに更新します。",
+        en: "When on, the current weather at the chosen place shapes the sound: the sky sets how dark the tape gets (bright when clear, muffled in rain or snow), rain how often notes play automatically and clouds the reverb depth. Updates every 15 minutes.",
+      },
+    },
+    "#clear": {
+      title: { ja: "クリア", en: "Clear" },
+      text: { ja: "テープに録ってある音をすべて消します。", en: "Erases everything on the tape." },
+    },
+  },
 };

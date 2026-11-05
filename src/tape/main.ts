@@ -33,6 +33,12 @@ const MAX_SATURATION = 16; // 歪み 100% で、戻す音を飽和させる前�
 const MAX_FEEDBACK = 98; // 残り方の上限 (%)。100% はホールドだけ
 const SILENT_LEVEL = 0.02; // これより小さくなった音は画面から消す
 const MIC_GATE = -50; // マイクの音がこれ (dB) より小さいあいだは録らない（部屋の雑音を積もらせない）
+const IDLE_BEFORE_AUTO = 10; // 弾かない（マイクにも音が入らない）状態が何秒続いたら、自動で弾き始めるか
+const AUTO_INTERVAL = 4; // 自動で弾く間隔の目安 (秒)。密度と天気で変わる
+const AUTO_RETRY = 0.5; // 録音ヘッドの前が埋まっていたら、何秒後に見直すか
+const AUTO_WINDOW = 0.06; // 録音ヘッドのまわりの、テープのどれだけ（周）を見て埋まり具合を測るか
+const AUTO_CROWDED = 0.6; // 埋まり具合がこれより大きければ、自動では弾かない
+const MIC_ACTIVE = 0.02; // マイクの音がこれより大きいあいだは、弾いているとみなして自動を休む
 const MIC_BINS = 400; // マイクの音の大きさを、テープ 1 周あたりこの数に分けて覚えておく（画面に描く用）
 const PLAY_HEAD = 0.18; // 再生ヘッドの横位置（画面の幅に対する割合）
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
@@ -52,6 +58,7 @@ const micLevelEl = document.querySelector<HTMLInputElement>("#mic-level")!;
 const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-value")!;
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
 const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
+const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
@@ -342,7 +349,69 @@ function toggle(button: Button) {
   applyLoop();
 }
 
+// --- 自動 ---
+
+// 録音ヘッドのまわりのテープが、どれだけ埋まっているか。そこにある音とマイクの音の大きさを足す
+function crowdingAtRecHead(tape: number): number {
+  const here = ((tape % 1) + 1) % 1;
+  let sum = 0;
+  for (const m of marks) {
+    // 録音ヘッドの今の位置が、音の頭からどれだけ後ろか (周)。音の長さ（前後に AUTO_WINDOW の余裕）の中なら埋まっている
+    const offset = (((here - m.start) % 1) + 1) % 1;
+    const length = Math.min(Math.min(m.end ?? tape, tape) - m.start, 1);
+    if (offset < length + AUTO_WINDOW || offset > 1 - AUTO_WINDOW) sum += Math.min(1, m.level);
+  }
+  const bin = Math.floor(here * MIC_BINS);
+  for (let i = -3; i <= 3; i++) sum += micTrack[(bin + i + MIC_BINS) % MIC_BINS] * 2 / 7;
+  return sum;
+}
+
+// 今テープに残っている音から 1 つ選び（大きい音ほど選ばれやすい）、その近くのスケールの音を返す。
+// 何も残っていなければ、画面の中ほどから選ぶ
+function autoPitch(pitches: Pitch[]): Pitch {
+  const total = marks.reduce((sum, m) => sum + Math.min(1, m.level), 0);
+  if (total === 0) return pitchAt(pitches, Math.floor(pitches.length * (0.3 + Math.random() * 0.4)));
+  let pick = Math.random() * total;
+  const source = marks.find((m) => (pick -= Math.min(1, m.level)) <= 0) ?? marks[marks.length - 1];
+  let index = 0;
+  pitches.forEach((p, i) => {
+    if (Math.abs(Math.log(p.freq / source.freq)) < Math.abs(Math.log(pitches[index].freq / source.freq))) index = i;
+  });
+  const steps = [-2, -1, 1, 2, 3][Math.floor(Math.random() * 5)];
+  return pitchAt(pitches, index + steps);
+}
+
+function playAuto() {
+  const pitches = page.pitches();
+  const { freq } = autoPitch(pitches);
+  const now = Tone.immediate();
+  const duration = 0.4 + Math.random() * 2.2;
+  synth.triggerAttackRelease(freq, duration, now, 0.45 + Math.random() * 0.25);
+  const mark = startMark(freq, now);
+  mark.end = tapeAt(now + duration);
+}
+
+let idle = 0;
+let untilAuto = 0;
+
+// 弾いていない間だけ自動で弾く。録っていないとき（ソロ・ホールド・フェード）は弾かない
+function updateAuto(dt: number, tape: number) {
+  if (micOn() && (micMeter.getValue() as number) > MIC_ACTIVE) idle = 0;
+  if (touches.size > 0) idle = 0;
+  idle += dt;
+  if (!page.started() || !autoEl.checked || !recording() || clearing || idle < IDLE_BEFORE_AUTO) return;
+  untilAuto -= dt;
+  if (untilAuto > 0) return;
+  if (crowdingAtRecHead(tape) > AUTO_CROWDED) {
+    untilAuto = AUTO_RETRY;
+    return;
+  }
+  playAuto();
+  untilAuto = (AUTO_INTERVAL / page.autoDensity()) * (0.5 + Math.random());
+}
+
 function noteOn(pointerId: number, y: number) {
+  idle = 0;
   // フェード中に弾くと、元に戻して録り始める
   if (fading) {
     fading = false;
@@ -504,7 +573,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   if (age < 0) return;
   const y = yOf(m.freq, pitches);
   const head = age % 1; // 音の頭の位置
-  const length = Math.min((m.end ?? tape) - m.start, 1);
+  const length = Math.min(Math.min(m.end ?? tape, tape) - m.start, 1); // 自動で弾いた音は、終わりを先に決めてある
   const tail = head - length; // 音の終わりの位置。負なら、前の周の分が再生ヘッドの手前に残っている
   const alpha = Math.min(1, m.level) * 0.9;
 
@@ -654,6 +723,7 @@ function frame(t: number) {
   }
   marks = marks.filter((m) => m.level >= SILENT_LEVEL);
   const micLeft = updateMicTrack(tape);
+  updateAuto(dt, tape);
 
   // フェードで消えきったら、元に戻す
   if (fading && marks.length === 0 && micLeft < SILENT_LEVEL) {

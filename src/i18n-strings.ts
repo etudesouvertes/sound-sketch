@@ -79,6 +79,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   driftOn: { ja: "ゆっくり変化させる", en: "Slowly evolve" },
   driftSpeed: { ja: "速さ", en: "Speed" },
   autoOn: { ja: "自動で置く", en: "Place automatically" },
+  autoTape: { ja: "自動で弾く", en: "Play automatically" },
 
   // キャンバスのページのヒント
   "hint.ripples": {
@@ -143,6 +144,10 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "home.loops": {
     ja: "長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。",
     en: "Tape loops of different lengths overlap, so the same harmony almost never returns.",
+  },
+  "home.tape": {
+    ja: "1 本のテープに弾いた音が録り重ねられ、少しずつ遠ざかっていきます。マイクで楽器も録れます。",
+    en: "What you play is layered onto a single tape loop and slowly drifts away. You can record an instrument with the mic too.",
   },
   "home.respect": {
     ja: "ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。",
