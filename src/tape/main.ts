@@ -7,7 +7,8 @@ import { tk } from "../i18n";
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
 // 戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえる。
-// 画面は流れるテープで、右の録音ヘッドで録られた音が左へ流れ、左の再生ヘッドで鳴って、また右から（薄くなって）出てくる
+// 画面は流れるテープで、右の録音ヘッドで録られた音が左へ流れ、左の再生ヘッドで鳴って、また右から（薄くなって）出てくる。
+// 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェードのボタンを置く
 
 // 弾いた 1 音。テープに録られた音はスケールを変えても変わらないので、周波数で持つ。
 // 位置はテープが進んだ周の数（tapeAt）で持つ。1 周の長さを変えても、テープの上の位置は変わらない
@@ -18,9 +19,10 @@ type Mark = {
   level: number; // 今の周の大きさ（1 = 弾いたとき）
   turns: number; // level に反映した周の数
 };
-type Glow = { y: number; life: number; strength: number };
-// 押している指（マウス）ごとに、今鳴らしている音
-type Touch = { index: number; freq: number; mark: Mark };
+type Glow = { x: number; y: number; life: number; strength: number };
+// 押している指（マウス）ごとに、今鳴らしている音。テープに録っていない（ソロなど）ときは mark が null
+type Touch = { index: number; freq: number; mark: Mark | null };
+type Button = "solo" | "hold" | "fade";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
 const LOOP_HIGHPASS = 90; // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように
@@ -28,6 +30,7 @@ const LOOP_HIGHPASS = 90; // 1 周ごとに低い音を削る (Hz)。低音が�
 // 長さが変わる間は、ヘッドを動かしたのと同じで、速く動かすほど音程が大きくうねる（長くすると下がり、短くすると上がる）
 const LENGTH_RAMP = 0.08;
 const MAX_SATURATION = 16; // 歪み 100% で、戻す音を飽和させる前に何倍にするか
+const MAX_FEEDBACK = 98; // 残り方の上限 (%)。100% はホールドだけ
 const SILENT_LEVEL = 0.02; // これより小さくなった音は画面から消す
 const PLAY_HEAD = 0.18; // 再生ヘッドの横位置（画面の幅に対する割合）
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
@@ -40,10 +43,28 @@ const feedbackEl = document.querySelector<HTMLInputElement>("#tape-feedback")!;
 const feedbackValueEl = document.querySelector<HTMLOutputElement>("#tape-feedback-value")!;
 const saturationEl = document.querySelector<HTMLInputElement>("#tape-saturation")!;
 const saturationValueEl = document.querySelector<HTMLOutputElement>("#tape-saturation-value")!;
+const fadeLengthEl = document.querySelector<HTMLInputElement>("#fade-length")!;
+const fadeLengthValueEl = document.querySelector<HTMLOutputElement>("#fade-length-value")!;
 const timbreEl = document.querySelector<HTMLSelectElement>("#timbre")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
+
+// --- 演奏の状態 ---
+
+// ソロ: 弾いた音を聞かせるだけで、テープには録らない（ボタンで切り替えるか、Shift を押している間）。
+// ホールド: テープの中身を減らさず、こもらせもせずに回し続ける。新しい音は録らない。
+// フェード: 録るのをやめ、残り方を「フェードの長さ」をかけて 0% まで下げていく。最初はゆっくり、最後は加速して消える。
+// 消えきるか、また弾くと元に戻る。
+// クリア: テープを流しきる間、戻す量と再生を絞る
+let soloLatched = false;
+let shiftDown = false;
+let held = false;
+let fading = false;
+let fadeEnd = 0; // 残り方が 0% になる時刻 (AudioContext の秒)
+let clearing = false;
+const solo = () => soloLatched || shiftDown;
+const recording = () => !solo() && !held && !fading;
 
 // --- 音 ---
 
@@ -80,17 +101,19 @@ synth.maxPolyphony = 16;
 synth.volume.value = -20;
 
 // 音色の「ドライブ」: 歪ませてからギターアンプのスピーカーのように高音を丸め、長く伸ばす（フリップの歪んだギターのように）。
-// クリーンと切り替えられるよう、両方の道を作っておき、大きさで選ぶ
+// クリーンと切り替えられるよう、両方の道を作っておき、大きさで選ぶ。
+// 弾いた音はそのまま聞かせ、テープへは録音の入口（recordGate）を通して送る
 const clean = new Tone.Gain(1);
 const distortion = new Tone.Distortion({ distortion: 0.8, oversample: "4x" });
 const drive = new Tone.Gain(0);
 const cabinet = new Tone.Filter({ type: "lowpass", frequency: 18000, Q: 0.7 });
+const recordGate = new Tone.Gain(1).connect(recordIn);
 synth.fan(clean, distortion);
 distortion.connect(drive);
 clean.connect(cabinet);
 drive.connect(cabinet);
 cabinet.connect(reverb);
-cabinet.connect(recordIn);
+cabinet.connect(recordGate);
 
 const DRIVE_LEVEL = 0.12; // 歪ませると大きくなるので、クリーンと同じくらいに揃える
 function applyTimbre() {
@@ -111,12 +134,14 @@ const page = setupGenerativePage({
   reverb: { node: reverb, wet: 0.35, decay: 6 },
   applyParams: (params) => {
     lowpass = LOOP_LOWPASS * 2 ** (params.drift.brightness + params.mood.brightness);
-    loopLowpass.frequency.rampTo(lowpass, params.ramp);
+    if (!held) loopLowpass.frequency.rampTo(lowpass, params.ramp);
   },
 });
 
-// 1 周で残る大きさ。戻す量と、テープが削る高さ・低さ（2 次のフィルターの、基音での減り方）で決まる
+// 1 周で残る大きさ。戻す量と、テープが削る高さ・低さ（2 次のフィルターの、基音での減り方）で決まる。
+// ホールド中はフィルターを開けて、そのまま残す
 function turnLoss(freq: number): number {
+  if (held) return 1;
   const low = 1 / Math.sqrt(1 + (freq / lowpass) ** 4);
   const high = 1 / Math.sqrt(1 + (LOOP_HIGHPASS / freq) ** 4);
   return feedback.gain.value * low * high;
@@ -137,13 +162,6 @@ lengthEl.addEventListener("input", () => {
 });
 showLength();
 
-let clearing = false;
-feedbackEl.addEventListener("input", () => {
-  feedbackValueEl.value = `${feedbackEl.value}%`;
-  if (!clearing) feedback.gain.rampTo(feedbackAmount(), 0.1);
-});
-feedbackValueEl.value = `${feedbackEl.value}%`;
-
 function applySaturation() {
   saturationValueEl.value = `${saturationEl.value}%`;
   const k = MAX_SATURATION ** (Number(saturationEl.value) / 100);
@@ -152,6 +170,17 @@ function applySaturation() {
 }
 saturationEl.addEventListener("input", applySaturation);
 applySaturation();
+
+// フェード中に変えたときは、始めたときから数えた長さにする
+let fadeStart = 0;
+const showFadeLength = () => (fadeLengthValueEl.value = `${fadeLengthEl.value} s`);
+fadeLengthEl.addEventListener("input", () => {
+  showFadeLength();
+  if (!fading) return;
+  fadeEnd = fadeStart + Number(fadeLengthEl.value);
+  applyLoop();
+});
+showFadeLength();
 
 // --- 演奏 ---
 
@@ -179,14 +208,72 @@ function yOf(freq: number, pitches: Pitch[]): number {
   return height - (index + 0.5) * band;
 }
 
+function startMark(freq: number, time: number): Mark {
+  const mark: Mark = { freq, start: tapeAt(time), end: null, level: 1, turns: 0 };
+  marks.push(mark);
+  return mark;
+}
+
+// 状態に合わせて、戻す量・再生・録音の入口・テープのフィルターを移す。
+// 押したまま録るかどうかが変わった音は、そこで録り終える（録り始める）
+let wasRecording = true;
+function applyLoop() {
+  const now = Tone.immediate();
+  feedback.gain.cancelScheduledValues(now);
+  // フェード中は、フェードを始めたときに決めた時刻に 0% になるよう、今の値からまっすぐ下げる（途中で呼ばれても終わりは変わらない）
+  if (fading && !clearing) {
+    feedback.gain.setValueAtTime(feedback.gain.value, now).linearRampToValueAtTime(0, Math.max(fadeEnd, now + 0.05));
+  } else {
+    feedback.gain.setTargetAtTime(clearing ? 0 : held ? 1 : feedbackAmount(), now, 0.05);
+  }
+  tapeOut.gain.cancelScheduledValues(now).setTargetAtTime(clearing ? 0 : 1, now, 0.05);
+  recordGate.gain.cancelScheduledValues(now).setTargetAtTime(recording() ? 1 : 0, now, 0.02);
+  loopLowpass.frequency.rampTo(held ? 20000 : lowpass, 0.1);
+  loopHighpass.frequency.rampTo(held ? 10 : LOOP_HIGHPASS, 0.1);
+
+  if (recording() !== wasRecording) {
+    for (const touch of touches.values()) {
+      if (touch.mark) touch.mark.end = tapeAt(now);
+      touch.mark = recording() ? startMark(touch.freq, now) : null;
+    }
+    wasRecording = recording();
+  }
+}
+
+feedbackEl.addEventListener("input", () => {
+  feedbackValueEl.value = `${feedbackEl.value}%`;
+  applyLoop();
+});
+feedbackValueEl.value = `${feedbackEl.value}%`;
+
+function toggle(button: Button) {
+  if (button === "solo") soloLatched = !soloLatched;
+  if (button === "hold") {
+    held = !held;
+    fading = false;
+  }
+  if (button === "fade") {
+    fading = !fading;
+    fadeStart = Tone.immediate();
+    fadeEnd = fadeStart + Number(fadeLengthEl.value);
+    held = false;
+  }
+  applyLoop();
+}
+
 function noteOn(pointerId: number, y: number) {
+  // フェード中に弾くと、元に戻して録り始める
+  if (fading) {
+    fading = false;
+    applyLoop();
+  }
   const pitches = page.pitches();
   const index = pitchIndexAt(y, height, pitches.length);
   const { freq } = pitchAt(pitches, index);
   const now = Tone.immediate();
   synth.triggerAttack(freq, now, 0.8);
-  const mark: Mark = { freq, start: tapeAt(now), end: null, level: 1, turns: 0 };
-  marks.push(mark);
+  const mark = recording() ? startMark(freq, now) : null;
+  if (!mark) glows.push({ x: recX(), y: yOf(freq, pitches), life: 1, strength: 0.5 });
   touches.set(pointerId, { index, freq, mark });
 }
 
@@ -195,19 +282,74 @@ function noteOff(pointerId: number) {
   if (!touch) return;
   const now = Tone.immediate();
   synth.triggerRelease(touch.freq, now);
-  touch.mark.end = tapeAt(now);
+  if (touch.mark) touch.mark.end = tapeAt(now);
   touches.delete(pointerId);
+}
+
+// --- 操作盤（録音ヘッドの右） ---
+
+const BUTTONS: Button[] = ["solo", "hold", "fade"];
+const BUTTON_HEIGHT = 30;
+const BUTTON_GAP = 8;
+
+// 操作盤の配置。ボタンは下に縦に並べ、フェーダーはその上の残りを使う
+function panel() {
+  const left = recX() + 20;
+  const right = width - 14;
+  const bottom = height - 44;
+  const buttonsTop = bottom - BUTTONS.length * BUTTON_HEIGHT - (BUTTONS.length - 1) * BUTTON_GAP;
+  const buttons = BUTTONS.map((id, i) => ({
+    id,
+    x: left,
+    y: buttonsTop + i * (BUTTON_HEIGHT + BUTTON_GAP),
+    w: right - left,
+    h: BUTTON_HEIGHT,
+  }));
+  const fader = { x: (left + right) / 2, top: 96, bottom: buttonsTop - 40 };
+  return { left, buttons, fader };
+}
+
+const inPanel = (x: number) => x > panel().left - 8;
+
+const faderPointers = new Set<number>();
+function setFaderFrom(y: number) {
+  const { fader } = panel();
+  const ratio = Math.min(Math.max((fader.bottom - y) / (fader.bottom - fader.top), 0), 1);
+  feedbackEl.value = String(Math.round(ratio * MAX_FEEDBACK));
+  feedbackEl.dispatchEvent(new Event("input"));
+}
+
+function pressPanel(e: PointerEvent) {
+  const hit = panel().buttons.find(
+    (b) => e.clientX >= b.x && e.clientX <= b.x + b.w && e.clientY >= b.y && e.clientY <= b.y + b.h,
+  );
+  if (hit) {
+    toggle(hit.id);
+    return;
+  }
+  if (e.clientY < panel().fader.bottom + 24) {
+    faderPointers.add(e.pointerId);
+    setFaderFrom(e.clientY);
+  }
 }
 
 canvas.addEventListener("pointerdown", async (e) => {
   canvas.setPointerCapture(e.pointerId);
   await page.ensureStarted();
+  if (inPanel(e.clientX)) {
+    pressPanel(e);
+    return;
+  }
   if (!page.started()) return;
   noteOn(e.pointerId, e.clientY);
 });
 
 // なぞって別の音高の帯に入ったら、前の音を離して次の音を弾く。同じ帯の中にいる間は、音を伸ばしたまま
 canvas.addEventListener("pointermove", (e) => {
+  if (faderPointers.has(e.pointerId)) {
+    setFaderFrom(e.clientY);
+    return;
+  }
   const touch = touches.get(e.pointerId);
   if (!touch) return;
   if (pitchIndexAt(e.clientY, height, page.pitches().length) === touch.index) return;
@@ -216,26 +358,55 @@ canvas.addEventListener("pointermove", (e) => {
 });
 
 for (const type of ["pointerup", "pointercancel"]) {
-  canvas.addEventListener(type, (e) => noteOff((e as PointerEvent).pointerId));
+  canvas.addEventListener(type, (e) => {
+    const { pointerId } = e as PointerEvent;
+    faderPointers.delete(pointerId);
+    noteOff(pointerId);
+  });
 }
 
-// テープを消す。戻す量と再生を 1 周より少し長く絞り、テープに残った音を流しきってから戻す
+// キー: Shift を押している間はソロ、Space でホールド、F でフェード。
+// 設定の入力欄やボタンを操作しているとき（Space でボタンが押される）は使わない
+const typing = (target: EventTarget | null) =>
+  target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLButtonElement;
+window.addEventListener("keydown", (e) => {
+  if (e.key === "Shift" && !shiftDown) {
+    shiftDown = true;
+    applyLoop();
+  }
+  if (typing(e.target) || e.repeat) return;
+  if (e.code === "Space") {
+    e.preventDefault();
+    toggle("hold");
+  }
+  if (e.key === "f" || e.key === "F") toggle("fade");
+});
+const releaseShift = () => {
+  if (!shiftDown) return;
+  shiftDown = false;
+  applyLoop();
+};
+window.addEventListener("keyup", (e) => {
+  if (e.key === "Shift") releaseShift();
+});
+window.addEventListener("blur", releaseShift);
+
+// テープを消す。戻す量と再生を 1 周より少し長く絞り、テープに残った音を流しきってから戻す。ホールドとフェードも解く
 let clearTimer: ReturnType<typeof setTimeout> | undefined;
 clearEl.addEventListener("click", () => {
   clearTimeout(clearTimer);
   clearing = true;
+  held = false;
+  fading = false;
+  applyLoop();
   const now = Tone.immediate();
-  feedback.gain.cancelScheduledValues(now).setTargetAtTime(0, now, 0.05);
-  tapeOut.gain.cancelScheduledValues(now).setTargetAtTime(0, now, 0.05);
   marks = marks.filter((m) => m.end === null);
   // 押している音は、ここから録り直す
   for (const m of marks) Object.assign(m, { start: tapeAt(now), level: 1, turns: 0 });
   glows = [];
   clearTimer = setTimeout(() => {
     clearing = false;
-    const t = Tone.immediate();
-    feedback.gain.setTargetAtTime(feedbackAmount(), t, 0.05);
-    tapeOut.gain.setTargetAtTime(1, t, 0.05);
+    applyLoop();
   }, (loopSeconds() + LENGTH_RAMP + 0.3) * 1000);
 });
 
@@ -272,8 +443,8 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   g.fill();
 }
 
-function drawHead(x: number, label: string) {
-  g.strokeStyle = "rgba(232, 232, 236, 0.35)";
+function drawHead(x: number, label: string, active: boolean) {
+  g.strokeStyle = active ? "rgba(232, 232, 236, 0.35)" : "rgba(232, 232, 236, 0.12)";
   g.lineWidth = 1.5;
   g.beginPath();
   g.moveTo(x, 0);
@@ -285,27 +456,68 @@ function drawHead(x: number, label: string) {
   g.fillText(label, x, height - 36);
 }
 
+function drawPanel() {
+  const { buttons, fader } = panel();
+  const ratio = held ? 1 : feedback.gain.value / (MAX_FEEDBACK / 100);
+  const knobY = fader.bottom - Math.min(ratio, 1) * (fader.bottom - fader.top);
+
+  g.font = "11px system-ui, sans-serif";
+  g.textAlign = "center";
+  g.fillStyle = "rgba(232, 232, 236, 0.5)";
+  g.fillText(tk("tapeFeedback"), fader.x, fader.top - 14);
+
+  g.fillStyle = "rgba(255, 255, 255, 0.08)";
+  g.fillRect(fader.x - 3, fader.top, 6, fader.bottom - fader.top);
+  g.fillStyle = held ? "rgba(108, 196, 255, 0.9)" : "rgba(108, 196, 255, 0.5)";
+  g.fillRect(fader.x - 3, knobY, 6, fader.bottom - knobY);
+  g.fillStyle = "#e8e8ec";
+  g.beginPath();
+  g.arc(fader.x, knobY, 7, 0, Math.PI * 2);
+  g.fill();
+
+  g.fillStyle = "rgba(232, 232, 236, 0.7)";
+  g.fillText(held ? "∞" : `${Math.round(feedback.gain.value * 100)}%`, fader.x, fader.bottom + 22);
+
+  const on: Record<Button, boolean> = { solo: solo(), hold: held, fade: fading };
+  g.font = "12px system-ui, sans-serif";
+  for (const b of buttons) {
+    g.fillStyle = on[b.id] ? "rgba(108, 196, 255, 0.18)" : "rgba(35, 37, 45, 0.9)";
+    g.strokeStyle = on[b.id] ? "#6cc4ff" : "#3a3d48";
+    g.lineWidth = 1;
+    g.beginPath();
+    g.roundRect(b.x, b.y, b.w, b.h, 6);
+    g.fill();
+    g.stroke();
+    g.fillStyle = on[b.id] ? "#6cc4ff" : "#e8e8ec";
+    g.fillText(tk(`tape.${b.id}`), b.x + b.w / 2, b.y + b.h / 2 + 4);
+  }
+}
+
 function draw(tape: number) {
   g.fillStyle = "#1b1d23";
   g.fillRect(0, 0, width, height);
   const pitches = page.pitches();
   drawPitchGuides(g, width, height, pitches);
 
-  // テープの帯（2 つのヘッドの間が、ちょうど 1 周分）
+  // テープの帯（2 つのヘッドの間が、ちょうど 1 周分）。操作盤の下には音名の線を引かない
   g.fillStyle = "rgba(255, 255, 255, 0.025)";
   g.fillRect(playX(), 0, recX() - playX(), height);
+  g.fillStyle = "#1b1d23";
+  g.fillRect(recX() + 1, 0, width - recX(), height);
 
   for (const glow of glows) {
     g.strokeStyle = `hsla(200, 85%, 72%, ${glow.life * glow.strength * 0.8})`;
     g.lineWidth = 1.5;
     g.beginPath();
-    g.arc(playX(), glow.y, 6 + (1 - glow.life) * 40, 0, Math.PI * 2);
+    g.arc(glow.x, glow.y, 6 + (1 - glow.life) * 40, 0, Math.PI * 2);
     g.stroke();
   }
 
   for (const m of marks) drawMark(m, tape, pitches);
-  drawHead(playX(), tk("tape.playHead"));
-  drawHead(recX(), tk("tape.recHead"));
+  drawHead(playX(), tk("tape.playHead"), true);
+  // 録っていない間（ソロ・ホールド・フェード）は、録音ヘッドを淡くする
+  drawHead(recX(), tk("tape.recHead"), recording());
+  drawPanel();
 }
 
 let last = performance.now();
@@ -320,11 +532,17 @@ function frame(t: number) {
   for (const m of marks) {
     const turns = Math.floor(tape - m.start);
     if (turns <= m.turns) continue;
-    glows.push({ y: yOf(m.freq, pitches), life: 1, strength: Math.min(1, m.level) });
+    glows.push({ x: playX(), y: yOf(m.freq, pitches), life: 1, strength: Math.min(1, m.level) });
     m.level *= turnLoss(m.freq) ** (turns - m.turns);
     m.turns = turns;
   }
   marks = marks.filter((m) => m.level >= SILENT_LEVEL);
+
+  // フェードで消えきったら、元に戻す
+  if (fading && marks.length === 0) {
+    fading = false;
+    applyLoop();
+  }
 
   for (const glow of glows) glow.life -= dt * 1.2;
   glows = glows.filter((glow) => glow.life > 0);

@@ -38,6 +38,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   tapeLength: { ja: "1 周の長さ", en: "Loop length" },
   tapeFeedback: { ja: "残り方", en: "Feedback" },
   tapeSaturation: { ja: "歪み", en: "Saturation" },
+  fadeLength: { ja: "フェードの長さ", en: "Fade length" },
   timbre: { ja: "音色", en: "Timbre" },
   "timbre.clean": { ja: "クリーン", en: "Clean" },
   "timbre.drive": { ja: "ドライブ", en: "Drive" },
@@ -93,12 +94,15 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     en: "Click to place a tape loop. Height sets the pitch, horizontal position sets the loop length (15–35 s).\nLoops of different lengths overlap, so the same harmony almost never returns. Click a loop's center to remove it.\nPress “Rec”, play by clicking, then press “Stop” to turn the phrase into a loop of the recorded length." + SILENT_NOTE.en,
   },
   "hint.tape": {
-    ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます" + SILENT_NOTE.ja,
-    en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round." + SILENT_NOTE.en,
+    ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます\n右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）を使えます" + SILENT_NOTE.ja,
+    en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round.\nUse the panel on the right for feedback, Solo (Shift), Hold (Space) and Fade (F)." + SILENT_NOTE.en,
   },
   // Tape のヘッドの名前（画面に描く）
   "tape.playHead": { ja: "再生", en: "Play" },
   "tape.recHead": { ja: "録音", en: "Rec" },
+  "tape.solo": { ja: "ソロ", en: "Solo" },
+  "tape.hold": { ja: "ホールド", en: "Hold" },
+  "tape.fade": { ja: "フェード", en: "Fade" },
   // スマホを縦向きにしているときだけ出す
   rotateHint: {
     ja: "横向きにすると、大譜表が大きく見やすくなります",
