@@ -108,8 +108,8 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     en: "Click to place a tape loop. Height sets the pitch, horizontal position sets the loop length (15–35 s).\nLoops of different lengths overlap, so the same harmony almost never returns. Click a loop's center to remove it.\nPress “Rec”, play by clicking, then press “Stop” to turn the phrase into a loop of the recorded length." + SILENT_NOTE.en,
   },
   "hint.tape": {
-    ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます\n右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・マイク（M）を使えます" + SILENT_NOTE.ja,
-    en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round.\nUse the panel on the right for feedback, Solo (Shift), Hold (Space) and Fade (F) and Mic (M)." + SILENT_NOTE.en,
+    ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます\n右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・オクターブ（O）・逆再生（R）・マイク（M）を使えます" + SILENT_NOTE.ja,
+    en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round.\nUse the panel on the right for feedback, Solo (Shift), Hold (Space), Fade (F), Octave (O), Reverse (R) and Mic (M)." + SILENT_NOTE.en,
   },
   // Tape のヘッドの名前（画面に描く）
   "tape.playHead": { ja: "再生", en: "Play" },
@@ -118,6 +118,8 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "tape.hold": { ja: "ホールド", en: "Hold" },
   "tape.fade": { ja: "フェード", en: "Fade" },
   "tape.mic": { ja: "マイク", en: "Mic" },
+  "tape.octave": { ja: "オクターブ", en: "Octave" },
+  "tape.reverse": { ja: "逆再生", en: "Reverse" },
   "sec.mic": { ja: "マイク", en: "Microphone" },
   micLevel: { ja: "入力の大きさ", en: "Input level" },
   micEchoCancel: { ja: "エコー除去（スピーカーで聴くとき）", en: "Echo cancellation (for speakers)" },

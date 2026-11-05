@@ -5,6 +5,8 @@ import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
 import { celloBassVoice, celloVoice, sawVoice, stringsVoice, type Voice } from "./voices";
+import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
+import type { ReverseMessage } from "./reverse-processor";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
@@ -23,7 +25,8 @@ type Mark = {
   start: number; // 録り始めたときのテープの位置 (周)
   end: number | null; // 押している間は null
   level: number; // 今の周の大きさ（1 = 弾いたとき）
-  turns: number; // level に反映した周の数
+  turns: number; // level に反映した周の数（start から数える。逆再生で裏返すと start が移るので、0 から数え直す）
+  worn: number; // 録られてから回った周の数（傷みで色をあせさせる）
   bends: { at: number; freq: number }[]; // 「なめらかにつなぐ」で、途中で変えた音程（テープの位置 (周) と周波数）
 };
 type Glow = { x: number; y: number; life: number; strength: number };
@@ -41,7 +44,7 @@ type Touch = {
   pressY: number; // 押した高さ
   sliding: boolean; // 押した高さから DRAG_DISTANCE 以上動いて、音程を動かし始めたか
 };
-type Button = "solo" | "hold" | "fade" | "mic";
+type Button = "solo" | "hold" | "fade" | "octave" | "reverse" | "mic";
 type PartId = "tape" | "solo";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
@@ -81,8 +84,13 @@ const WEAR_DARKEN = 4.5;
 const FLAT_Q = -3.01;
 const WOW = { rate: 0.6, depth: 0.0015 }; // ゆっくりした揺れ（速さ Hz、ずれる時間の幅 秒）。100% で 1 周ごとに ±10 セントほど
 const FLUTTER = { rate: 6.5, depth: 0.00012 }; // 細かい揺れ。100% で 1 周ごとに ±8 セントほど
-const WOW_BASE = 0.005; // 揺れを作る短い遅れ (秒)。その分、テープの遅れを短くして 1 周の長さを保つ
+const WOW_BASE = 0.005; // 揺れを作る短い遅れ (秒)
 const HISS = 0.25; // 100% で、1 周ごとに入れるノイズの大きさ（テープに載っている音に対して）。およそ -20 dB
+// オクターブ: テープへ戻す途中で音程を 1 オクターブずらす。戻るたびにずれるので、1 周ごとに上がり（下がり）続ける。
+// 音程をずらす仕組み（Tone.PitchShift）は、平均で窓の半分だけ遅れる。ずらさないときも同じだけ遅らせて、1 周の長さをそろえる
+const PITCH_WINDOW = 0.1; // 音程をずらす窓 (秒)
+// 再生ヘッドで読んでから戻すまでに足される遅れ (秒)。その分、テープの遅れを短くして 1 周の長さを保つ
+const LOOP_AFTER = WOW_BASE + PITCH_WINDOW / 2;
 const GRIP = { width: 34, height: 18, bottom: 30 }; // つまみの大きさと、下端から上げる高さ (px)
 
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
@@ -127,6 +135,12 @@ let held = false;
 let fading = false;
 let fadeEnd = 0; // 残り方が 0% になる時刻 (AudioContext の秒)
 let clearing = false;
+// オクターブ: 1 で上へ、-1 で下へ、1 周ごとにずらす。0 でずらさない。ホールド中はずらさない（中身をそのまま回し続ける）
+let octave: -1 | 0 | 1 = 0;
+// 逆再生: 区切り（anchor + 整数 周）ごとに、直前の 1 周を裏返して鳴らす。
+// 止めるときは、今の 1 周の終わり（until）まで続ける（途中で止めると、裏返した音と画面の印がずれる）
+let reverse: { anchor: number; until: number | null } | null = null;
+const REVERSE_LEAD = 0.05; // 逆再生を始めるまでの間 (秒)。AudioWorklet に区切りが届くのを待つ
 const solo = () => soloLatched || shiftDown;
 const recording = () => (!solo() || soloRecordEl.checked) && !held && !fading;
 
@@ -140,7 +154,7 @@ const reverb = new Tone.Reverb({ decay: 6, wet: 0.35 }).toDestination();
 // 小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪む
 const recordIn = new Tone.Gain(1);
 const writeBus = new Tone.Gain(1); // 録音ヘッドでテープに書く音（弾いた音と、戻した音）
-const tapeDelay = new Tone.Delay({ delayTime: loopSeconds() - WOW_BASE, maxDelay: 30 });
+const tapeDelay = new Tone.Delay({ delayTime: loopSeconds() - LOOP_AFTER, maxDelay: 30 });
 function flatFilter(type: BiquadFilterType, frequency: number) {
   const filter = Tone.getContext().createBiquadFilter();
   filter.type = type;
@@ -177,7 +191,39 @@ hiss.chain(hissFilter, hissLevel, saturateIn);
 follower.connect(hissAmount);
 hissAmount.connect(hissLevel.gain);
 
-tapeDelay.chain(wobble, wearLowpass, loopLowpass, loopHighpass, saturateIn, saturate, saturateOut);
+// 逆再生。テープの遅れ（順向き）と、逆向きに読む AudioWorklet を、切り替えて使う。
+// AudioWorklet のモジュールは非同期に読み込むので、届いてからつなぐ
+const forward = new Tone.Gain(1);
+const backward = new Tone.Gain(0);
+tapeDelay.connect(forward);
+forward.connect(wobble);
+backward.connect(wobble);
+// Tone の addAudioWorkletModule は最初の 1 モジュールしか読み込まないため、rawContext に直接登録する
+const reverseNode = Tone.getContext()
+  .rawContext.audioWorklet.addModule(reverseProcessorUrl)
+  .then(() => {
+    const node = Tone.getContext().createAudioWorkletNode("tape-reverse", {
+      channelCount: 1,
+      channelCountMode: "explicit",
+      outputChannelCount: [1],
+    });
+    Tone.connect(writeBus, node);
+    Tone.connect(node, backward);
+    return node;
+  });
+
+// オクターブ。ずらした音（octaveWet）と、同じだけ遅らせた元の音（octaveDry）を切り替える
+const pitchShift = new Tone.PitchShift({ pitch: 12, windowSize: PITCH_WINDOW, wet: 1 });
+const octaveDelay = new Tone.Delay(PITCH_WINDOW / 2);
+const octaveWet = new Tone.Gain(0);
+const octaveDry = new Tone.Gain(1);
+pitchShift.chain(octaveWet, saturateIn);
+octaveDelay.chain(octaveDry, saturateIn);
+
+wobble.chain(wearLowpass, loopLowpass, loopHighpass);
+Tone.connect(loopHighpass, pitchShift);
+Tone.connect(loopHighpass, octaveDelay);
+saturateIn.chain(saturate, saturateOut);
 saturateOut.connect(feedback);
 feedback.connect(writeBus);
 Tone.connect(loopHighpass, follower); // ノイズを入れる前の大きさを見る
@@ -379,14 +425,35 @@ function turnLoss(freq: number): number {
 // テープが進んだ周の数。1 周の長さを変えたときは、そこからの進み方だけを変える
 let clock = { time: 0, turns: 0, seconds: loopSeconds() };
 const tapeAt = (time: number) => clock.turns + (time - clock.time) / clock.seconds;
+const timeAt = (turns: number) => clock.time + (turns - clock.turns) * clock.seconds;
+
+// 逆再生の区切りを AudioWorklet に知らせ、順向き・逆向きの切り替えを予約する。
+// 逆向きに読む区切りは、再生ヘッドの後ろで足される遅れの半分だけ早める（裏返した音が、ちょうど区切りを鏡にした時刻に鳴る）
+function scheduleReverse() {
+  if (!reverse) return;
+  const early = LOOP_AFTER / 2;
+  const message: ReverseMessage = { start: timeAt(reverse.anchor) - early, length: clock.seconds };
+  void reverseNode.then((node) => node.port.postMessage(message));
+  const now = Tone.immediate();
+  forward.gain.cancelScheduledValues(now);
+  backward.gain.cancelScheduledValues(now);
+  const on = Math.max(timeAt(reverse.anchor) - early, now);
+  forward.gain.setTargetAtTime(0, on, 0.003);
+  backward.gain.setTargetAtTime(1, on, 0.003);
+  if (reverse.until === null) return;
+  const off = Math.max(timeAt(reverse.until) - early, now);
+  forward.gain.setTargetAtTime(1, off, 0.003);
+  backward.gain.setTargetAtTime(0, off, 0.003);
+}
 
 const showLength = () => (lengthValueEl.value = `${loopSeconds().toFixed(2)} s`);
 lengthEl.addEventListener("input", () => {
   showLength();
   const now = Tone.immediate();
   clock = { time: now, turns: tapeAt(now), seconds: loopSeconds() };
-  tapeDelay.delayTime.rampTo(loopSeconds() - WOW_BASE, LENGTH_RAMP, now);
+  tapeDelay.delayTime.rampTo(loopSeconds() - LOOP_AFTER, LENGTH_RAMP, now);
   for (const head of extraHeads) head.delay.delayTime.rampTo(head.u * loopSeconds(), LENGTH_RAMP, now);
+  if (reverse) scheduleReverse();
 });
 showLength();
 
@@ -440,7 +507,7 @@ function yOf(freq: number, pitches: Pitch[]): number {
 }
 
 function startMark(part: PartId, freq: number, time: number): Mark {
-  const mark: Mark = { part, freq, start: tapeAt(time), end: null, level: 1, turns: 0, bends: [] };
+  const mark: Mark = { part, freq, start: tapeAt(time), end: null, level: 1, turns: 0, worn: 0, bends: [] };
   marks.push(mark);
   return mark;
 }
@@ -468,6 +535,10 @@ function applyLoop() {
   flutter.min = -FLUTTER.depth * w;
   flutter.max = FLUTTER.depth * w;
   hissAmount.gain.rampTo(HISS * w, 0.1);
+  const shift = held ? 0 : octave;
+  if (shift !== 0) pitchShift.pitch = 12 * shift;
+  octaveWet.gain.setTargetAtTime(shift !== 0 ? 1 : 0, now, 0.02);
+  octaveDry.gain.setTargetAtTime(shift !== 0 ? 0 : 1, now, 0.02);
   loopHighpass.frequency.setTargetAtTime(held ? 10 : lowCut(), now, 0.03);
 
   if (recording() !== wasRecording) {
@@ -510,6 +581,14 @@ function toggle(button: Button) {
   if (button === "mic") {
     if (micOn()) closeMic();
     else if (!micOpening) void openMic();
+  }
+  if (button === "octave") octave = octave === 0 ? 1 : octave === 1 ? -1 : 0;
+  if (button === "reverse") {
+    const now = Tone.immediate();
+    if (!reverse) reverse = { anchor: tapeAt(now + REVERSE_LEAD), until: null };
+    else if (reverse.until === null) reverse.until = reverse.anchor + Math.max(1, Math.floor(tapeAt(now) - reverse.anchor) + 1);
+    else reverse.until = null;
+    scheduleReverse();
   }
   if (button === "fade") {
     fading = !fading;
@@ -650,7 +729,8 @@ function noteOff(pointerId: number) {
 
 // --- 操作盤（録音ヘッドの右） ---
 
-const BUTTONS: Button[] = ["solo", "hold", "fade", "mic"];
+// 行ごとのボタン。オクターブと逆再生は 1 行に並べる
+const BUTTON_ROWS: Button[][] = [["solo"], ["hold"], ["fade"], ["octave", "reverse"], ["mic"]];
 const BUTTON_HEIGHT = 30;
 const BUTTON_GAP = 8;
 
@@ -659,14 +739,18 @@ function panel() {
   const left = recX() + 20;
   const right = width - 14;
   const bottom = height - 44;
-  const buttonsTop = bottom - BUTTONS.length * BUTTON_HEIGHT - (BUTTONS.length - 1) * BUTTON_GAP;
-  const buttons = BUTTONS.map((id, i) => ({
-    id,
-    x: left,
-    y: buttonsTop + i * (BUTTON_HEIGHT + BUTTON_GAP),
-    w: right - left,
-    h: BUTTON_HEIGHT,
-  }));
+  const rows = BUTTON_ROWS.length;
+  const buttonsTop = bottom - rows * BUTTON_HEIGHT - (rows - 1) * BUTTON_GAP;
+  const buttons = BUTTON_ROWS.flatMap((row, i) => {
+    const w = (right - left - (row.length - 1) * BUTTON_GAP) / row.length;
+    return row.map((id, j) => ({
+      id,
+      x: left + j * (w + BUTTON_GAP),
+      y: buttonsTop + i * (BUTTON_HEIGHT + BUTTON_GAP),
+      w,
+      h: BUTTON_HEIGHT,
+    }));
+  });
   const fader = { x: (left + right) / 2, top: 96, bottom: buttonsTop - 40 };
   return { left, buttons, fader };
 }
@@ -790,6 +874,8 @@ window.addEventListener("keydown", (e) => {
   }
   if (e.key === "f" || e.key === "F") toggle("fade");
   if (e.key === "m" || e.key === "M") toggle("mic");
+  if (e.key === "o" || e.key === "O") toggle("octave");
+  if (e.key === "r" || e.key === "R") toggle("reverse");
 });
 const releaseShift = () => {
   if (!shiftDown) return;
@@ -812,7 +898,7 @@ clearEl.addEventListener("click", () => {
   const now = Tone.immediate();
   marks = marks.filter((m) => m.end === null);
   // 押している音は、ここから録り直す
-  for (const m of marks) Object.assign(m, { start: tapeAt(now), level: 1, turns: 0, bends: [] });
+  for (const m of marks) Object.assign(m, { start: tapeAt(now), level: 1, turns: 0, worn: 0, bends: [] });
   glows = [];
   micTrack.fill(0);
   clearTimer = setTimeout(() => {
@@ -835,7 +921,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   const alpha = Math.min(1, m.level) * 0.9;
   const hue = m.part === "tape" ? 200 : 280; // テープの音は青、ソロの音は紫
   // 傷んだテープでは、回った数だけ色があせる
-  const fade = Math.min(0.8, m.turns * wear() * 0.15);
+  const fade = Math.min(0.8, m.worn * wear() * 0.15);
 
   // 音の頭からの距離 (周) と縦位置の点を並べる。音程を変えていなければ、頭と終わりの 2 点
   const points = [{ offset: 0, y: yOf(m.freq, pitches) }];
@@ -948,18 +1034,28 @@ function drawPanel() {
   g.fillStyle = "rgba(232, 232, 236, 0.7)";
   g.fillText(held ? "∞" : `${Math.round(feedback.gain.value * 100)}%`, fader.x, fader.bottom + 22);
 
-  const on: Record<Button, boolean> = { solo: solo(), hold: held, fade: fading, mic: micOn() };
+  const on: Record<Button, boolean> = {
+    solo: solo(),
+    hold: held,
+    fade: fading,
+    octave: octave !== 0,
+    reverse: reverse !== null && reverse.until === null,
+    mic: micOn(),
+  };
+  // 止めるのを待っている逆再生は、枠だけ光らせる
+  const pending = reverse?.until != null;
+  const label = (id: Button) => tk(`tape.${id}`) + (id === "octave" && octave !== 0 ? (octave > 0 ? " ↑" : " ↓") : "");
   g.font = "12px system-ui, sans-serif";
   for (const b of buttons) {
     g.fillStyle = on[b.id] ? "rgba(108, 196, 255, 0.18)" : "rgba(35, 37, 45, 0.9)";
-    g.strokeStyle = on[b.id] ? "#6cc4ff" : "#3a3d48";
+    g.strokeStyle = on[b.id] || (b.id === "reverse" && pending) ? "#6cc4ff" : "#3a3d48";
     g.lineWidth = 1;
     g.beginPath();
     g.roundRect(b.x, b.y, b.w, b.h, 6);
     g.fill();
     g.stroke();
     g.fillStyle = on[b.id] ? "#6cc4ff" : "#e8e8ec";
-    g.fillText(tk(`tape.${b.id}`), b.x + b.w / 2, b.y + b.h / 2 + 4);
+    g.fillText(label(b.id), b.x + b.w / 2, b.y + b.h / 2 + 4);
   }
 }
 
@@ -1011,6 +1107,74 @@ function updateMicTrack(tape: number): number {
   return max;
 }
 
+// 再生ヘッドを過ぎた音は、1 周分小さくなって録音ヘッドから出てくる。オクターブ中は、1 周ごとに音程もずれる
+function advanceMarks(tape: number, pitches: Pitch[]) {
+  const shift = held ? 0 : octave;
+  for (const m of marks) {
+    const turns = Math.floor(tape - m.start);
+    if (turns <= m.turns) continue;
+    glows.push({ x: playX(), y: yOf(m.freq, pitches), life: 1, strength: Math.min(1, m.level) });
+    m.level *= turnLoss(m.freq) ** (turns - m.turns);
+    if (shift !== 0) {
+      const ratio = 2 ** (shift * (turns - m.turns));
+      m.freq *= ratio;
+      for (const b of m.bends) b.freq *= ratio;
+    }
+    m.worn += turns - m.turns;
+    m.turns = turns;
+  }
+}
+
+// 音の頭から offset (周) のところの音程
+function freqAt(m: Mark, offset: number): number {
+  let freq = m.freq;
+  for (const b of m.bends) if (b.at - m.start <= offset) freq = b.freq;
+  return freq;
+}
+
+// 逆再生の区切り turn (周) で、テープの上の音を裏返す。区切りの直前の 1 周に録られた分が、区切りを鏡にした位置へ移り、
+// 終わりの方から鳴る。区切りをまたいで録っている途中の音（押している音、自動で弾いている音）は、区切りから先を新しい音として分ける。
+// 区切りをまたいで再生している途中の音は、区切りから先が録り直されないので、そこで切れる
+function flipMarks(turn: number) {
+  const rests: Mark[] = [];
+  for (const m of marks) {
+    if (m.start >= turn) continue;
+    const k = Math.ceil(turn - m.start) - 1; // 区切りの直前の 1 周にある、何周目の録音か
+    const copy = m.start + k;
+    const whole = (m.end ?? Infinity) - m.start;
+    const length = Math.min(whole, turn - copy);
+    if (k === 0 && whole > length) {
+      const rest: Mark = {
+        part: m.part,
+        freq: freqAt(m, turn - m.start),
+        start: turn,
+        end: m.end,
+        level: 1,
+        turns: 0,
+        worn: 0,
+        bends: m.bends.filter((b) => b.at > turn),
+      };
+      rests.push(rest);
+      for (const touch of touches.values()) if (touch.mark === m) touch.mark = rest;
+    }
+    // 音程の点（音の頭からの距離と周波数）を、終わりから並べ直す
+    const points = [{ offset: 0, freq: m.freq }];
+    for (const b of m.bends) if (b.at - m.start < length) points.push({ offset: b.at - m.start, freq: b.freq });
+    const start = 2 * turn - (copy + length) - 1;
+    m.freq = points[points.length - 1].freq;
+    m.bends = points.length > 1 ? points.reverse().map((p) => ({ at: start + length - p.offset, freq: p.freq })) : [];
+    m.start = start;
+    m.end = start + length;
+    m.turns = 0;
+  }
+  marks.push(...rests);
+
+  // マイクの音も、同じように鏡にした位置へ移す
+  const before = micTrack.slice();
+  const pivot = Math.round(2 * turn * MIC_BINS);
+  for (let b = 0; b < MIC_BINS; b++) micTrack[(((pivot - b - 1) % MIC_BINS) + MIC_BINS) % MIC_BINS] = before[b];
+}
+
 let last = performance.now();
 let lastFrameTape: number | null = null;
 
@@ -1020,14 +1184,19 @@ function frame(t: number) {
   const tape = tapeAt(Tone.immediate());
   const pitches = page.pitches();
 
-  // 再生ヘッドを過ぎた音は、1 周分小さくなって録音ヘッドから出てくる
-  for (const m of marks) {
-    const turns = Math.floor(tape - m.start);
-    if (turns <= m.turns) continue;
-    glows.push({ x: playX(), y: yOf(m.freq, pitches), life: 1, strength: Math.min(1, m.level) });
-    m.level *= turnLoss(m.freq) ** (turns - m.turns);
-    m.turns = turns;
+  // 逆再生の区切りを過ぎたら、そこまで進めてから裏返す。止める区切りでは、裏返さずに終える
+  if (reverse && lastFrameTape !== null) {
+    for (let n = Math.max(0, Math.floor(lastFrameTape - reverse.anchor) + 1); reverse.anchor + n <= tape; n++) {
+      const turn = reverse.anchor + n;
+      advanceMarks(turn, pitches);
+      if (reverse.until !== null && turn >= reverse.until) {
+        reverse = null;
+        break;
+      }
+      flipMarks(turn);
+    }
   }
+  advanceMarks(tape, pitches);
   marks = marks.filter((m) => m.level >= SILENT_LEVEL);
   // 足した再生ヘッドを通った音も光らせる（その周の大きさで）
   if (lastFrameTape !== null) {
