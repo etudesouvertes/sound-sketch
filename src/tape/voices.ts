@@ -176,3 +176,69 @@ export const stringsVoice = (destinations: Tone.InputNode[]) =>
     destinations,
   );
 
+
+// メロトロン。鍵盤ごとに録音テープが 1 本あり、押すとそのテープを頭から再生する楽器（ここではバイオリンのテープ）。
+// 少しずらした 3 本のノコギリ波を、帯域の狭い、鼻にかかった音に整え、テープの回転の揺れ（ワウ・フラッター）と、小さなノイズを乗せる。
+// 揺れの位相と速さは 1 音ごとに変え、和音で揺れがそろわないようにする。
+// 本物のテープは約 8 秒で終わるので、limited なら 8 秒で止める（押し続けても、テープが尽きたところで消える）
+const MELLOTRON = {
+  volume: -24,
+  attack: 0.07, // テープを押し当ててから音が出るまで
+  release: 0.3, // 離すとテープが戻り、すぐ消える
+  limit: 8, // テープの長さ (秒)
+  ending: 0.2, // テープが尽きるときに消えていく時間 (秒)
+  detunes: [-9, 0, 8], // 3 本のずれ (セント)
+  wow: { cents: 7, rate: 0.7 },
+  flutter: { cents: 3, rate: 7.5 },
+  hiss: 0.012,
+};
+
+export function mellotronVoice(limited: boolean, destinations: Tone.InputNode[]): Voice {
+  const m = MELLOTRON;
+  const out = new Tone.Gain(Tone.dbToGain(m.volume));
+  out.fan(...destinations);
+  const tapeEnd = new Tone.Gain(1).connect(out);
+  const highpass = new Tone.Filter({ type: "highpass", frequency: 220, Q: 0.5 });
+  const nasal = new Tone.Filter({ type: "peaking", frequency: 1500, Q: 1.8, gain: 5 });
+  const lowpass = new Tone.Filter({ type: "lowpass", frequency: 5000, Q: 0.5, rolloff: -24 });
+  const envelope = new Tone.AmplitudeEnvelope({ attack: m.attack, decay: 0.4, sustain: 0.85, release: m.release });
+  envelope.chain(highpass, nasal, lowpass, tapeEnd);
+
+  const frequency = new Tone.Signal<"frequency">({ value: 0, units: "frequency" });
+  const jitter = () => 0.85 + Math.random() * 0.3;
+  const wow = new Tone.LFO({ frequency: m.wow.rate * jitter(), min: -m.wow.cents, max: m.wow.cents, phase: Math.random() * 360 });
+  const flutter = new Tone.LFO({ frequency: m.flutter.rate * jitter(), min: -m.flutter.cents, max: m.flutter.cents });
+  const nodes: { dispose: () => void }[] = [out, tapeEnd, highpass, nasal, lowpass, envelope, frequency, wow, flutter];
+  const oscillators = m.detunes.map((cents) => {
+    const scale = new Tone.Multiply(2 ** (cents / 1200));
+    const osc = new Tone.Oscillator({ type: "sawtooth", frequency: 0 }).connect(envelope);
+    frequency.chain(scale, osc.frequency);
+    wow.connect(osc.detune);
+    flutter.connect(osc.detune);
+    nodes.push(scale, osc);
+    return osc;
+  });
+  const noise = new Tone.Noise("pink");
+  const hissFilter = new Tone.Filter({ type: "bandpass", frequency: 4000, Q: 0.7 });
+  const hissLevel = new Tone.Gain(m.hiss);
+  noise.chain(hissFilter, hissLevel, envelope);
+  nodes.push(noise, hissFilter, hissLevel);
+
+  return {
+    frequency,
+    triggerAttack: (freq, time, velocity) => {
+      frequency.setValueAtTime(freq, time);
+      for (const osc of oscillators) osc.start(time);
+      noise.start(time);
+      wow.start(time);
+      flutter.start(time);
+      envelope.triggerAttack(time, velocity);
+      if (limited) tapeEnd.gain.setValueAtTime(1, time + m.limit - m.ending).linearRampToValueAtTime(0, time + m.limit);
+    },
+    triggerRelease: (time) => envelope.triggerRelease(time),
+    dispose: () => {
+      for (const node of nodes) node.dispose();
+    },
+    release: m.release,
+  };
+}

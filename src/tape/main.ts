@@ -4,7 +4,7 @@ import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
-import { celloBassVoice, celloVoice, sawVoice, stringsVoice, type Voice } from "./voices";
+import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
 import type { ReverseMessage } from "./reverse-processor";
 
@@ -112,6 +112,7 @@ const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const wearEl = document.querySelector<HTMLInputElement>("#tape-wear")!;
 const wearValueEl = document.querySelector<HTMLOutputElement>("#tape-wear-value")!;
+const mellotronLimitEl = document.querySelector<HTMLInputElement>("#mellotron-limit")!;
 const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
 const extraHeadsEl = document.querySelector<HTMLInputElement>("#extra-heads")!;
 const extraHeadsValueEl = document.querySelector<HTMLOutputElement>("#extra-heads-value")!;
@@ -310,6 +311,7 @@ function makeVoice(id: PartId): Voice {
   if (timbreEl.value === "cello") return celloVoice([clean, distortion]);
   if (timbreEl.value === "cello-bass") return celloBassVoice([clean, distortion]);
   if (timbreEl.value === "strings") return stringsVoice([clean, distortion]);
+  if (timbreEl.value === "mellotron") return mellotronVoice(mellotronLimitEl.checked, [clean, distortion]);
   return sawVoice(timbreEl.value === "drive", [clean, distortion]);
 }
 

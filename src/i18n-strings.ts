@@ -48,6 +48,8 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "timbre.cello": { ja: "チェロ", en: "Cello" },
   "timbre.celloBass": { ja: "チェロ＋コントラバス", en: "Cello + double bass" },
   "timbre.strings": { ja: "ストリングス", en: "Strings" },
+  "timbre.mellotron": { ja: "メロトロン", en: "Mellotron" },
+  mellotronLimit: { ja: "メロトロンは 8 秒で止まる", en: "Mellotron stops after 8 s" },
   "sec.tapeVoice": { ja: "テープの音", en: "Tape voice" },
   "sec.soloVoice": { ja: "ソロの音", en: "Solo voice" },
   voiceVolume: { ja: "大きさ", en: "Volume" },

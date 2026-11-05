@@ -433,8 +433,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#tape-timbre": {
       title: { ja: "音色", en: "Timbre" },
       text: {
-        ja: "テープの音の音色です。チェロは弓で弾くように立ち上がり、少し遅れてビブラートがかかる、伸ばす音です（合成した音）。チェロ＋コントラバスは、そのオクターブ下でコントラバスが一緒に弾きます。ストリングスは、同じ高さを 3 人、オクターブ下を 2 人で、少しずつずれながらゆっくり弾く合奏で、輪郭のぼやけた霧のような響きです。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です。",
-        en: "The tape voice's timbre. Cello swells like a bowed string and gains vibrato after a moment (a synthesized cello). Cello + double bass adds a double bass an octave below. Strings is a slow-swelling section, three players at pitch and two an octave below, each slightly out of step, for a misty, blurred bed. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer.",
+        ja: "テープの音の音色です。チェロは弓で弾くように立ち上がり、少し遅れてビブラートがかかる、伸ばす音です（合成した音）。チェロ＋コントラバスは、そのオクターブ下でコントラバスが一緒に弾きます。ストリングスは、同じ高さを 3 人、オクターブ下を 2 人で、少しずつずれながらゆっくり弾く合奏で、輪郭のぼやけた霧のような響きです。メロトロンは、鍵盤ごとの録音テープを再生する楽器を模した、バイオリンの音です。帯域が狭く、テープの回転の揺れと小さなノイズがあります。クリーンは倍音の多いシンセの音、ドライブは歪ませてギターアンプのように高音を丸めた、長く伸びる音です。",
+        en: "The tape voice's timbre. Cello swells like a bowed string and gains vibrato after a moment (a synthesized cello). Cello + double bass adds a double bass an octave below. Strings is a slow-swelling section, three players at pitch and two an octave below, each slightly out of step, for a misty, blurred bed. Mellotron imitates the instrument that plays a strip of recorded tape for each key, here violins: narrow in range, with the tape's wavering pitch and a little hiss. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer.",
       },
     },
     "#solo-timbre": {
@@ -520,6 +520,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "テープの途中に置く再生ヘッドの数（0〜3）です。録った音が、元の再生ヘッドに着く前にも、ずれて何度か聞こえます。足したヘッドは聞こえるだけで、テープへは戻しません。帯の下のつまみを左右にドラッグすると位置を変えられ、動かしている間はそのヘッドの音の音程がうねります。",
         en: "How many play heads sit partway along the tape (0–3). A recorded note is heard again, offset, before it reaches the main play head. Extra heads only play; they don't feed back onto the tape. Drag a head's handle at the bottom of the band to move it; its pitch warps while it moves.",
+      },
+    },
+    "#mellotron-limit": {
+      title: { ja: "メロトロンは 8 秒で止まる", en: "Mellotron stops after 8 s" },
+      text: {
+        ja: "本物のメロトロンは、鍵盤ごとのテープが約 8 秒で終わるので、押し続けても 8 秒で音が消えます。オンでは同じように 8 秒で止まり、オフでは押している間ずっと鳴ります。音色がメロトロンのテープの音とソロの音の両方に効きます。",
+        en: "A real Mellotron's tape for each key runs out after about 8 seconds, so a held note dies away. When on, notes stop after 8 seconds the same way; when off, they sound for as long as you hold them. Applies to both the tape and solo voices when set to Mellotron.",
       },
     },
     "#tape-low-cut": {
