@@ -42,6 +42,9 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   timbre: { ja: "音色", en: "Timbre" },
   "timbre.clean": { ja: "クリーン", en: "Clean" },
   "timbre.drive": { ja: "ドライブ", en: "Drive" },
+  dragMode: { ja: "ドラッグ", en: "Drag" },
+  "dragMode.steps": { ja: "音階で弾く", en: "Play scale notes" },
+  "dragMode.glide": { ja: "なめらかにつなぐ", en: "Glide" },
   "sec.repeat": { ja: "反復", en: "Repetition" },
 
   // 設定パネルの項目

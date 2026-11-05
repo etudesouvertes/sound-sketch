@@ -416,6 +416,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "The sound you play. Clean is a synth tone rich in overtones; Drive distorts it, rounds off the highs like a guitar amp and lets it ring longer (like Fripp's distorted guitar).",
       },
     },
+    "#drag-mode": {
+      title: { ja: "ドラッグ", en: "Drag" },
+      text: {
+        ja: "ドラッグしたときの弾き方です。「音階で弾く」は、なぞった高さのスケールの音を順に弾きます。「なめらかにつなぐ」は、1 つの音を伸ばしたまま、指の高さに合わせて音程を連続して動かします（スライドギターのように）。指を止めると、近くのスケールの音へ寄っていきます。",
+        en: "How dragging plays. “Play scale notes” plays the scale notes you pass over one by one. “Glide” keeps one note ringing and bends its pitch smoothly with your finger, like a slide guitar; when you stop, it settles onto the nearest scale note.",
+      },
+    },
     "#density": {
       title: { ja: "密度", en: "Density" },
       text: {
