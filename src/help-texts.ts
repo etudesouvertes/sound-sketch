@@ -419,8 +419,15 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="solo-voice"] h2': {
       title: { ja: "ソロの音", en: "Solo voice" },
       text: {
-        ja: "ソロ（操作盤のソロか Shift）のときに鳴る音の設定です。テープには録らないので、テープの音の土台の上で、別の音色で即興できます（フリップがループの上でギターを弾いたように）。画面の音名も、ソロの間はこちらの音域に変わります。",
-        en: "Settings for the sound you play during Solo (the Solo button or Shift). It isn't recorded, so you can improvise in another voice over the tape's bed, as Fripp played guitar over his loops. During Solo the note names on screen follow this register.",
+        ja: "ソロ（操作盤のソロか Shift）のときに鳴る音の設定です。テープの音の土台に、別の音色を重ねたり、その上で即興したりできます。画面の音名も、ソロの間はこちらの音域に変わります。",
+        en: "Settings for the sound you play during Solo (the Solo button or Shift): a second voice to layer over the tape voice, or to improvise with over it. During Solo the note names on screen follow this register.",
+      },
+    },
+    "#solo-record": {
+      title: { ja: "ソロの音もテープに録る", en: "Record the solo voice too" },
+      text: {
+        ja: "オンにすると、ソロで弾いた音（とマイク）もテープに録られ、テープの上に紫の線で流れます。オフにすると、ソロの間は録らずに聞かせるだけになり、テープの土台の上で即興できます（フリップがループの上でギターを弾いたように）。",
+        en: "When on, what you play during Solo (and the mic) is recorded too, shown on the tape in purple. When off, nothing is recorded during Solo, so you can improvise over the tape's bed, as Fripp played guitar over his loops.",
       },
     },
     "#tape-timbre": {
@@ -518,8 +525,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="mic"] h2': {
       title: { ja: "マイク", en: "Microphone" },
       text: {
-        ja: "マイクで楽器や声をテープに録る設定です。操作盤の「マイク」か M キーで開け閉めします。マイクの音はスピーカーからは直接鳴らさず、テープにだけ録ります。ソロ・ホールド・フェード中は録りません。",
-        en: "Settings for recording an instrument or voice onto the tape. Open and close it with Mic on the panel or the M key. The mic is only recorded onto the tape, never sent straight to the speakers, and isn't recorded during Solo, Hold or Fade.",
+        ja: "マイクで楽器や声をテープに録る設定です。操作盤の「マイク」か M キーで開け閉めします。マイクの音はスピーカーからは直接鳴らさず、テープにだけ録ります。ホールド・フェード中と、録らない設定のソロ中は録りません。",
+        en: "Settings for recording an instrument or voice onto the tape. Open and close it with Mic on the panel or the M key. The mic is only recorded onto the tape, never sent straight to the speakers, and isn't recorded during Hold, Fade, or Solo when the solo voice isn't recorded.",
       },
     },
     "#mic-level": {

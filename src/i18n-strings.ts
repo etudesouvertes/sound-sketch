@@ -47,6 +47,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "sec.tapeVoice": { ja: "テープの音", en: "Tape voice" },
   "sec.soloVoice": { ja: "ソロの音", en: "Solo voice" },
   voiceVolume: { ja: "大きさ", en: "Volume" },
+  soloRecord: { ja: "ソロの音もテープに録る", en: "Record the solo voice too" },
   dragMode: { ja: "ドラッグ", en: "Drag" },
   "dragMode.steps": { ja: "音階で弾く", en: "Play scale notes" },
   "dragMode.glide": { ja: "なめらかにつなぐ", en: "Glide" },

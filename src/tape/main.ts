@@ -12,11 +12,13 @@ import { celloBassVoice, celloVoice, sawVoice, type Voice } from "./voices";
 // 画面は流れるテープで、右の録音ヘッドで録られた音が左へ流れ、左の再生ヘッドで鳴って、また右から（薄くなって）出てくる。
 // 録音ヘッドの右は演奏中に触る操作盤で、残り方のフェーダーと、ソロ・ホールド・フェード・マイクのボタンを置く。
 // 弾く音は「テープの音」と「ソロの音」の 2 つのパートに分かれ、それぞれ音色・音域・大きさ・ドラッグを持つ。
-// ソロのときはソロの音で鳴り、テープには録らない（フリップのように、テープの土台の上で別の音色で即興する）
+// ソロのときはソロの音で鳴る。「ソロの音もテープに録る」がオンなら、2 つ目の音色としてテープに重ね、
+// オフなら録らずに聞かせるだけ（フリップのように、テープの土台の上で別の音色で即興する）
 
 // 弾いた 1 音。テープに録られた音はスケールを変えても変わらないので、周波数で持つ。
 // 位置はテープが進んだ周の数（tapeAt）で持つ。1 周の長さを変えても、テープの上の位置は変わらない
 type Mark = {
+  part: PartId; // どちらのパートの音で録ったか（描く色を分ける）
   freq: number;
   start: number; // 録り始めたときのテープの位置 (周)
   end: number | null; // 押している間は null
@@ -81,13 +83,14 @@ const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-va
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
 const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
+const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
 
 const loopSeconds = () => Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
 
 // --- 演奏の状態 ---
 
-// ソロ: 弾いた音を聞かせるだけで、テープには録らない（ボタンで切り替えるか、Shift を押している間）。
+// ソロ: ソロの音で弾く（ボタンで切り替えるか、Shift を押している間）。「ソロの音もテープに録る」がオフなら、テープには録らない。
 // ホールド: テープの中身を減らさず、こもらせもせずに回し続ける。新しい音は録らない。
 // フェード: 録るのをやめ、残り方を「フェードの長さ」をかけて 0% まで下げていく。最初はゆっくり、最後は加速して消える。
 // 消えきるか、また弾くと元に戻る。
@@ -99,7 +102,7 @@ let fading = false;
 let fadeEnd = 0; // 残り方が 0% になる時刻 (AudioContext の秒)
 let clearing = false;
 const solo = () => soloLatched || shiftDown;
-const recording = () => !solo() && !held && !fading;
+const recording = () => (!solo() || soloRecordEl.checked) && !held && !fading;
 
 // --- 音 ---
 
@@ -126,7 +129,7 @@ saturateOut.connect(tapeOut);
 
 // --- 2 つのパート ---
 
-// 録音の入口。テープの音とマイクはここを通ってテープへ入る（ソロ・ホールド・フェード中は閉じる）
+// 録音の入口。弾いた音とマイクはここを通ってテープへ入る（ホールド・フェード中と、録らない設定のソロ中は閉じる）
 const recordGate = new Tone.Gain(1).connect(recordIn);
 
 // パートごとの音色と大きさ。声はパートの入口（clean と distortion の両方）へつなぎ、音色の「ドライブ」では
@@ -180,7 +183,7 @@ function createPart(id: PartId, destinations: Tone.InputNode[]): Part {
 
 const parts: Record<PartId, Part> = {
   tape: createPart("tape", [reverb, recordGate]),
-  solo: createPart("solo", [reverb]),
+  solo: createPart("solo", [reverb, recordGate]),
 };
 
 // 1 音ごとに声を作って鳴らし、鳴り終わったら捨てる。どの弾き方でも、自動でも、同じ作り方で同じ音にする
@@ -201,7 +204,7 @@ function disposeAfter(voice: Voice, releaseAt: number) {
 
 // マイクの音は、部屋で生の音が聞こえているので、そのまま鳴らさずテープにだけ録る（スピーカーから鳴らすとすぐハウリングする）。
 // 小さい音はゲートで切り、強弱はコンプレッサーで揃え、低い雑音（机の振動など）は削る。
-// ソロ・ホールド・フェード中は、弾いた音と同じく録らない
+// 弾いた音と同じく、録らないとき（ホールド・フェード、録らない設定のソロ）は録らない
 const micIn = new Tone.Gain(1);
 const micGate = new Tone.Gate({ threshold: MIC_GATE, smoothing: 0.1 });
 const micCompressor = new Tone.Compressor({ threshold: -24, ratio: 4 });
@@ -361,8 +364,8 @@ function yOf(freq: number, pitches: Pitch[]): number {
   return height - (index + 0.5) * band;
 }
 
-function startMark(freq: number, time: number): Mark {
-  const mark: Mark = { freq, start: tapeAt(time), end: null, level: 1, turns: 0, bends: [] };
+function startMark(part: PartId, freq: number, time: number): Mark {
+  const mark: Mark = { part, freq, start: tapeAt(time), end: null, level: 1, turns: 0, bends: [] };
   marks.push(mark);
   return mark;
 }
@@ -386,13 +389,14 @@ function applyLoop() {
 
   if (recording() !== wasRecording) {
     for (const touch of touches.values()) {
-      if (touch.part !== "tape") continue; // ソロの音はテープへつながっていない
       if (touch.mark) touch.mark.end = tapeAt(now);
-      touch.mark = recording() ? startMark(touch.freq, now) : null;
+      touch.mark = recording() ? startMark(touch.part, touch.freq, now) : null;
     }
     wasRecording = recording();
   }
 }
+
+soloRecordEl.addEventListener("change", applyLoop);
 
 feedbackEl.addEventListener("input", () => {
   feedbackValueEl.value = `${feedbackEl.value}%`;
@@ -474,19 +478,19 @@ function playAuto() {
   voice.triggerAttack(freq, now, 0.45 + Math.random() * 0.25);
   voice.triggerRelease(now + duration);
   disposeAfter(voice, now + duration);
-  const mark = startMark(freq, now);
+  const mark = startMark("tape", freq, now);
   mark.end = tapeAt(now + duration);
 }
 
 let idle = 0;
 let untilAuto = 0;
 
-// 弾いていない間だけ自動で弾く。録っていないとき（ソロ・ホールド・フェード）は弾かない
+// 弾いていない間だけ自動で弾く。ソロ中と、録っていないとき（ホールド・フェード）は弾かない
 function updateAuto(dt: number, tape: number) {
   if (micOn() && (micMeter.getValue() as number) > MIC_ACTIVE) idle = 0;
   if (touches.size > 0) idle = 0;
   idle += dt;
-  if (!page.started() || !autoEl.checked || !recording() || clearing || idle < IDLE_BEFORE_AUTO) return;
+  if (!page.started() || !autoEl.checked || !recording() || solo() || clearing || idle < IDLE_BEFORE_AUTO) return;
   untilAuto -= dt;
   if (untilAuto > 0) return;
   if (crowdingAtRecHead(tape) > AUTO_CROWDED) {
@@ -513,7 +517,7 @@ function noteOn(pointerId: number, y: number) {
   const now = Tone.immediate();
   const voice = makeVoice(part);
   voice.triggerAttack(freq, now, 0.8);
-  const mark = part === "tape" && recording() ? startMark(freq, now) : null;
+  const mark = recording() ? startMark(part, freq, now) : null;
   if (!mark) glows.push({ x: recX(), y: yOf(freq, pitches), life: 1, strength: 0.5 });
   const glide = parts[part].dragEl.value === "glide";
   touches.set(pointerId, { part, index, freq, mark, voice, glide, lastMove: performance.now(), settled: true, pressY: y, sliding: false });
@@ -697,6 +701,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   const head = age % 1; // 音の頭の位置
   const length = Math.min(Math.min(m.end ?? tape, tape) - m.start, 1); // 自動で弾いた音は、終わりを先に決めてある
   const alpha = Math.min(1, m.level) * 0.9;
+  const hue = m.part === "tape" ? 200 : 280; // テープの音は青、ソロの音は紫
 
   // 音の頭からの距離 (周) と縦位置の点を並べる。音程を変えていなければ、頭と終わりの 2 点
   const points = [{ offset: 0, y: yOf(m.freq, pitches) }];
@@ -708,7 +713,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   points.push({ offset: length, y: points[points.length - 1].y });
 
   // テープの上の位置は head - offset。負になったところは前の周の分で、再生ヘッドの手前（+1）に描く
-  g.strokeStyle = `hsla(200, 85%, 72%, ${alpha})`;
+  g.strokeStyle = `hsla(${hue}, 85%, 72%, ${alpha})`;
   g.lineWidth = 3;
   g.lineCap = "round";
   g.lineJoin = "round";
@@ -730,7 +735,7 @@ function drawMark(m: Mark, tape: number, pitches: Pitch[]) {
   g.stroke();
 
   const y = points[0].y;
-  g.fillStyle = `hsla(200, 90%, 82%, ${alpha})`;
+  g.fillStyle = `hsla(${hue}, 90%, 82%, ${alpha})`;
   g.beginPath();
   g.arc(xAt(head), y, 3.5, 0, Math.PI * 2);
   g.fill();
@@ -824,7 +829,7 @@ function draw(tape: number) {
   drawMicTrack(tape);
   for (const m of marks) drawMark(m, tape, pitches);
   drawHead(playX(), tk("tape.playHead"), true);
-  // 録っていない間（ソロ・ホールド・フェード）は、録音ヘッドを淡くする
+  // 録っていない間（ホールド・フェード、録らない設定のソロ）は、録音ヘッドを淡くする
   drawHead(recX(), tk("tape.recHead"), recording());
   drawPanel();
 }
