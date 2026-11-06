@@ -139,6 +139,18 @@
         </label>
         <label><span data-i18n="micEchoCancel">エコー除去（スピーカーで聴くとき）</span> <input id="mic-echo-cancel" type="checkbox" checked /></label>
       </section>
+      <section data-section="radio">
+        <h2 data-i18n="sec.radio">ラジオ</h2>
+        <label>
+          <span data-i18n="radioLevel">入力の大きさ</span>
+          <span class="range"><input id="radio-level" type="range" min="0" max="200" step="5" value="30" /><output id="radio-level-value"></output></span>
+        </label>
+        <label><span data-i18n="radioSpeech">話の多い局を選ぶ</span> <input id="radio-speech" type="checkbox" checked /></label>
+        <label><span data-i18n="radioSkipMusic">音楽ならほかの局へ</span> <input id="radio-skip-music" type="checkbox" checked /></label>
+        <label><span data-i18n="radioSkipPolitics">政治色の強い局を除く</span> <input id="radio-skip-politics" type="checkbox" checked /></label>
+        <button id="radio-next" type="button" data-i18n="radioNext">別の局へ</button>
+        <p class="credit"><a href="https://www.radio-browser.info/" target="_blank" rel="noopener">Stations from radio-browser.info</a></p>
+      </section>
       <section data-section="weather">
         <h2 data-i18n="sec.weather">天気</h2>
         <label><span data-i18n="useWeather">天気を使う</span> <input id="weather" type="checkbox" /></label>
@@ -162,12 +174,13 @@
       <span id="weather-status"></span>
       <span id="drift-status"></span>
       <span id="mic-status"></span>
+      <span id="radio-status"></span>
     </footer>
     <canvas id="canvas"></canvas>
     <p id="hint" class="hint" data-i18n="hint.tape">
       クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます<br />
       弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます<br />
-      右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・オクターブ（O）・逆再生（R）・マイク（M）を使えます
+      右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・オクターブ（O）・逆再生（R）・マイク（M）・ラジオ（T）を使えます
     </p>
     <script type="module" src="/src/tape/main.ts"></script>
   </body>

@@ -7,6 +7,8 @@ import { setupLevel } from "../levels";
 import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
 import type { ReverseMessage } from "./reverse-processor";
+import speechProcessorUrl from "./speech-processor.ts?worker&url";
+import type { SpeechMessage } from "./speech-processor";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
@@ -44,7 +46,7 @@ type Touch = {
   pressY: number; // 押した高さ
   sliding: boolean; // 押した高さから DRAG_DISTANCE 以上動いて、音程を動かし始めたか
 };
-type Button = "solo" | "hold" | "fade" | "octave" | "reverse" | "mic";
+type Button = "solo" | "hold" | "fade" | "octave" | "reverse" | "mic" | "radio";
 type PartId = "tape" | "solo";
 
 const LOOP_LOWPASS = 3200; // 1 周ごとに高い音を削る (Hz)
@@ -109,6 +111,13 @@ const micLevelEl = document.querySelector<HTMLInputElement>("#mic-level")!;
 const micLevelValueEl = document.querySelector<HTMLOutputElement>("#mic-level-value")!;
 const micEchoCancelEl = document.querySelector<HTMLInputElement>("#mic-echo-cancel")!;
 const micStatusEl = document.querySelector<HTMLElement>("#mic-status")!;
+const radioLevelEl = document.querySelector<HTMLInputElement>("#radio-level")!;
+const radioLevelValueEl = document.querySelector<HTMLOutputElement>("#radio-level-value")!;
+const radioNextEl = document.querySelector<HTMLButtonElement>("#radio-next")!;
+const radioStatusEl = document.querySelector<HTMLElement>("#radio-status")!;
+const radioSpeechEl = document.querySelector<HTMLInputElement>("#radio-speech")!;
+const radioSkipMusicEl = document.querySelector<HTMLInputElement>("#radio-skip-music")!;
+const radioSkipPoliticsEl = document.querySelector<HTMLInputElement>("#radio-skip-politics")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const wearEl = document.querySelector<HTMLInputElement>("#tape-wear")!;
 const wearValueEl = document.querySelector<HTMLOutputElement>("#tape-wear-value")!;
@@ -387,6 +396,251 @@ micLevelEl.addEventListener("input", () => {
   micIn.gain.rampTo(Number(micLevelEl.value) / 100, 0.05);
 });
 showMicLevel();
+
+// --- ラジオ ---
+
+// 世界のインターネットラジオ（Radio Browser に登録された局）を、マイクと同じようにテープにだけ録る
+// （ジョン・ケージ『Imaginary Landscape No. 4』、イーノとバーン『My Life in the Bush of Ghosts』）。
+// 局はランダムに選び、ブラウザから音を取り出せない局（CORS で許されていない、https でない、HLS）は飛ばして次を試す。
+// 局を探している間は、ダイヤルを回すような雑音を鳴らす（これもテープに録る）。
+// 放送は鳴り続けるので、マイクと違って自動は休ませない。
+// 設定で、話の多い局（news / talk などのタグ）だけを選ぶ、政治色の強い局を除く、音楽ならほかの局へ、を選べる
+const RADIO_API = "https://all.api.radio-browser.info";
+const RADIO_WAIT = 8000; // 1 局の音が出るまで待つ時間 (ミリ秒)
+const RADIO_TRIES = 12; // 1 回の選局で試す局の数
+const RADIO_CODECS = ["MP3", "AAC", "AAC+", "OGG"]; // ブラウザで鳴らせる形式
+type Station = { stationuuid: string; name: string; countrycode: string; url_resolved: string; codec: string; hls: number; tags: string };
+// 話の多い局を探すタグ（部分一致なので、"news talk" や "talk & speech" なども含む）
+const SPEECH_TAGS = ["talk", "news", "spoken"];
+// 政治色の強い局。局の名前とタグで見分ける（progressive rock のような音楽のジャンルは除かない）
+const POLITICAL =
+  /politi|propagand|conservative|liberal\b|progressive(?!\s*(rock|house|trance|metal|psy|music))|patriot|government|opinion|activis|socialis|communis|nationalis|election|sputnik|voice of korea/i;
+// 音楽を見分けるため、放送を遅らせてからテープに送る。その音を含む判断が出そろってから録るかを決める
+const RADIO_DELAY = 4;
+const SPEECH_AVERAGE = 5; // 0.5 秒ごとに届く話し声らしさを、これだけ平均して使う
+const SPEECH_OPEN = 0.7; // 平均がこれを超えたら話し声として録り始め、
+const SPEECH_CLOSE = 0.4; // これを下回ったら音楽として、ほかの局へ（間の値では今の状態を保つ）
+const UNSURE_SWITCH = 20; // 話し声と分からないまま（無音や、どちらとも言えない音）これだけ過ぎたら、ほかの局へ (秒)
+
+const radioIn = new Tone.Gain(Number(radioLevelEl.value) / 100);
+const radioDelay = new Tone.Delay(RADIO_DELAY, RADIO_DELAY);
+const musicGate = new Tone.Gain(1); // 音楽の間は閉じる
+radioDelay.chain(musicGate, radioIn);
+const radioCompressor = new Tone.Compressor({ threshold: -24, ratio: 4 });
+const radioHighpass = new Tone.Filter({ type: "highpass", frequency: 120 });
+const radioMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
+radioIn.chain(radioCompressor, radioHighpass, recordGate);
+radioHighpass.connect(radioMeter);
+
+// 選局の雑音。帯域を絞ったノイズの中心を、ダイヤルを回すように揺らす
+const tuneNoise = new Tone.Noise("pink");
+const tuneFilter = new Tone.Filter({ type: "bandpass", frequency: 1200, Q: 3 });
+const tuneSweep = new Tone.LFO({ frequency: 0.6, min: 300, max: 3000 });
+const tuneLevel = new Tone.Gain(0);
+tuneSweep.connect(tuneFilter.frequency);
+tuneNoise.chain(tuneFilter, tuneLevel, radioIn);
+function showTuneNoise(on: boolean) {
+  if (on && tuneNoise.state !== "started") {
+    tuneNoise.start();
+    tuneSweep.start();
+  }
+  tuneLevel.gain.rampTo(on ? 0.3 : 0, on ? 0.1 : 0.4);
+}
+
+// 放送の音は <audio> で受け、Web Audio に取り出す（取り出すと、スピーカーへは直接鳴らなくなる）
+const radioAudio = new Audio();
+radioAudio.crossOrigin = "anonymous";
+let radioSource: MediaElementAudioSourceNode | null = null;
+let radioOn = false;
+let radioSearching = false;
+let radioQueue: Station[] = [];
+let tuning = 0; // 選局の番号。新しく選局を始めたら、前の選局は途中でやめる
+let radioStatus: string | null = null; // 表示している文言のキー（局の名前を出しているときは null）
+
+function showRadioStatus(key: string | null, station?: Station) {
+  radioStatus = key;
+  const name = station ? `📻 ${station.name.trim()} · ${station.countrycode}` : "";
+  radioStatusEl.textContent = [name, key ? tk(key) : ""].filter(Boolean).join(" · ");
+}
+onLangChange(() => {
+  if (radioStatus) showRadioStatus(radioStatus, radioStation ?? undefined);
+});
+
+async function searchStations(tag?: string): Promise<Station[]> {
+  const query = new URLSearchParams({ hidebroken: "true", is_https: "true", order: "random", limit: "40" });
+  if (tag) query.set("tag", tag);
+  const response = await fetch(`${RADIO_API}/json/stations/search?${query}`);
+  return response.json();
+}
+
+async function findStations(): Promise<Station[]> {
+  const lists = await Promise.all(radioSpeechEl.checked ? SPEECH_TAGS.map((tag) => searchStations(tag)) : [searchStations()]);
+  const seen = new Set<string>();
+  const stations = lists.flat().filter((s) => {
+    if (seen.has(s.stationuuid)) return false;
+    seen.add(s.stationuuid);
+    if (radioSkipPoliticsEl.checked && POLITICAL.test(`${s.name} ${s.tags}`)) return false;
+    return s.hls === 0 && RADIO_CODECS.includes(s.codec.toUpperCase());
+  });
+  // いくつかのタグで探した局を混ぜる
+  for (let i = stations.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [stations[i], stations[j]] = [stations[j], stations[i]];
+  }
+  return stations;
+}
+
+// 音楽を見分ける。放送を受けたらすぐ（遅らせる前の音で）判断する
+let radioStation: Station | null = null;
+let hearingSpeech = false; // 今、話し声として録っているか
+let unsureSince: number | null = null; // 話し声と分からないまま待ち始めた時刻
+let speechHistory: number[] = []; // 最近の話し声らしさ
+const speechNode = Tone.getContext()
+  .rawContext.audioWorklet.addModule(speechProcessorUrl)
+  .then(() => {
+    const node = Tone.getContext().createAudioWorkletNode("speech-detector", {
+      channelCount: 1,
+      channelCountMode: "explicit",
+      numberOfOutputs: 0,
+    });
+    node.port.onmessage = (e: MessageEvent<SpeechMessage>) => hearSpeech(e.data.speech);
+    return node;
+  });
+
+function hearSpeech(speech: number | null) {
+  if (!radioOn || radioSearching) return;
+  if (!radioSkipMusicEl.checked) return;
+  if (speech !== null) {
+    speechHistory.push(speech);
+    if (speechHistory.length > SPEECH_AVERAGE) speechHistory.shift();
+    const average = speechHistory.reduce((sum, a) => sum + a, 0) / speechHistory.length;
+    // 音楽と分かったら、すぐほかの局を探す（遅らせている分の音楽は録らない）
+    if (speechHistory.length >= SPEECH_AVERAGE && average < SPEECH_CLOSE) {
+      void tune("radioStatus.skipMusic");
+      return;
+    }
+    if (!hearingSpeech && average > SPEECH_OPEN) hearingSpeech = true;
+  }
+  applyMusicGate();
+  const now = performance.now() / 1000;
+  if (!hearingSpeech) {
+    unsureSince ??= now;
+    if (now - unsureSince > UNSURE_SWITCH) void tune();
+  } else unsureSince = null;
+}
+
+// 音楽ならほかの局へ、の設定では、話し声と分かるまで録らずに聞き分ける
+function applyMusicGate() {
+  const open = !radioSkipMusicEl.checked || (hearingSpeech && !radioSearching);
+  musicGate.gain.setTargetAtTime(open ? 1 : 0, Tone.now(), 0.05);
+  if (radioStation && !radioSearching) showRadioStatus(open ? null : "radioStatus.listening", radioStation);
+}
+
+// 局の音が出始めたら true、出せなかったら（CORS で断られた、時間切れなど）false
+function playStation(station: Station): Promise<boolean> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      radioAudio.removeEventListener("playing", onPlaying);
+      radioAudio.removeEventListener("error", onError);
+      resolve(ok);
+    };
+    const onPlaying = () => done(true);
+    const onError = () => done(false);
+    const timer = setTimeout(() => done(false), RADIO_WAIT);
+    radioAudio.addEventListener("playing", onPlaying);
+    radioAudio.addEventListener("error", onError);
+    radioAudio.src = station.url_resolved;
+    radioAudio.play().catch(() => done(false));
+  });
+}
+
+async function tune(searchingStatus = "radioStatus.searching") {
+  const id = ++tuning;
+  radioOn = true;
+  radioSearching = true;
+  hearingSpeech = false;
+  applyMusicGate(); // 遅らせている前の局の音を、聞き分けないまま録らない
+  if (!radioSource) {
+    const source = Tone.getContext().createMediaElementSource(radioAudio);
+    radioSource = source;
+    Tone.connect(source, radioDelay);
+    void speechNode.then((node) => Tone.connect(source, node));
+  }
+  radioStation = null;
+  showRadioStatus(searchingStatus);
+  showTuneNoise(true);
+  for (let tries = 0; tries < RADIO_TRIES; tries++) {
+    if (radioQueue.length === 0) {
+      try {
+        radioQueue = await findStations();
+      } catch (e) {
+        console.warn(e);
+        break;
+      }
+      if (id !== tuning) return;
+      if (radioQueue.length === 0) break;
+    }
+    const station = radioQueue.shift()!;
+    const ok = await playStation(station);
+    if (id !== tuning) return;
+    if (!ok) continue;
+    radioSearching = false;
+    showTuneNoise(false);
+    radioStation = station;
+    unsureSince = null;
+    speechHistory = [];
+    void speechNode.then((node) => node.port.postMessage("reset"));
+    applyMusicGate();
+    // 鳴らした局を Radio Browser に知らせる（局の人気の集計に使われる）
+    fetch(`${RADIO_API}/json/url/${station.stationuuid}`).catch(() => {});
+    return;
+  }
+  if (id !== tuning) return;
+  stopRadio();
+  showRadioStatus("radioStatus.failed");
+}
+
+function stopRadio() {
+  tuning++;
+  radioOn = false;
+  radioSearching = false;
+  radioAudio.pause();
+  radioAudio.removeAttribute("src");
+  radioAudio.load();
+  showTuneNoise(false);
+  radioStation = null;
+  showRadioStatus(null);
+}
+
+// 放送が途切れたら、別の局を探す
+for (const type of ["ended", "error"]) {
+  radioAudio.addEventListener(type, () => {
+    if (radioOn && !radioSearching) void tune();
+  });
+}
+
+radioNextEl.addEventListener("click", async () => {
+  await page.ensureStarted();
+  void tune();
+});
+
+const showRadioLevel = () => (radioLevelValueEl.value = `${radioLevelEl.value}%`);
+radioLevelEl.addEventListener("input", () => {
+  showRadioLevel();
+  radioIn.gain.rampTo(Number(radioLevelEl.value) / 100, 0.05);
+});
+showRadioLevel();
+// 局の選び方を変えたら、次の選局から新しい条件で探す
+for (const el of [radioSpeechEl, radioSkipPoliticsEl]) el.addEventListener("change", () => (radioQueue = []));
+radioSkipMusicEl.addEventListener("change", () => {
+  unsureSince = null;
+  speechHistory = [];
+  if (radioOn && !radioSearching) applyMusicGate();
+});
 micIn.gain.value = Number(micLevelEl.value) / 100;
 
 // 天気: 空模様でテープが削る高さ（晴れで明るく、雨でこもる）、雲でリバーブが変わる。
@@ -580,6 +834,10 @@ function toggle(button: Button) {
     held = !held;
     fading = false;
   }
+  if (button === "radio") {
+    if (radioOn) stopRadio();
+    else void tune();
+  }
   if (button === "mic") {
     if (micOn()) closeMic();
     else if (!micOpening) void openMic();
@@ -731,8 +989,8 @@ function noteOff(pointerId: number) {
 
 // --- 操作盤（録音ヘッドの右） ---
 
-// 行ごとのボタン。オクターブと逆再生は 1 行に並べる
-const BUTTON_ROWS: Button[][] = [["solo"], ["hold"], ["fade"], ["octave", "reverse"], ["mic"]];
+// 行ごとのボタン。オクターブと逆再生、マイクとラジオは 1 行に並べる
+const BUTTON_ROWS: Button[][] = [["solo"], ["hold"], ["fade"], ["octave", "reverse"], ["mic", "radio"]];
 const BUTTON_HEIGHT = 30;
 const BUTTON_GAP = 8;
 
@@ -878,6 +1136,8 @@ window.addEventListener("keydown", (e) => {
   if (e.key === "m" || e.key === "M") toggle("mic");
   if (e.key === "o" || e.key === "O") toggle("octave");
   if (e.key === "r" || e.key === "R") toggle("reverse");
+  if (e.key === "t" || e.key === "T") toggle("radio");
+  if ((e.key === "n" || e.key === "N") && radioOn) void tune();
 });
 const releaseShift = () => {
   if (!shiftDown) return;
@@ -1043,6 +1303,7 @@ function drawPanel() {
     octave: octave !== 0,
     reverse: reverse !== null && reverse.until === null,
     mic: micOn(),
+    radio: radioOn,
   };
   // 止めるのを待っている逆再生は、枠だけ光らせる
   const pending = reverse?.until != null;
@@ -1094,7 +1355,8 @@ function draw(tape: number) {
 // 録音ヘッドを通り過ぎたテープの位置に、前の周の分（1 周分小さくなる）と、今マイクから入った分を足して書く。
 // テープに残っている一番大きな値を返す
 function updateMicTrack(tape: number): number {
-  const input = micOn() && recording() ? (micMeter.getValue() as number) : 0;
+  const outside = (micOn() ? (micMeter.getValue() as number) : 0) + (radioOn ? (radioMeter.getValue() as number) : 0);
+  const input = recording() ? outside : 0;
   const loss = held ? 1 : feedback.gain.value;
   const to = Math.floor(tape * MIC_BINS);
   const from = Math.max(Math.floor((lastTape ?? tape) * MIC_BINS), to - MIC_BINS);

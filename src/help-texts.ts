@@ -405,8 +405,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     [PAGE_GUIDE]: {
       title: { ja: "Tape の遊び方", en: "How to play Tape" },
       text: withBarNote({
-        ja: "1 本のテープで遊ぶ楽器です。クリックで音を弾き、押したままにすると伸び、ドラッグするとなぞった高さの音を順に弾きます。弾いた音は右の録音ヘッドでテープに録られ、左の再生ヘッドで鳴ると、また録音ヘッドへ戻されて録り重ねられます。戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえます（ブライアン・イーノ『Discreet Music』や、ロバート・フリップとイーノが 2 台のテープレコーダーで作った仕組み）。録音ヘッドの右の操作盤で、残り方を変え、ソロ・ホールド・フェード・マイクを使えます。「オクターブ」（O）は、押すたびに上・下・なしと切り替わり、戻るたびに 1 オクターブずつ上がり（下がり）続けます。「逆再生」（R）は、1 周ごとにテープを裏返して鳴らします。戻ってくる音は終わりから鳴り、次の周はまた順向きに戻るので、順と逆が交互に重なっていきます。止めると、今の 1 周が終わったところで元に戻ります。",
-        en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, Solo, Hold, Fade and Mic. Octave (O) cycles through up, down and off; each time round the repeats move another octave. Reverse (R) flips the tape every turn: what comes back plays from its end, and the next turn flips it forward again, so forward and backward layers build up in turn. When you switch it off, it finishes the current turn first.",
+        ja: "1 本のテープで遊ぶ楽器です。クリックで音を弾き、押したままにすると伸び、ドラッグするとなぞった高さの音を順に弾きます。弾いた音は右の録音ヘッドでテープに録られ、左の再生ヘッドで鳴ると、また録音ヘッドへ戻されて録り重ねられます。戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえます（ブライアン・イーノ『Discreet Music』や、ロバート・フリップとイーノが 2 台のテープレコーダーで作った仕組み）。録音ヘッドの右の操作盤で、残り方を変え、ソロ・ホールド・フェード・マイクを使えます。「オクターブ」（O）は、押すたびに上・下・なしと切り替わり、戻るたびに 1 オクターブずつ上がり（下がり）続けます。「逆再生」（R）は、1 周ごとにテープを裏返して鳴らします。戻ってくる音は終わりから鳴り、次の周はまた順向きに戻るので、順と逆が交互に重なっていきます。止めると、今の 1 周が終わったところで元に戻ります。「ラジオ」（T）は、世界のインターネットラジオをテープに録ります。",
+        en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, Solo, Hold, Fade and Mic. Octave (O) cycles through up, down and off; each time round the repeats move another octave. Reverse (R) flips the tape every turn: what comes back plays from its end, and the next turn flips it forward again, so forward and backward layers build up in turn. When you switch it off, it finishes the current turn first. Radio (T) records internet radio from around the world onto the tape.",
       }),
     },
     '[data-section="tape-voice"] h2': {
@@ -569,6 +569,48 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "スピーカーで聴くときはオンにすると、テープから鳴った音がまたマイクに入って積もり続けるのを抑えます。ヘッドホンで聴くならオフのほうが音がよくなります。",
         en: "With speakers, keep it on so the tape's sound doesn't go back into the mic and keep piling up. With headphones, turn it off for better sound.",
+      },
+    },
+    '[data-section="radio"] h2': {
+      title: { ja: "ラジオ", en: "Radio" },
+      text: {
+        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
+        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you prefer talk stations, skip music and skip political stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
+      },
+    },
+    "#radio-level": {
+      title: { ja: "入力の大きさ", en: "Input level" },
+      text: {
+        ja: "ラジオの音をテープに録る大きさです。放送は途切れずに入り続けるので、残り方が高いとすぐ積もります。小さめから始めてください。",
+        en: "How loud the radio is recorded onto the tape. A broadcast never stops, so with high feedback it piles up quickly; start low.",
+      },
+    },
+    "#radio-speech": {
+      title: { ja: "話の多い局を選ぶ", en: "Prefer talk stations" },
+      text: {
+        ja: "ニュースやトーク、朗読などの局（radio-browser.info で news・talk・spoken のタグが付いた局）から選びます。オフにすると、音楽の局も含めたすべての局から選びます。",
+        en: "Pick from news, talk and spoken-word stations (those tagged news, talk or spoken on radio-browser.info). Turn it off to pick from all stations, music ones included.",
+      },
+    },
+    "#radio-skip-music": {
+      title: { ja: "音楽ならほかの局へ", en: "Skip music" },
+      text: {
+        ja: "放送が音楽になったら、録らずにすぐほかの局を探し、話し声だけを録ります。音の特徴（声の切れ目、音の高さの安定、一定の拍、低音の量）から見分けるため、放送は 4 秒遅れてテープに入り、局を変えた直後は話し声と分かるまで数秒待ちます。20 秒たっても話し声と分からない局も飛ばします。見分けは完全ではなく、ラップや BGM の上の話し声などで迷うことがあります。",
+        en: "When a broadcast turns to music, it isn't recorded and another station is found right away, so only speech goes onto the tape. It tells them apart from the sound itself (pauses between words, steady pitches, a regular beat, the amount of bass), so the broadcast reaches the tape 4 seconds late, and after changing station it waits a few seconds until it hears speech. Stations still unclear after 20 seconds are skipped too. It isn't perfect: rap or talk over background music can confuse it.",
+      },
+    },
+    "#radio-skip-politics": {
+      title: { ja: "政治色の強い局を除く", en: "Skip political stations" },
+      text: {
+        ja: "局の名前やタグに、政治・プロパガンダ・保守・リベラル・政府などの言葉がある局を選びません。タグのない局は見分けられないので、すべてを除けるわけではありません。",
+        en: "Skip stations whose name or tags mention politics, propaganda, conservative, liberal, government and the like. Stations without such tags can't be told apart, so some may still get through.",
+      },
+    },
+    "#radio-next": {
+      title: { ja: "別の局へ", en: "Another station" },
+      text: {
+        ja: "ランダムに別の局へ変えます。ラジオがオフのときは、オンにして局を探します。",
+        en: "Switch to another random station. If the radio is off, this turns it on.",
       },
     },
     "#weather": {
