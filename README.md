@@ -39,6 +39,7 @@ No sound? On iPhone, turn off silent mode.
 - [Vite](https://vite.dev/) + TypeScript
 - 天気データ / Weather data: [Open-Meteo.com](https://open-meteo.com/)（[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)）
 - ピアノの音 / Piano samples: Salamander Grand Piano V3 by Alexander Holm（[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)）
+- ラジオの局の一覧 / Radio station list（Tape、未公開 / unpublished）: [radio-browser.info](https://www.radio-browser.info/)
 
 「天気」をオンにして「現在地」を選ぶと、ブラウザの位置情報を小数点以下 2 桁（約 1 km）に丸めて Open-Meteo に送ります。
 アクセス数の計測に [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/) を使っています。Cookie を使わず、個人を特定する情報は集めません。
@@ -47,6 +48,9 @@ No sound? On iPhone, turn off silent mode.
 When weather is on with “Current location”, your browser location is rounded to two decimal places (about 1 km) and sent to Open-Meteo.
 Page views are measured with [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), which uses no cookies and collects no personally identifying information.
 Nothing else is sent. Only your language and help on/off choices are stored in your browser.
+
+開発中の Tape（未公開）でラジオをオンにすると、局を探すために Radio Browser に問い合わせ、選ばれた放送局から放送を受け取ります。
+In Tape (in development, unpublished), turning the radio on queries Radio Browser for stations and streams the chosen station's broadcast.
 
 ## 開発 / Development
 
@@ -59,6 +63,39 @@ Pushing to `main` builds and deploys to GitHub Pages via GitHub Actions.
 
 開発サーバーでは、音源やエフェクトを試すための Keyboard のページ（`/keyboard.html`）も開けます。公開版には含めていません。
 The development server also serves a Keyboard page (`/keyboard.html`) for trying instruments and effects. It is not part of the published site.
+
+### Tape（未公開 / unpublished）
+
+開発サーバーでは、テープのフィードバック・ループで遊ぶ Tape のページ（`/tape.html`）も開けます。ロバート・フリップとブライアン・イーノの 2 台のテープレコーダー（フリッパートロニクス、『Discreet Music』）に着想を得ています。公開版にはまだ含めていません。
+The development server also serves Tape (`/tape.html`), a feedback tape loop inspired by Robert Fripp and Brian Eno's two-tape-recorder setup (Frippertronics, *Discreet Music*). It is not yet part of the published site.
+
+テープに録る音として、マイクのほかに、世界のインターネットラジオ（[radio-browser.info](https://www.radio-browser.info/) の局）を使えます。T キーでオン・オフ、N キーで別の局へ移ります。放送はスピーカーから直接は鳴らさず、テープにだけ録ります。
+Besides the mic, internet radio from around the world (stations from [radio-browser.info](https://www.radio-browser.info/)) can be recorded onto the tape. T turns it on and off; N moves to another station. The broadcast is only recorded onto the tape, never sent straight to the speakers.
+
+ラジオの設定 / Radio settings:
+
+| 設定 / Setting | はじめ / Default | 内容 / What it does |
+|---|---|---|
+| 断片で録る / Record in fragments | オン / on | 短い断片を間を空けて録り、1 局で 1〜3 個録ると別の局へ移ります。<br>Records short fragments with gaps, moving to another station after 1–3 of them. |
+| 断片の長さ / Fragment length | 8 s | 1 つの断片のおよその長さ（毎回 0.5〜1.5 倍）。<br>Rough length of a fragment (0.5–1.5× each time). |
+| 話の多い局を選ぶ / Prefer talk stations | オン / on | news・talk・spoken のタグの局から選びます。<br>Picks from stations tagged news, talk or spoken. |
+| 音楽ならほかの局へ / Skip music | オン / on | 話し声と分かるまで録らずに聞き分け、音楽と分かったらすぐ別の局へ移ります。<br>Listens before recording; moves on as soon as it hears music. |
+| 政治色の強い局を除く / Skip political stations | オン / on | 名前やタグに politics・propaganda・conservative などがある局を選びません。<br>Skips stations whose name or tags mention politics, propaganda, conservative and the like. |
+
+「話の多い局を選ぶ」は候補にする局を、「音楽ならほかの局へ」はつながった局の音を録るかを決めます。組み合わせによる挙動 / How the two combine:
+
+| 話の多い局 / Talk | 音楽なら別の局 / Skip music | 挙動 / Behaviour |
+|---|---|---|
+| オン / on | オン / on | 話の局から選び、話し声だけを録ります。話の局でも音楽を流していることが多く、局を移る回数は多めです。<br>Talk stations, speech only. Talk stations often play music too, so it changes station fairly often. |
+| オン / on | オフ / off | 話の局の音をそのまま録ります。声にジングルや CM、合間の曲が混ざります。<br>Talk stations as they are: voices mixed with jingles, ads and music between programmes. |
+| オフ / off | オン / on | すべての局から選び、話し声だけを録ります。ほとんどの局は音楽なので飛ばすことが多く、テープはまばらになります。<br>Any station, speech only. Most stations play music, so it skips a lot and the tape stays sparse. |
+| オフ / off | オフ / off | すべての局から選び、何でも録ります。ジョン・ケージ『Imaginary Landscape No. 4』のような、ラジオそのものの寄せ集めに近い形です。<br>Any station, anything goes — close to the radio collage of John Cage's *Imaginary Landscape No. 4*. |
+
+音楽と話し声は、音の特徴（声の切れ目、音の高さの安定、一定の拍、低音の量）から見分けます（`src/tape/speech-detector.ts`）。判定の重みは、110 局の録音に Google の音分類モデル YAMNet で付けた「話し声 / 音楽」に合わせて学習させました（YAMNet はページには含めていません）。判断の時間を取るため、放送は 4 秒遅れてテープに入ります。ラップや BGM の上の話し声では迷うことがあります。
+Music and speech are told apart from the sound itself — pauses between words, steady pitches, a regular beat, the amount of bass (`src/tape/speech-detector.ts`). Its weights were fitted to speech/music labels that Google's YAMNet sound classifier gave to recordings of 110 stations (YAMNet itself is not part of the page). The broadcast reaches the tape 4 seconds late to leave time for the decision. Rap and talk over background music can confuse it.
+
+放送には権利があります。ラジオを使った録音を公開するときは気をつけてください。
+Broadcasts have rights holders; take care when sharing recordings made with the radio.
 
 ### Sonata の録音 / Recording Sonata
 
