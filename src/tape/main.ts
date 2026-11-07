@@ -1071,10 +1071,32 @@ const BUTTON_ROWS: Button[][] = [["solo"], ["hold"], ["fade"], ["octave", "rever
 const BUTTON_HEIGHT = 30;
 const BUTTON_GAP = 8;
 
+// 画面が低く（スマホを横にしたときなど）、操作盤に幅があるときは、ボタンを右に 1 列に並べ、フェーダーに高さを全部使う
+const COMPACT_HEIGHT = 600; // これより低い画面で、
+const COMPACT_WIDTH = 110; // 操作盤の幅がこれ以上あるとき
+const BUTTON_ORDER = BUTTON_ROWS.flat();
+
 // 操作盤の配置。ボタンは下に縦に並べ、フェーダーはその上の残りを使う
 function panel() {
   const left = recX() + 20;
   const right = width - 14;
+  const top = 96;
+  if (height < COMPACT_HEIGHT && right - left >= COMPACT_WIDTH) {
+    const w = (right - left) * 0.5;
+    const x = right - w;
+    const bottom = height - 20;
+    const n = BUTTON_ORDER.length;
+    const buttonsTop = Math.max(top - 30, bottom - n * BUTTON_HEIGHT - (n - 1) * BUTTON_GAP);
+    const h = Math.min(BUTTON_HEIGHT, (bottom - buttonsTop - (n - 1) * BUTTON_GAP) / n);
+    const buttons = BUTTON_ORDER.map((id, i) => ({ id, x, y: buttonsTop + i * (h + BUTTON_GAP), w, h }));
+    const area = x - 8 - left; // フェーダーを置く幅
+    const faderBottom = height - 56; // 下に値を書く分（狭いと 1 行ずらす）を空ける
+    const faders: Record<Fader, { x: number; top: number; bottom: number }> = {
+      feedback: { x: left + area * 0.25, top, bottom: faderBottom },
+      length: { x: left + area * 0.75, top, bottom: faderBottom },
+    };
+    return { left, right: x - 8, buttons, faders };
+  }
   const bottom = height - 44;
   const rows = BUTTON_ROWS.length;
   const buttonsTop = bottom - rows * BUTTON_HEIGHT - (rows - 1) * BUTTON_GAP;
@@ -1089,7 +1111,6 @@ function panel() {
     }));
   });
   // フェーダーは左に残り方、右に 1 周の長さ
-  const top = 96;
   const faderBottom = buttonsTop - 40;
   const faders: Record<Fader, { x: number; top: number; bottom: number }> = {
     feedback: { x: left + (right - left) * 0.28, top, bottom: faderBottom },
@@ -1119,9 +1140,10 @@ function pressPanel(e: PointerEvent) {
     toggle(hit.id);
     return;
   }
-  const { left, right, faders } = panel();
-  if (e.clientY < faders.feedback.bottom + 24) {
-    const which: Fader = e.clientX < (left + right) / 2 ? "feedback" : "length";
+  // フェーダーの範囲（right はフェーダーを置く幅の右端）。近いほうのフェーダーを動かす
+  const { right, faders } = panel();
+  if (e.clientY < faders.feedback.bottom + 24 && e.clientX <= right) {
+    const which: Fader = e.clientX < (faders.feedback.x + faders.length.x) / 2 ? "feedback" : "length";
     faderPointers.set(e.pointerId, which);
     setFaderFrom(which, e.clientY);
   }
