@@ -43,6 +43,8 @@ export function setupGenerativePage(options: {
   applyParams: (params: SoundParams) => void;
   // ページのリバーブと、響きが 3（標準）のときの深さ・残響の長さ。設定の「響き」・天気・変化で動かす
   reverb: { node: Tone.Reverb; wet: number; decay: number };
+  // 設定の「音域」を、ほかのページと共通の register でなく、ページ専用の名前で URL に残すとき（初めの値も変えられる）
+  register?: { param: string; initial: number };
 }) {
   protectOutput();
   setupI18n();
@@ -64,11 +66,12 @@ export function setupGenerativePage(options: {
   let registerLevel = setupLevel(
     document.querySelector<HTMLInputElement>("#register")!,
     document.querySelector<HTMLOutputElement>("#register-value")!,
-    "register",
+    options.register?.param ?? "register",
     (level) => {
       registerLevel = level;
       updatePitches();
     },
+    options.register?.initial,
   );
   let densityLevel = setupLevel(
     document.querySelector<HTMLInputElement>("#density")!,

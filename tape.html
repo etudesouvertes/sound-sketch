@@ -35,17 +35,17 @@
           <span data-i18n="reverbLevel">響き</span>
           <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
         </label>
-        <label><span data-i18n="mellotronLimit">メロトロンは 8 秒で止まる</span> <input id="mellotron-limit" type="checkbox" checked /></label>
+        <label><span data-i18n="mellotronLimit">メロトロンは 8 秒で止まる</span> <input id="mellotron-limit" type="checkbox" /></label>
       </section>
       <section data-section="tape-voice">
         <h2 data-i18n="sec.tapeVoice">テープの音</h2>
         <label>
           <span data-i18n="timbre">音色</span>
           <select id="tape-timbre">
-            <option value="cello" data-i18n="timbre.cello" selected>チェロ</option>
+            <option value="cello" data-i18n="timbre.cello">チェロ</option>
             <option value="cello-bass" data-i18n="timbre.celloBass">チェロ＋コントラバス</option>
             <option value="strings" data-i18n="timbre.strings">ストリングス</option>
-            <option value="mellotron" data-i18n="timbre.mellotron">メロトロン</option>
+            <option value="mellotron" data-i18n="timbre.mellotron" selected>メロトロン</option>
             <option value="clean" data-i18n="timbre.clean">クリーン</option>
             <option value="drive" data-i18n="timbre.drive">ドライブ</option>
           </select>
@@ -100,15 +100,15 @@
         <h2 data-i18n="sec.tape">テープ</h2>
         <label>
           <span data-i18n="tapeLength">1 周の長さ</span>
-          <span class="range"><input id="tape-length" type="range" min="3" max="20" step="any" value="7" /><output id="tape-length-value"></output></span>
+          <span class="range"><input id="tape-length" type="range" min="0" max="1" step="any" value="1" /><output id="tape-length-value"></output></span>
         </label>
         <label>
           <span data-i18n="tapeFeedback">残り方</span>
-          <span class="range"><input id="tape-feedback" type="range" min="0" max="98" step="1" value="80" /><output id="tape-feedback-value"></output></span>
+          <span class="range"><input id="tape-feedback" type="range" min="0" max="98" step="1" value="98" /><output id="tape-feedback-value"></output></span>
         </label>
         <label>
           <span data-i18n="tapeSaturation">歪み</span>
-          <span class="range"><input id="tape-saturation" type="range" min="0" max="100" step="1" value="0" /><output id="tape-saturation-value"></output></span>
+          <span class="range"><input id="tape-saturation" type="range" min="0" max="100" step="1" value="50" /><output id="tape-saturation-value"></output></span>
         </label>
         <label>
           <span data-i18n="tapeLowCut">低音を削る</span>
@@ -120,7 +120,7 @@
         </label>
         <label>
           <span data-i18n="extraHeads">足す再生ヘッド</span>
-          <span class="range"><input id="extra-heads" type="range" min="0" max="3" step="1" value="1" /><output id="extra-heads-value"></output></span>
+          <span class="range"><input id="extra-heads" type="range" min="0" max="3" step="1" value="0" /><output id="extra-heads-value"></output></span>
         </label>
         <label>
           <span data-i18n="fadeLength">フェードの長さ</span>
@@ -129,7 +129,7 @@
       </section>
       <section data-section="auto">
         <h2 data-i18n="sec.auto">自動</h2>
-        <label><span data-i18n="autoTape">自動で弾く</span> <input id="auto" type="checkbox" checked /></label>
+        <label><span data-i18n="autoTape">自動で弾く</span> <input id="auto" type="checkbox" /></label>
       </section>
       <section data-section="mic">
         <h2 data-i18n="sec.mic">マイク</h2>
@@ -143,7 +143,12 @@
         <h2 data-i18n="sec.radio">ラジオ</h2>
         <label>
           <span data-i18n="radioLevel">入力の大きさ</span>
-          <span class="range"><input id="radio-level" type="range" min="0" max="200" step="5" value="30" /><output id="radio-level-value"></output></span>
+          <span class="range"><input id="radio-level" type="range" min="0" max="200" step="5" value="50" /><output id="radio-level-value"></output></span>
+        </label>
+        <label><span data-i18n="radioFragments">断片で録る</span> <input id="radio-fragments" type="checkbox" checked /></label>
+        <label>
+          <span data-i18n="radioFragmentLength">断片の長さ</span>
+          <span class="range"><input id="radio-fragment-length" type="range" min="0.5" max="8" step="0.5" value="8" /><output id="radio-fragment-length-value"></output></span>
         </label>
         <label><span data-i18n="radioSpeech">話の多い局を選ぶ</span> <input id="radio-speech" type="checkbox" checked /></label>
         <label><span data-i18n="radioSkipMusic">音楽ならほかの局へ</span> <input id="radio-skip-music" type="checkbox" checked /></label>

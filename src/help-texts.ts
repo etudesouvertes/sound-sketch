@@ -405,8 +405,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     [PAGE_GUIDE]: {
       title: { ja: "Tape の遊び方", en: "How to play Tape" },
       text: withBarNote({
-        ja: "1 本のテープで遊ぶ楽器です。クリックで音を弾き、押したままにすると伸び、ドラッグするとなぞった高さの音を順に弾きます。弾いた音は右の録音ヘッドでテープに録られ、左の再生ヘッドで鳴ると、また録音ヘッドへ戻されて録り重ねられます。戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえます（ブライアン・イーノ『Discreet Music』や、ロバート・フリップとイーノが 2 台のテープレコーダーで作った仕組み）。録音ヘッドの右の操作盤で、残り方を変え、ソロ・ホールド・フェード・マイクを使えます。「オクターブ」（O）は、押すたびに上・下・なしと切り替わり、戻るたびに 1 オクターブずつ上がり（下がり）続けます。「逆再生」（R）は、1 周ごとにテープを裏返して鳴らします。戻ってくる音は終わりから鳴り、次の周はまた順向きに戻るので、順と逆が交互に重なっていきます。止めると、今の 1 周が終わったところで元に戻ります。「ラジオ」（T）は、世界のインターネットラジオをテープに録ります。",
-        en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, Solo, Hold, Fade and Mic. Octave (O) cycles through up, down and off; each time round the repeats move another octave. Reverse (R) flips the tape every turn: what comes back plays from its end, and the next turn flips it forward again, so forward and backward layers build up in turn. When you switch it off, it finishes the current turn first. Radio (T) records internet radio from around the world onto the tape.",
+        ja: "1 本のテープで遊ぶ楽器です。クリックで音を弾き、押したままにすると伸び、ドラッグするとなぞった高さの音を順に弾きます。弾いた音は右の録音ヘッドでテープに録られ、左の再生ヘッドで鳴ると、また録音ヘッドへ戻されて録り重ねられます。戻るたびに少し小さく、こもっていくので、古い層ほど遠くに聞こえます（ブライアン・イーノ『Discreet Music』や、ロバート・フリップとイーノが 2 台のテープレコーダーで作った仕組み）。録音ヘッドの右の操作盤で、残り方と 1 周の長さを変え、ソロ・ホールド・フェード・マイクを使えます。「オクターブ」（O）は、押すたびに上・下・なしと切り替わり、戻るたびに 1 オクターブずつ上がり（下がり）続けます。「逆再生」（R）は、1 周ごとにテープを裏返して鳴らします。戻ってくる音は終わりから鳴り、次の周はまた順向きに戻るので、順と逆が交互に重なっていきます。止めると、今の 1 周が終わったところで元に戻ります。「ラジオ」（T）は、世界のインターネットラジオをテープに録ります。",
+        en: "An instrument made of one tape loop. Click to play a note, hold to let it ring, or drag to play the notes you pass over. What you play is recorded at the rec head on the right, sounds at the play head on the left, and is fed back to the rec head to be recorded again. Each time round it gets a little quieter and darker, so older layers sound farther away (the setup of Brian Eno's Discreet Music and of Robert Fripp and Eno's two tape recorders). Use the panel right of the rec head for feedback, loop length, Solo, Hold, Fade and Mic. Octave (O) cycles through up, down and off; each time round the repeats move another octave. Reverse (R) flips the tape every turn: what comes back plays from its end, and the next turn flips it forward again, so forward and backward layers build up in turn. When you switch it off, it finishes the current turn first. Radio (T) records internet radio from around the world onto the tape.",
       }),
     },
     '[data-section="tape-voice"] h2': {
@@ -490,15 +490,15 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#tape-length": {
       title: { ja: "1 周の長さ", en: "Loop length" },
       text: {
-        ja: "テープ 1 周の長さ（3〜20 秒）で、弾いた音が戻ってくるまでの時間です。演奏中に動かすと、ヘッドを動かしたときのように、録ってある音の音程がうねります。長くすると下がり、短くすると上がり、速く動かすほど大きくうねります。",
-        en: "The length of one turn of the tape (3–20 s): how long a note takes to come back. Moving it while playing warps the pitch of what's on the tape, as if moving a head: lower as it lengthens, higher as it shortens, and more the faster you move it.",
+        ja: "テープ 1 周の長さ（3〜90 秒）で、弾いた音が戻ってくるまでの時間です。演奏中に動かすと、ヘッドを動かしたときのように、録ってある音の音程がうねります。長くすると下がり、短くすると上がり、速く動かすほど大きくうねります。目盛りは短いほうが細かく、左半分でおよそ 16 秒までです。操作盤の「長さ」のフェーダーと同じです。",
+        en: "The length of one turn of the tape (3–90 s): how long a note takes to come back. Moving it while playing warps the pitch of what's on the tape, as if moving a head: lower as it lengthens, higher as it shortens, and more the faster you move it. The scale is finer at the short end: the left half covers up to about 16 s. Same as the Length fader on the panel.",
       },
     },
     "#tape-feedback": {
       title: { ja: "残り方", en: "Feedback" },
       text: {
-        ja: "1 周ごとに、どれだけの大きさで録り直すかです。0% だと 1 回だけ戻ってきて消え、高いほど長く積もります。98% 近くでは層が重なり続け、歪みながらノイズのように育ちます。操作盤のフェーダーと同じです。",
-        en: "How much is recorded again each time round. At 0% a note comes back once and is gone; higher values let layers pile up longer. Near 98% they keep stacking and grow into a distorted, noisy wash. Same as the fader on the panel.",
+        ja: "1 周ごとに、どれだけの大きさで録り直すかです。0% だと 1 回だけ戻ってきて消え、高いほど長く積もります。98% 近くでは層が重なり続け、歪みながらノイズのように育ちます。操作盤のフェーダーと同じです。ホールドやフェードの間に動かすと、それを解いて手の値になります。",
+        en: "How much is recorded again each time round. At 0% a note comes back once and is gone; higher values let layers pile up longer. Near 98% they keep stacking and grow into a distorted, noisy wash. Same as the fader on the panel. Moving it during Hold or Fade ends them and takes your value.",
       },
     },
     "#tape-saturation": {
@@ -574,8 +574,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="radio"] h2': {
       title: { ja: "ラジオ", en: "Radio" },
       text: {
-        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
-        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you prefer talk stations, skip music and skip political stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
+        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、断片で録る、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
+        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you record in fragments, prefer talk stations, skip music and skip political stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
       },
     },
     "#radio-level": {
@@ -583,6 +583,20 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "ラジオの音をテープに録る大きさです。放送は途切れずに入り続けるので、残り方が高いとすぐ積もります。小さめから始めてください。",
         en: "How loud the radio is recorded onto the tape. A broadcast never stops, so with high feedback it piles up quickly; start low.",
+      },
+    },
+    "#radio-fragments": {
+      title: { ja: "断片で録る", en: "Record in fragments" },
+      text: {
+        ja: "放送を流し続けて録るのでなく、短い断片を、間を空けて録ります。1 局で 1〜3 個録ると、ほかの局へ移ります。断片はテープのあちこちに散らばり、局も変わっていくので、同じ並びは二度と現れません。オフにすると、放送をそのまま録り続けます。",
+        en: "Instead of recording the broadcast continuously, record short fragments with gaps between them. After 1–3 fragments it moves to another station. The fragments end up scattered around the tape and the stations keep changing, so the same collage never comes back. Turn it off to record the broadcast continuously.",
+      },
+    },
+    "#radio-fragment-length": {
+      title: { ja: "断片の長さ", en: "Fragment length" },
+      text: {
+        ja: "1 つの断片のおよその長さです。毎回、この半分から 1.5 倍の間で決まります。断片の後は、断片の 1〜4 倍の間を空けます。",
+        en: "The rough length of one fragment; each one is between half and 1.5 times this. After a fragment comes a gap of 1–4 times its length.",
       },
     },
     "#radio-speech": {

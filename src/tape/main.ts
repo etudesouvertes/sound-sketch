@@ -69,7 +69,8 @@ const AUTO_WINDOW = 0.06; // 録音ヘッドのまわりの、テープのどれ
 const AUTO_CROWDED = 0.6; // 埋まり具合がこれより大きければ、自動では弾かない
 const MIC_ACTIVE = 0.02; // マイクの音がこれより大きいあいだは、弾いているとみなして自動を休む
 const MIC_BINS = 400; // マイクの音の大きさを、テープ 1 周あたりこの数に分けて覚えておく（画面に描く用）
-const PLAY_HEAD = 0.18; // 再生ヘッドの横位置（画面の幅に対する割合）
+const PLAY_HEAD = 0.05; // 再生ヘッドの横位置（画面の幅に対する割合）
+const PLAY_HEAD_MIN = 52; // 再生ヘッドの左に、少なくともこれだけ空ける (px)。音名を書く分
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
 // 足す再生ヘッド。テープの途中を読んで鳴らすだけで、テープへは戻さない（1 周に同じ音が何度か、ずれて聞こえる）。
 // 位置 u はテープの上の位置（0 = 録音ヘッド、1 = 再生ヘッド）。帯の下のつまみで動かす
@@ -118,6 +119,9 @@ const radioStatusEl = document.querySelector<HTMLElement>("#radio-status")!;
 const radioSpeechEl = document.querySelector<HTMLInputElement>("#radio-speech")!;
 const radioSkipMusicEl = document.querySelector<HTMLInputElement>("#radio-skip-music")!;
 const radioSkipPoliticsEl = document.querySelector<HTMLInputElement>("#radio-skip-politics")!;
+const radioFragmentsEl = document.querySelector<HTMLInputElement>("#radio-fragments")!;
+const radioFragmentLengthEl = document.querySelector<HTMLInputElement>("#radio-fragment-length")!;
+const radioFragmentLengthValueEl = document.querySelector<HTMLOutputElement>("#radio-fragment-length-value")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const wearEl = document.querySelector<HTMLInputElement>("#tape-wear")!;
 const wearValueEl = document.querySelector<HTMLOutputElement>("#tape-wear-value")!;
@@ -126,7 +130,10 @@ const soloRecordEl = document.querySelector<HTMLInputElement>("#solo-record")!;
 const extraHeadsEl = document.querySelector<HTMLInputElement>("#extra-heads")!;
 const extraHeadsValueEl = document.querySelector<HTMLOutputElement>("#extra-heads-value")!;
 
-const loopSeconds = () => Number(lengthEl.value);
+// 1 周の長さ (秒)。スライダーは対数の目盛りで、短いほうを細かく動かせる
+const LENGTH_MIN = 3;
+const LENGTH_MAX = 90;
+const loopSeconds = () => LENGTH_MIN * (LENGTH_MAX / LENGTH_MIN) ** Number(lengthEl.value);
 const feedbackAmount = () => Number(feedbackEl.value) / 100;
 // 1 周ごとに低い音を削る (Hz)。低音がたまって濁らないように。下げるとコントラバスの低音も繰り返し残る
 const lowCut = () => Number(lowCutEl.value);
@@ -164,7 +171,7 @@ const reverb = new Tone.Reverb({ decay: 6, wet: 0.35 }).toDestination();
 // 小さい音の残り方は変わらず、層が厚くなるほど早く、強く歪む
 const recordIn = new Tone.Gain(1);
 const writeBus = new Tone.Gain(1); // 録音ヘッドでテープに書く音（弾いた音と、戻した音）
-const tapeDelay = new Tone.Delay({ delayTime: loopSeconds() - LOOP_AFTER, maxDelay: 30 });
+const tapeDelay = new Tone.Delay({ delayTime: loopSeconds() - LOOP_AFTER, maxDelay: LENGTH_MAX + 1 });
 function flatFilter(type: BiquadFilterType, frequency: number) {
   const filter = Tone.getContext().createBiquadFilter();
   filter.type = type;
@@ -241,7 +248,7 @@ saturateOut.connect(tapeOut);
 
 // 足す再生ヘッド。書いた音を u 周分遅らせて鳴らす。使わないヘッドは絞っておく
 const extraHeads = EXTRA_HEADS.map((u) => {
-  const delay = new Tone.Delay({ delayTime: u * loopSeconds(), maxDelay: 30 });
+  const delay = new Tone.Delay({ delayTime: u * loopSeconds(), maxDelay: LENGTH_MAX + 1 });
   const level = new Tone.Gain(0);
   writeBus.chain(delay, level, tapeOut);
   return { u, delay, level };
@@ -421,11 +428,19 @@ const SPEECH_AVERAGE = 5; // 0.5 秒ごとに届く話し声らしさを、こ�
 const SPEECH_OPEN = 0.7; // 平均がこれを超えたら話し声として録り始め、
 const SPEECH_CLOSE = 0.4; // これを下回ったら音楽として、ほかの局へ（間の値では今の状態を保つ）
 const UNSURE_SWITCH = 20; // 話し声と分からないまま（無音や、どちらとも言えない音）これだけ過ぎたら、ほかの局へ (秒)
+// 断片で録る: 放送を流し続けて録るのでなく、短い断片を間を空けて録り、何個か録ったら局を変える。
+// 断片はテープのあちこちに散らばり、局も変わっていくので、同じ並びは二度と現れない
+const FRAGMENT_SPREAD = [0.5, 1.5]; // 断片の長さは、設定の値にこの範囲の倍率をかける
+const FRAGMENT_GAP = [1, 4]; // 断片の後の間は、断片の長さのこの範囲の倍
+const FRAGMENTS_PER_STATION = [1, 3]; // 1 局で録る断片の数（この範囲で選ぶ）
+const FRAGMENT_EDGE = 0.04; // 断片の頭と終わりのフェード (秒)
+const between = ([low, high]: number[]) => low + Math.random() * (high - low);
 
 const radioIn = new Tone.Gain(Number(radioLevelEl.value) / 100);
 const radioDelay = new Tone.Delay(RADIO_DELAY, RADIO_DELAY);
 const musicGate = new Tone.Gain(1); // 音楽の間は閉じる
-radioDelay.chain(musicGate, radioIn);
+const fragmentGate = new Tone.Gain(radioFragmentsEl.checked ? 0 : 1); // 断片で録るとき、断片の間だけ開く
+radioDelay.chain(musicGate, fragmentGate, radioIn);
 const radioCompressor = new Tone.Compressor({ threshold: -24, ratio: 4 });
 const radioHighpass = new Tone.Filter({ type: "highpass", frequency: 120 });
 const radioMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
@@ -439,7 +454,9 @@ const tuneSweep = new Tone.LFO({ frequency: 0.6, min: 300, max: 3000 });
 const tuneLevel = new Tone.Gain(0);
 tuneSweep.connect(tuneFilter.frequency);
 tuneNoise.chain(tuneFilter, tuneLevel, radioIn);
+// 断片で録るときは、選局の雑音は録らない（断片の間を空けておく）
 function showTuneNoise(on: boolean) {
+  if (radioFragmentsEl.checked) on = false;
   if (on && tuneNoise.state !== "started") {
     tuneNoise.start();
     tuneSweep.start();
@@ -492,6 +509,9 @@ async function findStations(): Promise<Station[]> {
 
 // 音楽を見分ける。放送を受けたらすぐ（遅らせる前の音で）判断する
 let radioStation: Station | null = null;
+let stationCount = 0; // つながった局の数（色を順番に変えるため）
+let radioColor = 0; // 今の局の色の番号
+let stationSince = 0; // 今の局につながった時刻 (AudioContext の秒)
 let hearingSpeech = false; // 今、話し声として録っているか
 let unsureSince: number | null = null; // 話し声と分からないまま待ち始めた時刻
 let speechHistory: number[] = []; // 最近の話し声らしさ
@@ -530,10 +550,59 @@ function hearSpeech(speech: number | null) {
 }
 
 // 音楽ならほかの局へ、の設定では、話し声と分かるまで録らずに聞き分ける
+const musicOpen = () => !radioSkipMusicEl.checked || (hearingSpeech && !radioSearching);
 function applyMusicGate() {
-  const open = !radioSkipMusicEl.checked || (hearingSpeech && !radioSearching);
-  musicGate.gain.setTargetAtTime(open ? 1 : 0, Tone.now(), 0.05);
-  if (radioStation && !radioSearching) showRadioStatus(open ? null : "radioStatus.listening", radioStation);
+  musicGate.gain.setTargetAtTime(musicOpen() ? 1 : 0, Tone.now(), 0.05);
+  showStationStatus();
+}
+
+// 局が鳴っているときの表示。聞き分けている間、断片を録っている間はそう出す
+function showStationStatus() {
+  if (!radioStation || radioSearching) return;
+  const key = !musicOpen() ? "radioStatus.listening" : fragmentRecording ? "radioStatus.fragment" : null;
+  showRadioStatus(key, radioStation);
+}
+
+// 断片で録る
+let fragmentTimer: ReturnType<typeof setTimeout> | null = null;
+let fragmentRecording = false;
+let fragmentsLeft = 0; // この局で、あと何個録るか
+
+function waitFragment(seconds: number) {
+  if (fragmentTimer) clearTimeout(fragmentTimer);
+  fragmentTimer = setTimeout(recordFragment, seconds * 1000);
+}
+
+function recordFragment() {
+  fragmentTimer = null;
+  if (!radioOn || !radioFragmentsEl.checked) return;
+  // 局を探している間や、話し声と分かるまで、遅らせている分の音がこの局になるまでは待つ
+  if (radioSearching || !radioStation || !musicOpen() || Tone.now() - stationSince < RADIO_DELAY) {
+    waitFragment(0.5);
+    return;
+  }
+  const length = Number(radioFragmentLengthEl.value) * between(FRAGMENT_SPREAD);
+  const now = Tone.now();
+  fragmentGate.gain.cancelScheduledValues(now).setValueAtTime(0, now).linearRampToValueAtTime(1, now + FRAGMENT_EDGE);
+  fragmentGate.gain.setValueAtTime(1, now + length - FRAGMENT_EDGE).linearRampToValueAtTime(0, now + length);
+  fragmentRecording = true;
+  showStationStatus();
+  fragmentTimer = setTimeout(() => {
+    fragmentTimer = null;
+    fragmentRecording = false;
+    showStationStatus();
+    if (!radioOn || !radioFragmentsEl.checked) return;
+    if (--fragmentsLeft <= 0) void tune();
+    waitFragment(length * between(FRAGMENT_GAP));
+  }, length * 1000);
+}
+
+function stopFragments() {
+  if (fragmentTimer) clearTimeout(fragmentTimer);
+  fragmentTimer = null;
+  fragmentRecording = false;
+  const now = Tone.now();
+  fragmentGate.gain.cancelScheduledValues(now).setTargetAtTime(radioFragmentsEl.checked ? 0 : 1, now, 0.02);
 }
 
 // 局の音が出始めたら true、出せなかったら（CORS で断られた、時間切れなど）false
@@ -591,8 +660,12 @@ async function tune(searchingStatus = "radioStatus.searching") {
     radioSearching = false;
     showTuneNoise(false);
     radioStation = station;
+    radioColor = stationCount++ % STATION_COLORS;
+    stationSince = Tone.now();
     unsureSince = null;
     speechHistory = [];
+    fragmentsLeft = Math.round(between([FRAGMENTS_PER_STATION[0] - 0.49, FRAGMENTS_PER_STATION[1] + 0.49]));
+    if (radioFragmentsEl.checked && !fragmentTimer) waitFragment(0.5);
     void speechNode.then((node) => node.port.postMessage("reset"));
     applyMusicGate();
     // 鳴らした局を Radio Browser に知らせる（局の人気の集計に使われる）
@@ -612,6 +685,7 @@ function stopRadio() {
   radioAudio.removeAttribute("src");
   radioAudio.load();
   showTuneNoise(false);
+  stopFragments();
   radioStation = null;
   showRadioStatus(null);
 }
@@ -636,6 +710,15 @@ radioLevelEl.addEventListener("input", () => {
 showRadioLevel();
 // 局の選び方を変えたら、次の選局から新しい条件で探す
 for (const el of [radioSpeechEl, radioSkipPoliticsEl]) el.addEventListener("change", () => (radioQueue = []));
+radioFragmentsEl.addEventListener("change", () => {
+  stopFragments();
+  if (radioOn && radioSearching) showTuneNoise(true);
+  if (radioOn && radioFragmentsEl.checked) waitFragment(0.5);
+  showStationStatus();
+});
+const showFragmentLength = () => (radioFragmentLengthValueEl.value = `${radioFragmentLengthEl.value} s`);
+radioFragmentLengthEl.addEventListener("input", showFragmentLength);
+showFragmentLength();
 radioSkipMusicEl.addEventListener("change", () => {
   unsureSince = null;
   speechHistory = [];
@@ -650,6 +733,8 @@ const wearCutoff = (w = wear()) => 20000 * 2 ** (-WEAR_DARKEN * w);
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "A" },
   reverb: { node: reverb, wet: 0.35, decay: 6 },
+  // テープの音の音域は Tape だけのもの（はじめは低く。ソロの音域と同じく、ほかのページとは引き継がない）
+  register: { param: "tape-register", initial: 1 },
   applyParams: (params) => {
     lowpass = LOOP_LOWPASS * 2 ** (params.drift.brightness + params.mood.brightness);
     if (!held) loopLowpass.frequency.setTargetAtTime(lowpass, Tone.immediate(), Math.max(params.ramp / 3, 0.01));
@@ -702,7 +787,7 @@ function scheduleReverse() {
   backward.gain.setTargetAtTime(0, off, 0.003);
 }
 
-const showLength = () => (lengthValueEl.value = `${loopSeconds().toFixed(2)} s`);
+const showLength = () => (lengthValueEl.value = `${loopSeconds().toFixed(loopSeconds() < 10 ? 2 : 1)} s`);
 lengthEl.addEventListener("input", () => {
   showLength();
   const now = Tone.immediate();
@@ -746,9 +831,16 @@ let glows: Glow[] = [];
 const touches = new Map<number, Touch>();
 // テープの位置ごとの、マイクの音の大きさ。添え字は 1 周の中の位置
 const micTrack = new Float32Array(MIC_BINS);
+// その位置にいちばん大きく書いた音の色。マイク、選局の雑音、ラジオの局ごとの色の番号
+const SOURCE_MIC = -1;
+const SOURCE_TUNING = -2;
+const trackSource = new Int8Array(MIC_BINS).fill(SOURCE_MIC);
+// ラジオの局の色。つながるたびに順番に変える。色相を 157.5° ずつ回すと、隣の局と大きく違い、16 色すべてが一度ずつ出る
+const STATION_COLORS = 16;
+const stationHue = (n: number) => (200 + n * 157.5) % 360; // 最初の局は青から（マイクの橙と分けるため）
 let lastTape: number | null = null;
 
-const playX = () => width * PLAY_HEAD;
+const playX = () => Math.max(PLAY_HEAD_MIN, width * PLAY_HEAD);
 const recX = () => width * REC_HEAD;
 
 // 周波数の縦位置。今のスケールの音高の間を、対数で補う（スケールを変えたあとの、音階から外れた音も描ける）
@@ -822,8 +914,11 @@ lowCutEl.addEventListener("input", () => {
 });
 showLowCut();
 
+// 残り方を手で動かしたら、ホールドとフェードを解いて、手の値にする（どちらの間も残り方は自動で決まり、動かしても効かないため）
 feedbackEl.addEventListener("input", () => {
   feedbackValueEl.value = `${feedbackEl.value}%`;
+  held = false;
+  fading = false;
   applyLoop();
 });
 feedbackValueEl.value = `${feedbackEl.value}%`;
@@ -1011,18 +1106,27 @@ function panel() {
       h: BUTTON_HEIGHT,
     }));
   });
-  const fader = { x: (left + right) / 2, top: 96, bottom: buttonsTop - 40 };
-  return { left, buttons, fader };
+  // フェーダーは左に残り方、右に 1 周の長さ
+  const top = 96;
+  const faderBottom = buttonsTop - 40;
+  const faders: Record<Fader, { x: number; top: number; bottom: number }> = {
+    feedback: { x: left + (right - left) * 0.28, top, bottom: faderBottom },
+    length: { x: left + (right - left) * 0.72, top, bottom: faderBottom },
+  };
+  return { left, right, buttons, faders };
 }
 
 const inPanel = (x: number) => x > panel().left - 8;
 
-const faderPointers = new Set<number>();
-function setFaderFrom(y: number) {
-  const { fader } = panel();
+type Fader = "feedback" | "length";
+const faderPointers = new Map<number, Fader>();
+function setFaderFrom(which: Fader, y: number) {
+  const fader = panel().faders[which];
   const ratio = Math.min(Math.max((fader.bottom - y) / (fader.bottom - fader.top), 0), 1);
-  feedbackEl.value = String(Math.round(ratio * MAX_FEEDBACK));
-  feedbackEl.dispatchEvent(new Event("input"));
+  // 設定のスライダーを動かしたのと同じにする（長さは対数の目盛りのまま）
+  const el = which === "feedback" ? feedbackEl : lengthEl;
+  el.value = which === "feedback" ? String(Math.round(ratio * MAX_FEEDBACK)) : String(ratio);
+  el.dispatchEvent(new Event("input"));
 }
 
 function pressPanel(e: PointerEvent) {
@@ -1033,9 +1137,11 @@ function pressPanel(e: PointerEvent) {
     toggle(hit.id);
     return;
   }
-  if (e.clientY < panel().fader.bottom + 24) {
-    faderPointers.add(e.pointerId);
-    setFaderFrom(e.clientY);
+  const { left, right, faders } = panel();
+  if (e.clientY < faders.feedback.bottom + 24) {
+    const which: Fader = e.clientX < (left + right) / 2 ? "feedback" : "length";
+    faderPointers.set(e.pointerId, which);
+    setFaderFrom(which, e.clientY);
   }
 }
 
@@ -1079,8 +1185,9 @@ canvas.addEventListener("pointerdown", async (e) => {
 // 「音階で弾く」: なぞって別の音高の帯に入ったら、前の音を離して次の音を弾く。同じ帯の中にいる間は、音を伸ばしたまま。
 // 「なめらかにつなぐ」: 同じ音を伸ばしたまま、指の高さへ音程を動かす
 canvas.addEventListener("pointermove", (e) => {
-  if (faderPointers.has(e.pointerId)) {
-    setFaderFrom(e.clientY);
+  const fader = faderPointers.get(e.pointerId);
+  if (fader) {
+    setFaderFrom(fader, e.clientY);
     return;
   }
   const head = headPointers.get(e.pointerId);
@@ -1232,7 +1339,14 @@ function drawMicTrack(tape: number) {
     if (level < 0.01) continue;
     const u = (((tape - b / MIC_BINS) % 1) + 1) % 1;
     const half = level * height * 0.3;
-    g.fillStyle = `rgba(255, 196, 140, ${0.04 + 0.16 * level})`;
+    const alpha = 0.04 + 0.16 * level;
+    const source = trackSource[b];
+    g.fillStyle =
+      source === SOURCE_MIC
+        ? `rgba(255, 196, 140, ${alpha})`
+        : source === SOURCE_TUNING
+          ? `rgba(200, 200, 208, ${alpha})`
+          : `hsla(${stationHue(source)}, 85%, 72%, ${alpha * 1.4})`;
     g.fillRect(xAt(u) - barWidth / 2, middle - half, barWidth, half * 2);
   }
 }
@@ -1274,27 +1388,37 @@ function drawExtraHead(u: number) {
   g.fillText(tk("tape.playHead"), x, r.bottom - 5);
 }
 
-function drawPanel() {
-  const { buttons, fader } = panel();
-  const ratio = held ? 1 : feedback.gain.value / (MAX_FEEDBACK / 100);
-  const knobY = fader.bottom - Math.min(ratio, 1) * (fader.bottom - fader.top);
-
-  g.font = "11px system-ui, sans-serif";
-  g.textAlign = "center";
+// shift: 名前と値を、何行ずらすか（スマホのように操作盤が狭く、隣のフェーダーの文字と重なるとき）
+function drawFader(fader: { x: number; top: number; bottom: number }, ratio: number, label: string, value: string, bright: boolean, shift = 0) {
+  const knobY = fader.bottom - Math.min(Math.max(ratio, 0), 1) * (fader.bottom - fader.top);
   g.fillStyle = "rgba(232, 232, 236, 0.5)";
-  g.fillText(tk("tapeFeedback"), fader.x, fader.top - 14);
-
+  g.fillText(label, fader.x, fader.top - 14 - shift * 14);
   g.fillStyle = "rgba(255, 255, 255, 0.08)";
   g.fillRect(fader.x - 3, fader.top, 6, fader.bottom - fader.top);
-  g.fillStyle = held ? "rgba(108, 196, 255, 0.9)" : "rgba(108, 196, 255, 0.5)";
+  g.fillStyle = bright ? "rgba(108, 196, 255, 0.9)" : "rgba(108, 196, 255, 0.5)";
   g.fillRect(fader.x - 3, knobY, 6, fader.bottom - knobY);
   g.fillStyle = "#e8e8ec";
   g.beginPath();
   g.arc(fader.x, knobY, 7, 0, Math.PI * 2);
   g.fill();
-
   g.fillStyle = "rgba(232, 232, 236, 0.7)";
-  g.fillText(held ? "∞" : `${Math.round(feedback.gain.value * 100)}%`, fader.x, fader.bottom + 22);
+  g.fillText(value, fader.x, fader.bottom + 22 + shift * 14);
+}
+
+function drawPanel() {
+  const { buttons, faders } = panel();
+  g.font = "11px system-ui, sans-serif";
+  g.textAlign = "center";
+  drawFader(
+    faders.feedback,
+    held ? 1 : feedback.gain.value / (MAX_FEEDBACK / 100),
+    tk("tapeFeedback"),
+    held ? "∞" : `${Math.round(feedback.gain.value * 100)}%`,
+    held,
+  );
+  const seconds = loopSeconds();
+  const crowded = faders.length.x - faders.feedback.x < 60;
+  drawFader(faders.length, Number(lengthEl.value), tk("tape.lengthFader"), `${seconds.toFixed(seconds < 10 ? 1 : 0)} s`, false, crowded ? 1 : 0);
 
   const on: Record<Button, boolean> = {
     solo: solo(),
@@ -1355,14 +1479,19 @@ function draw(tape: number) {
 // 録音ヘッドを通り過ぎたテープの位置に、前の周の分（1 周分小さくなる）と、今マイクから入った分を足して書く。
 // テープに残っている一番大きな値を返す
 function updateMicTrack(tape: number): number {
-  const outside = (micOn() ? (micMeter.getValue() as number) : 0) + (radioOn ? (radioMeter.getValue() as number) : 0);
-  const input = recording() ? outside : 0;
+  const micLevel = micOn() ? (micMeter.getValue() as number) : 0;
+  const radioLevel = radioOn ? (radioMeter.getValue() as number) : 0;
+  const input = recording() ? micLevel + radioLevel : 0;
+  // 大きいほうの色で書く
+  const source = radioLevel > micLevel ? (radioStation ? radioColor : SOURCE_TUNING) : SOURCE_MIC;
   const loss = held ? 1 : feedback.gain.value;
   const to = Math.floor(tape * MIC_BINS);
   const from = Math.max(Math.floor((lastTape ?? tape) * MIC_BINS), to - MIC_BINS);
   for (let i = from + 1; i <= to; i++) {
     const b = ((i % MIC_BINS) + MIC_BINS) % MIC_BINS;
-    micTrack[b] = Math.min(1, micTrack[b] * loss + input);
+    const kept = micTrack[b] * loss;
+    if (input > kept && input > 0.001) trackSource[b] = source;
+    micTrack[b] = Math.min(1, kept + input);
     if (micTrack[b] < 0.001) micTrack[b] = 0;
   }
   lastTape = tape;
@@ -1435,8 +1564,13 @@ function flipMarks(turn: number) {
 
   // マイクの音も、同じように鏡にした位置へ移す
   const before = micTrack.slice();
+  const beforeSource = trackSource.slice();
   const pivot = Math.round(2 * turn * MIC_BINS);
-  for (let b = 0; b < MIC_BINS; b++) micTrack[(((pivot - b - 1) % MIC_BINS) + MIC_BINS) % MIC_BINS] = before[b];
+  for (let b = 0; b < MIC_BINS; b++) {
+    const to = (((pivot - b - 1) % MIC_BINS) + MIC_BINS) % MIC_BINS;
+    micTrack[to] = before[b];
+    trackSource[to] = beforeSource[b];
+  }
 }
 
 let last = performance.now();

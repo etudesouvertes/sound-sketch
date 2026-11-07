@@ -13,7 +13,7 @@ declare function registerProcessor(name: string, ctor: typeof AudioWorkletProces
 // 区切りの 1 つの時刻 (AudioContext の秒) と、1 周の長さ (秒)
 export type ReverseMessage = { start: number; length: number };
 
-const HISTORY = 42; // 覚えておく長さ (秒)。1 周の長さの上限 (20 秒) の 2 倍より少し長く
+const HISTORY = 182; // 覚えておく長さ (秒)。1 周の長さの上限 (90 秒) の 2 倍より少し長く
 const FADE = 0.01; // 区切りの前後でフェードする長さ (秒)
 
 class ReverseProcessor extends AudioWorkletProcessor {

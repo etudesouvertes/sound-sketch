@@ -15,9 +15,10 @@ export function setupLevel(
   outputEl: HTMLOutputElement,
   param: string,
   onChange: (level: number) => void,
+  initial = DEFAULT_LEVEL, // URL に値がないときの初めの値
 ): number {
   const fromUrl = Number(new URLSearchParams(location.search).get(param));
-  inputEl.value = String(Number.isInteger(fromUrl) && fromUrl >= 1 && fromUrl <= 5 ? fromUrl : DEFAULT_LEVEL);
+  inputEl.value = String(Number.isInteger(fromUrl) && fromUrl >= 1 && fromUrl <= 5 ? fromUrl : initial);
   outputEl.value = inputEl.value;
 
   const writeUrl = () => {
