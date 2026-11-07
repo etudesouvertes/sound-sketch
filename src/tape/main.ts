@@ -7,6 +7,7 @@ import { setupLevel } from "../levels";
 import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
 import type { ReverseMessage } from "./reverse-processor";
+import { RadioStream } from "./radio-stream";
 import speechProcessorUrl from "./speech-processor.ts?worker&url";
 import type { SpeechMessage } from "./speech-processor";
 
@@ -418,7 +419,7 @@ showMicLevel();
 const RADIO_API = "https://all.api.radio-browser.info";
 const RADIO_WAIT = 8000; // 1 局の音が出るまで待つ時間 (ミリ秒)
 const RADIO_TRIES = 12; // 1 回の選局で試す局の数
-const RADIO_CODECS = ["MP3", "AAC", "AAC+", "OGG"]; // ブラウザで鳴らせる形式
+const RADIO_CODECS = ["MP3", "AAC", "AAC+"]; // フレームに切って音に戻せる形式（radio-stream.ts）
 type Station = { stationuuid: string; name: string; countrycode: string; url_resolved: string; codec: string; hls: number; tags: string };
 // 話の多い局を探すタグ（部分一致なので、"news talk" や "talk & speech" なども含む）
 const SPEECH_TAGS = ["talk", "news", "spoken"];
@@ -470,10 +471,9 @@ function showTuneNoise(on: boolean) {
   tuneLevel.gain.rampTo(on ? 0.3 : 0, on ? 0.1 : 0.4);
 }
 
-// 放送の音は <audio> で受け、Web Audio に取り出す（取り出すと、スピーカーへは直接鳴らなくなる）
-const radioAudio = new Audio();
-radioAudio.crossOrigin = "anonymous";
-let radioSource: MediaElementAudioSourceNode | null = null;
+// 放送は fetch で受け取り、ページの中で音に戻す（<audio> では iPhone で Web Audio に取り出せないため。radio-stream.ts）
+const radioStream = new RadioStream();
+radioStream.output.connect(radioDelay);
 let radioOn = false;
 let radioSearching = false;
 let radioQueue: Station[] = [];
@@ -531,6 +531,7 @@ const speechNode = Tone.getContext()
       numberOfOutputs: 0,
     });
     node.port.onmessage = (e: MessageEvent<SpeechMessage>) => hearSpeech(e.data.speech);
+    Tone.connect(radioStream.output, node);
     return node;
   });
 
@@ -612,25 +613,11 @@ function stopFragments() {
   fragmentGate.gain.cancelScheduledValues(now).setTargetAtTime(radioFragmentsEl.checked ? 0 : 1, now, 0.02);
 }
 
-// 局の音が出始めたら true、出せなかったら（CORS で断られた、時間切れなど）false
+// 局の音が出始めたら true、出せなかったら（CORS で断られた、形式が違う、時間切れなど）false。
+// 放送が途切れたら、別の局を探す
 function playStation(station: Station): Promise<boolean> {
-  return new Promise((resolve) => {
-    let settled = false;
-    const done = (ok: boolean) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      radioAudio.removeEventListener("playing", onPlaying);
-      radioAudio.removeEventListener("error", onError);
-      resolve(ok);
-    };
-    const onPlaying = () => done(true);
-    const onError = () => done(false);
-    const timer = setTimeout(() => done(false), RADIO_WAIT);
-    radioAudio.addEventListener("playing", onPlaying);
-    radioAudio.addEventListener("error", onError);
-    radioAudio.src = station.url_resolved;
-    radioAudio.play().catch(() => done(false));
+  return radioStream.play(station.url_resolved, RADIO_WAIT, () => {
+    if (radioOn && !radioSearching) void tune();
   });
 }
 
@@ -640,12 +627,6 @@ async function tune(searchingStatus = "radioStatus.searching") {
   radioSearching = true;
   hearingSpeech = false;
   applyMusicGate(); // 遅らせている前の局の音を、聞き分けないまま録らない
-  if (!radioSource) {
-    const source = Tone.getContext().createMediaElementSource(radioAudio);
-    radioSource = source;
-    Tone.connect(source, radioDelay);
-    void speechNode.then((node) => Tone.connect(source, node));
-  }
   radioStation = null;
   showRadioStatus(searchingStatus);
   showTuneNoise(true);
@@ -688,20 +669,11 @@ function stopRadio() {
   tuning++;
   radioOn = false;
   radioSearching = false;
-  radioAudio.pause();
-  radioAudio.removeAttribute("src");
-  radioAudio.load();
+  radioStream.stop();
   showTuneNoise(false);
   stopFragments();
   radioStation = null;
   showRadioStatus(null);
-}
-
-// 放送が途切れたら、別の局を探す
-for (const type of ["ended", "error"]) {
-  radioAudio.addEventListener(type, () => {
-    if (radioOn && !radioSearching) void tune();
-  });
 }
 
 radioNextEl.addEventListener("click", async () => {
