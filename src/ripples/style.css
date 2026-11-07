@@ -376,10 +376,8 @@ input:disabled {
   transition: opacity 1s;
 }
 
-/* Tape: 案内を再生ヘッドと録音ヘッドの間に収める（右の操作盤や左の音名に重ならないように）。位置は src/tape/main.ts の PLAY_HEAD・REC_HEAD と同じ */
+/* Tape: 案内の左右の位置は src/tape/main.ts が再生ヘッドと録音ヘッドに合わせる */
 .hint.tape-hint {
-  left: max(52px, 5%);
-  right: 18%;
   transform: translateY(-50%); /* 中央から下へ伸ばさず、真ん中を画面の中央にそろえる（横向きのスマホで下にはみ出さないように） */
 }
 

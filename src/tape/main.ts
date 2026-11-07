@@ -73,6 +73,11 @@ const MIC_BINS = 400; // マイクの音の大きさを、テープ 1 周あた�
 const PLAY_HEAD = 0.05; // 再生ヘッドの横位置（画面の幅に対する割合）
 const PLAY_HEAD_MIN = 52; // 再生ヘッドの左に、少なくともこれだけ空ける (px)。音名を書く分
 const REC_HEAD = 0.82; // 録音ヘッドの横位置
+// 操作盤（録音ヘッドの右）に少なくともこれだけの幅を取る。狭い画面では、そのぶん録音ヘッドを左へ寄せる
+const PANEL_GAP = 34; // 録音ヘッドと操作盤の間 (20) と、画面の右端との間 (14)
+const BUTTON_MIN_WIDTH = 80; // ボタンの文字（「オクターブ ↑」など）が収まる幅
+const FADERS_MIN_WIDTH = 62; // 横に 1 列に並べたボタンの左に、フェーダー 2 本を置く幅
+const COMPACT_HEIGHT = 600; // これより低い画面（スマホを横にしたときなど）では、ボタンを右に 1 列に並べ、フェーダーに高さを全部使う
 // 足す再生ヘッド。テープの途中を読んで鳴らすだけで、テープへは戻さない（1 周に同じ音が何度か、ずれて聞こえる）。
 // 位置 u はテープの上の位置（0 = 録音ヘッド、1 = 再生ヘッド）。帯の下のつまみで動かす
 const EXTRA_HEADS = [0.5, 0.25, 0.75]; // 足せる数と、はじめの位置
@@ -804,9 +809,18 @@ showFadeLength();
 
 let width = 0;
 let height = 0;
+const playX = () => Math.max(PLAY_HEAD_MIN, width * PLAY_HEAD);
+const compact = () => height < COMPACT_HEIGHT;
+const panelMinWidth = () => (compact() ? BUTTON_MIN_WIDTH + 8 + FADERS_MIN_WIDTH : BUTTON_MIN_WIDTH + 4);
+const recX = () => Math.min(width * REC_HEAD, width - PANEL_GAP - panelMinWidth());
+const hintEl = document.querySelector<HTMLElement>("#hint")!;
+const barEl = document.querySelector<HTMLElement>(".bar")!;
 const g = setupCanvas(canvas, (w, h) => {
   width = w;
   height = h;
+  // 開始時の案内は、再生ヘッドと録音ヘッドの間に収める（右の操作盤や左の音名に重ならないように）
+  hintEl.style.left = `${playX()}px`;
+  hintEl.style.right = `${width - recX()}px`;
 });
 let marks: Mark[] = [];
 let glows: Glow[] = [];
@@ -822,8 +836,6 @@ const STATION_COLORS = 16;
 const stationHue = (n: number) => (200 + n * 157.5) % 360; // 最初の局は青から（マイクの橙と分けるため）
 let lastTape: number | null = null;
 
-const playX = () => Math.max(PLAY_HEAD_MIN, width * PLAY_HEAD);
-const recX = () => width * REC_HEAD;
 
 // 周波数の縦位置。今のスケールの音高の間を、対数で補う（スケールを変えたあとの、音階から外れた音も描ける）
 function yOf(freq: number, pitches: Pitch[]): number {
@@ -1071,22 +1083,21 @@ const BUTTON_ROWS: Button[][] = [["solo"], ["hold"], ["fade"], ["octave", "rever
 const BUTTON_HEIGHT = 30;
 const BUTTON_GAP = 8;
 
-// 画面が低く（スマホを横にしたときなど）、操作盤に幅があるときは、ボタンを右に 1 列に並べ、フェーダーに高さを全部使う
-const COMPACT_HEIGHT = 600; // これより低い画面で、
-const COMPACT_WIDTH = 110; // 操作盤の幅がこれ以上あるとき
 const BUTTON_ORDER = BUTTON_ROWS.flat();
 
 // 操作盤の配置。ボタンは下に縦に並べ、フェーダーはその上の残りを使う
 function panel() {
   const left = recX() + 20;
   const right = width - 14;
-  const top = 96;
-  if (height < COMPACT_HEIGHT && right - left >= COMPACT_WIDTH) {
-    const w = (right - left) * 0.5;
+  // 上のメニューの下から始める（狭い画面ではメニューが 2 段に折り返す）。フェーダーの上には名前を書く分を空ける
+  const barBottom = barEl.getBoundingClientRect().bottom;
+  const top = Math.max(96, barBottom + 34);
+  if (compact()) {
+    const w = Math.max(BUTTON_MIN_WIDTH, (right - left) * 0.5);
     const x = right - w;
     const bottom = height - 20;
     const n = BUTTON_ORDER.length;
-    const buttonsTop = Math.max(top - 30, bottom - n * BUTTON_HEIGHT - (n - 1) * BUTTON_GAP);
+    const buttonsTop = Math.max(barBottom + 10, bottom - n * BUTTON_HEIGHT - (n - 1) * BUTTON_GAP);
     const h = Math.min(BUTTON_HEIGHT, (bottom - buttonsTop - (n - 1) * BUTTON_GAP) / n);
     const buttons = BUTTON_ORDER.map((id, i) => ({ id, x, y: buttonsTop + i * (h + BUTTON_GAP), w, h }));
     const area = x - 8 - left; // フェーダーを置く幅
@@ -1098,9 +1109,11 @@ function panel() {
     return { left, right: x - 8, buttons, faders };
   }
   const bottom = height - 44;
-  const rows = BUTTON_ROWS.length;
+  // 2 つ並べるとボタンの文字が収まらない幅なら（縦向きのスマホなど）、全部 1 列に並べる
+  const buttonRows = right - left < BUTTON_MIN_WIDTH * 2 + BUTTON_GAP ? BUTTON_ORDER.map((id) => [id]) : BUTTON_ROWS;
+  const rows = buttonRows.length;
   const buttonsTop = bottom - rows * BUTTON_HEIGHT - (rows - 1) * BUTTON_GAP;
-  const buttons = BUTTON_ROWS.flatMap((row, i) => {
+  const buttons = buttonRows.flatMap((row, i) => {
     const w = (right - left - (row.length - 1) * BUTTON_GAP) / row.length;
     return row.map((id, j) => ({
       id,
