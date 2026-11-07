@@ -122,6 +122,8 @@ const radioSkipPoliticsEl = document.querySelector<HTMLInputElement>("#radio-ski
 const radioFragmentsEl = document.querySelector<HTMLInputElement>("#radio-fragments")!;
 const radioFragmentLengthEl = document.querySelector<HTMLInputElement>("#radio-fragment-length")!;
 const radioFragmentLengthValueEl = document.querySelector<HTMLOutputElement>("#radio-fragment-length-value")!;
+const radioFragmentGapEl = document.querySelector<HTMLInputElement>("#radio-fragment-gap")!;
+const radioFragmentGapValueEl = document.querySelector<HTMLOutputElement>("#radio-fragment-gap-value")!;
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const wearEl = document.querySelector<HTMLInputElement>("#tape-wear")!;
 const wearValueEl = document.querySelector<HTMLOutputElement>("#tape-wear-value")!;
@@ -430,8 +432,8 @@ const SPEECH_CLOSE = 0.4; // これを下回ったら音楽として、ほかの
 const UNSURE_SWITCH = 20; // 話し声と分からないまま（無音や、どちらとも言えない音）これだけ過ぎたら、ほかの局へ (秒)
 // 断片で録る: 放送を流し続けて録るのでなく、短い断片を間を空けて録り、何個か録ったら局を変える。
 // 断片はテープのあちこちに散らばり、局も変わっていくので、同じ並びは二度と現れない
-const FRAGMENT_SPREAD = [0.5, 1.5]; // 断片の長さは、設定の値にこの範囲の倍率をかける
-const FRAGMENT_GAP = [1, 4]; // 断片の後の間は、断片の長さのこの範囲の倍
+const FRAGMENT_SPREAD = [0.5, 1.5]; // 断片の長さと間は、設定の値にこの範囲の倍率をかける
+// 断片の後の間は、録った断片の長さに、設定の「断片の間」（倍率）をかける
 const FRAGMENTS_PER_STATION = [1, 3]; // 1 局で録る断片の数（この範囲で選ぶ）
 const FRAGMENT_EDGE = 0.04; // 断片の頭と終わりのフェード (秒)
 const between = ([low, high]: number[]) => low + Math.random() * (high - low);
@@ -593,7 +595,7 @@ function recordFragment() {
     showStationStatus();
     if (!radioOn || !radioFragmentsEl.checked) return;
     if (--fragmentsLeft <= 0) void tune();
-    waitFragment(length * between(FRAGMENT_GAP));
+    waitFragment(length * Number(radioFragmentGapEl.value) * between(FRAGMENT_SPREAD));
   }, length * 1000);
 }
 
@@ -719,6 +721,9 @@ radioFragmentsEl.addEventListener("change", () => {
 const showFragmentLength = () => (radioFragmentLengthValueEl.value = `${radioFragmentLengthEl.value} s`);
 radioFragmentLengthEl.addEventListener("input", showFragmentLength);
 showFragmentLength();
+const showFragmentGap = () => (radioFragmentGapValueEl.value = `×${radioFragmentGapEl.value}`);
+radioFragmentGapEl.addEventListener("input", showFragmentGap);
+showFragmentGap();
 radioSkipMusicEl.addEventListener("change", () => {
   unsureSince = null;
   speechHistory = [];

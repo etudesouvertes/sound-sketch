@@ -129,6 +129,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   radioNext: { ja: "別の局へ", en: "Another station" },
   radioFragments: { ja: "断片で録る", en: "Record in fragments" },
   radioFragmentLength: { ja: "断片の長さ", en: "Fragment length" },
+  radioFragmentGap: { ja: "断片の間", en: "Gap between fragments" },
   "radioStatus.fragment": { ja: "✂ 断片を録っています", en: "✂ Recording a fragment" },
   radioSpeech: { ja: "話の多い局を選ぶ", en: "Prefer talk stations" },
   radioSkipMusic: { ja: "音楽ならほかの局へ", en: "Skip music" },

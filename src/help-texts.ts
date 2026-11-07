@@ -595,8 +595,15 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#radio-fragment-length": {
       title: { ja: "断片の長さ", en: "Fragment length" },
       text: {
-        ja: "1 つの断片のおよその長さです。毎回、この半分から 1.5 倍の間で決まります。断片の後は、断片の 1〜4 倍の間を空けます。",
-        en: "The rough length of one fragment; each one is between half and 1.5 times this. After a fragment comes a gap of 1–4 times its length.",
+        ja: "1 つの断片のおよその長さです。毎回、この半分から 1.5 倍の間で決まります。",
+        en: "The rough length of one fragment; each one is between half and 1.5 times this.",
+      },
+    },
+    "#radio-fragment-gap": {
+      title: { ja: "断片の間", en: "Gap between fragments" },
+      text: {
+        ja: "断片の後に空ける間を、録った断片の長さの何倍にするかです。毎回、この半分から 1.5 倍の間で決まります。長いと、静かな中に断片がときどき現れ、短いと断片が続いて層になります。0 にすると間を空けません（局を移るときの局探しの時間だけ空きます）。",
+        en: "How long the gap after a fragment is, as a multiple of that fragment's length; each gap is between half and 1.5 times this. Long gaps let fragments appear now and then in the quiet; short ones run them together into a layer. At 0 there is no gap (except the time spent tuning to another station).",
       },
     },
     "#radio-speech": {
