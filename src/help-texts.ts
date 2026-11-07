@@ -574,8 +574,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="radio"] h2': {
       title: { ja: "ラジオ", en: "Radio" },
       text: {
-        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、断片で録る、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
-        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you record in fragments, prefer talk stations, skip music and skip political stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
+        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、断片で録る、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、宗教の局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
+        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you record in fragments, prefer talk stations, skip music, skip political stations and skip religious stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
       },
     },
     "#radio-level": {
@@ -625,6 +625,13 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: {
         ja: "局の名前やタグに、政治・プロパガンダ・保守・リベラル・政府などの言葉がある局を選びません。タグのない局は見分けられないので、すべてを除けるわけではありません。",
         en: "Skip stations whose name or tags mention politics, propaganda, conservative, liberal, government and the like. Stations without such tags can't be told apart, so some may still get through.",
+      },
+    },
+    "#radio-skip-religion": {
+      title: { ja: "宗教の局を除く", en: "Skip religious stations" },
+      text: {
+        ja: "局の名前やタグに、キリスト教・イスラム教・教会・ゴスペル・説教・聖書・礼拝などの言葉がある局を選びません。タグのない局は見分けられないので、すべてを除けるわけではありません。",
+        en: "Skip stations whose name or tags mention Christianity, Islam, church, gospel, sermons, the Bible, worship and the like. Stations without such tags can't be told apart, so some may still get through.",
       },
     },
     "#radio-next": {

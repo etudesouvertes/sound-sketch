@@ -50,6 +50,7 @@ export default defineConfig(({ command }) => ({
         ripples: page("./ripples.html"),
         phase: page("./phase.html"),
         loops: page("./loops.html"),
+        tape: page("./tape.html"),
         sonata: page("./sonata.html"),
       },
     },

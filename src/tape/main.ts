@@ -119,6 +119,7 @@ const radioStatusEl = document.querySelector<HTMLElement>("#radio-status")!;
 const radioSpeechEl = document.querySelector<HTMLInputElement>("#radio-speech")!;
 const radioSkipMusicEl = document.querySelector<HTMLInputElement>("#radio-skip-music")!;
 const radioSkipPoliticsEl = document.querySelector<HTMLInputElement>("#radio-skip-politics")!;
+const radioSkipReligionEl = document.querySelector<HTMLInputElement>("#radio-skip-religion")!;
 const radioFragmentsEl = document.querySelector<HTMLInputElement>("#radio-fragments")!;
 const radioFragmentLengthEl = document.querySelector<HTMLInputElement>("#radio-fragment-length")!;
 const radioFragmentLengthValueEl = document.querySelector<HTMLOutputElement>("#radio-fragment-length-value")!;
@@ -424,6 +425,9 @@ const SPEECH_TAGS = ["talk", "news", "spoken"];
 // 政治色の強い局。局の名前とタグで見分ける（progressive rock のような音楽のジャンルは除かない）
 const POLITICAL =
   /politi|propagand|conservative|liberal\b|progressive(?!\s*(rock|house|trance|metal|psy|music))|patriot|government|opinion|activis|socialis|communis|nationalis|election|sputnik|voice of korea/i;
+// 宗教の局。局の名前とタグで見分ける（Christchurch のような地名や、フランス語の émission には当てない）
+const RELIGIOUS =
+  /christ(?!church)|(?<!christ)church|religi|islam|muslim|quran|coran|gospel|sermon|preach|bible|biblical|worship|catholi|evangel|pentecost|baptist|adventist|jesus|cristo|cristian|iglesia|igreja|kirche|\bkerk|église|chrétien|hindu|bhajan|buddhis|sikh|gurbani|kirtan|jewish|torah|devotion|spiritual|faith|ministr|prayer|radio mar[ií]a|vatican|dharma|\bgod\b|\blord\b|salvation|hymn|holy|sacred|messianic|apostol|missionar/i;
 // 音楽を見分けるため、放送を遅らせてからテープに送る。その音を含む判断が出そろってから録るかを決める
 const RADIO_DELAY = 4;
 const SPEECH_AVERAGE = 5; // 0.5 秒ごとに届く話し声らしさを、これだけ平均して使う
@@ -499,6 +503,7 @@ async function findStations(): Promise<Station[]> {
     if (seen.has(s.stationuuid)) return false;
     seen.add(s.stationuuid);
     if (radioSkipPoliticsEl.checked && POLITICAL.test(`${s.name} ${s.tags}`)) return false;
+    if (radioSkipReligionEl.checked && RELIGIOUS.test(`${s.name} ${s.tags}`)) return false;
     return s.hls === 0 && RADIO_CODECS.includes(s.codec.toUpperCase());
   });
   // いくつかのタグで探した局を混ぜる
@@ -711,7 +716,7 @@ radioLevelEl.addEventListener("input", () => {
 });
 showRadioLevel();
 // 局の選び方を変えたら、次の選局から新しい条件で探す
-for (const el of [radioSpeechEl, radioSkipPoliticsEl]) el.addEventListener("change", () => (radioQueue = []));
+for (const el of [radioSpeechEl, radioSkipPoliticsEl, radioSkipReligionEl]) el.addEventListener("change", () => (radioQueue = []));
 radioFragmentsEl.addEventListener("change", () => {
   stopFragments();
   if (radioOn && radioSearching) showTuneNoise(true);

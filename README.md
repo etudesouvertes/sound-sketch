@@ -9,14 +9,15 @@ A collection of generative music sketches that play right in your browser.
 
 ### Sketches
 
-触ると変わり、終わらずに鳴り続ける音楽。ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。
-Music that changes as you touch it and never ends. Made with deep respect for the music and ideas of Brian Eno and Steve Reich.
+触ると変わり、終わらずに鳴り続ける音楽。ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップの音楽と、その手法への敬意を込めて。
+Music that changes as you touch it and never ends. Made with deep respect for the music and ideas of Brian Eno, Steve Reich and Robert Fripp.
 
 | | |
 |---|---|
 | **Ripples** | クリックした場所から波紋が広がり、画面の端や別の波紋にぶつかると音が鳴ります。<br>Ripples spread from where you click and sound when they hit the edge or each other. |
 | **Phase** | 周期がわずかに違うループが、少しずつずれていきます。スティーヴ・ライヒのフェイジング（『Piano Phase』など）に着想を得ています。<br>Loops with slightly different periods slowly drift apart, inspired by Steve Reich's phasing (e.g. *Piano Phase*). |
 | **Loops** | 長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。ブライアン・イーノ『Music for Airports』の手法に着想を得ています。<br>Tape loops of different lengths overlap so the same harmony almost never returns, inspired by Brian Eno's *Music for Airports*. |
+| **Tape** | 1 本のテープに弾いた音が録り重ねられ、1 周ごとに少しずつ遠ざかっていきます。ロバート・フリップとブライアン・イーノの 2 台のテープレコーダー（フリッパートロニクス、『Discreet Music』）に着想を得ています。マイクで楽器を、世界のインターネットラジオから声の断片も録れます（[ラジオ](#tape-のラジオ--tapes-radio)）。<br>What you play is layered onto a single tape loop and drifts a little further away each time round, inspired by Robert Fripp and Brian Eno's two-tape-recorder setup (Frippertronics, *Discreet Music*). You can also record an instrument with the mic, or fragments of voices from internet radio around the world ([radio](#tape-のラジオ--tapes-radio)). |
 
 ### Sonatas
 
@@ -33,41 +34,7 @@ Each piece can use scales from Japan, China, the Middle East, India, Bali and mo
 音が出ないときは、iPhone のマナーモードを解除してください。
 No sound? On iPhone, turn off silent mode.
 
-## 使っているもの / Built with
-
-- [Tone.js](https://tonejs.github.io/)（MIT License）と Web Audio API（AudioWorklet を含む）
-- [Vite](https://vite.dev/) + TypeScript
-- 天気データ / Weather data: [Open-Meteo.com](https://open-meteo.com/)（[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)）
-- ピアノの音 / Piano samples: Salamander Grand Piano V3 by Alexander Holm（[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)）
-- ラジオの局の一覧 / Radio station list（Tape、未公開 / unpublished）: [radio-browser.info](https://www.radio-browser.info/)
-
-「天気」をオンにして「現在地」を選ぶと、ブラウザの位置情報を小数点以下 2 桁（約 1 km）に丸めて Open-Meteo に送ります。
-アクセス数の計測に [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/) を使っています。Cookie を使わず、個人を特定する情報は集めません。
-それ以外の情報は送信しません。ブラウザには、表示言語と説明のオン・オフだけを保存します。
-
-When weather is on with “Current location”, your browser location is rounded to two decimal places (about 1 km) and sent to Open-Meteo.
-Page views are measured with [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), which uses no cookies and collects no personally identifying information.
-Nothing else is sent. Only your language and help on/off choices are stored in your browser.
-
-開発中の Tape（未公開）でラジオをオンにすると、局を探すために Radio Browser に問い合わせ、選ばれた放送局から放送を受け取ります。
-In Tape (in development, unpublished), turning the radio on queries Radio Browser for stations and streams the chosen station's broadcast.
-
-## 開発 / Development
-
-```sh
-docker compose up -d   # http://localhost:5180
-```
-
-`main` に push すると、GitHub Actions でビルドして GitHub Pages に公開します。
-Pushing to `main` builds and deploys to GitHub Pages via GitHub Actions.
-
-開発サーバーでは、音源やエフェクトを試すための Keyboard のページ（`/keyboard.html`）も開けます。公開版には含めていません。
-The development server also serves a Keyboard page (`/keyboard.html`) for trying instruments and effects. It is not part of the published site.
-
-### Tape（未公開 / unpublished）
-
-開発サーバーでは、テープのフィードバック・ループで遊ぶ Tape のページ（`/tape.html`）も開けます。ロバート・フリップとブライアン・イーノの 2 台のテープレコーダー（フリッパートロニクス、『Discreet Music』）に着想を得ています。公開版にはまだ含めていません。
-The development server also serves Tape (`/tape.html`), a feedback tape loop inspired by Robert Fripp and Brian Eno's two-tape-recorder setup (Frippertronics, *Discreet Music*). It is not yet part of the published site.
+## Tape のラジオ / Tape's radio
 
 テープに録る音として、マイクのほかに、世界のインターネットラジオ（[radio-browser.info](https://www.radio-browser.info/) の局）を使えます。T キーでオン・オフ、N キーで別の局へ移ります。放送はスピーカーから直接は鳴らさず、テープにだけ録ります。
 Besides the mic, internet radio from around the world (stations from [radio-browser.info](https://www.radio-browser.info/)) can be recorded onto the tape. T turns it on and off; N moves to another station. The broadcast is only recorded onto the tape, never sent straight to the speakers.
@@ -82,6 +49,7 @@ Besides the mic, internet radio from around the world (stations from [radio-brow
 | 話の多い局を選ぶ / Prefer talk stations | オン / on | news・talk・spoken のタグの局から選びます。<br>Picks from stations tagged news, talk or spoken. |
 | 音楽ならほかの局へ / Skip music | オン / on | 話し声と分かるまで録らずに聞き分け、音楽と分かったらすぐ別の局へ移ります。<br>Listens before recording; moves on as soon as it hears music. |
 | 政治色の強い局を除く / Skip political stations | オン / on | 名前やタグに politics・propaganda・conservative などがある局を選びません。<br>Skips stations whose name or tags mention politics, propaganda, conservative and the like. |
+| 宗教の局を除く / Skip religious stations | オン / on | 名前やタグに christian・islam・church・gospel・sermon などがある局を選びません。<br>Skips stations whose name or tags mention christian, islam, church, gospel, sermon and the like. |
 
 「話の多い局を選ぶ」は候補にする局を、「音楽ならほかの局へ」はつながった局の音を録るかを決めます。組み合わせによる挙動 / How the two combine:
 
@@ -97,6 +65,37 @@ Music and speech are told apart from the sound itself — pauses between words, 
 
 放送には権利があります。ラジオを使った録音を公開するときは気をつけてください。
 Broadcasts have rights holders; take care when sharing recordings made with the radio.
+
+## 使っているもの / Built with
+
+- [Tone.js](https://tonejs.github.io/)（MIT License）と Web Audio API（AudioWorklet を含む）
+- [Vite](https://vite.dev/) + TypeScript
+- 天気データ / Weather data: [Open-Meteo.com](https://open-meteo.com/)（[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)）
+- ピアノの音 / Piano samples: Salamander Grand Piano V3 by Alexander Holm（[CC BY 3.0](https://creativecommons.org/licenses/by/3.0/)）
+- ラジオの局の一覧 / Radio station list（Tape）: [radio-browser.info](https://www.radio-browser.info/)
+
+「天気」をオンにして「現在地」を選ぶと、ブラウザの位置情報を小数点以下 2 桁（約 1 km）に丸めて Open-Meteo に送ります。
+アクセス数の計測に [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/) を使っています。Cookie を使わず、個人を特定する情報は集めません。
+それ以外の情報は送信しません。ブラウザには、表示言語と説明のオン・オフだけを保存します。
+
+When weather is on with “Current location”, your browser location is rounded to two decimal places (about 1 km) and sent to Open-Meteo.
+Page views are measured with [Cloudflare Web Analytics](https://www.cloudflare.com/web-analytics/), which uses no cookies and collects no personally identifying information.
+Nothing else is sent. Only your language and help on/off choices are stored in your browser.
+
+Tape でラジオをオンにすると、局を探すために Radio Browser に問い合わせ、選ばれた放送局から放送を受け取ります。
+In Tape, turning the radio on queries Radio Browser for stations and streams the chosen station's broadcast.
+
+## 開発 / Development
+
+```sh
+docker compose up -d   # http://localhost:5180
+```
+
+`main` に push すると、GitHub Actions でビルドして GitHub Pages に公開します。
+Pushing to `main` builds and deploys to GitHub Pages via GitHub Actions.
+
+開発サーバーでは、音源やエフェクトを試すための Keyboard のページ（`/keyboard.html`）も開けます。公開版には含めていません。
+The development server also serves a Keyboard page (`/keyboard.html`) for trying instruments and effects. It is not part of the published site.
 
 ### Sonata の録音 / Recording Sonata
 

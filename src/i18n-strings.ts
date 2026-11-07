@@ -134,6 +134,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   radioSpeech: { ja: "話の多い局を選ぶ", en: "Prefer talk stations" },
   radioSkipMusic: { ja: "音楽ならほかの局へ", en: "Skip music" },
   radioSkipPolitics: { ja: "政治色の強い局を除く", en: "Skip political stations" },
+  radioSkipReligion: { ja: "宗教の局を除く", en: "Skip religious stations" },
   "radioStatus.listening": { ja: "👂 話し声か聞き分けています", en: "👂 Checking for speech" },
   "radioStatus.skipMusic": { ja: "📻 音楽だったので、ほかの局を探しています…", en: "📻 Music — tuning to another station…" },
   "radioStatus.searching": { ja: "📻 局を探しています…", en: "📻 Tuning…" },
@@ -179,12 +180,12 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     en: "Tape loops of different lengths overlap, so the same harmony almost never returns.",
   },
   "home.tape": {
-    ja: "1 本のテープに弾いた音が録り重ねられ、少しずつ遠ざかっていきます。マイクで楽器も録れます。",
-    en: "What you play is layered onto a single tape loop and slowly drifts away. You can record an instrument with the mic too.",
+    ja: "1 本のテープに弾いた音が録り重ねられ、少しずつ遠ざかっていきます。マイクで楽器を、世界のラジオから声の断片も録れます。",
+    en: "What you play is layered onto a single tape loop and slowly drifts away. You can also record an instrument with the mic, or fragments of voices from radio around the world.",
   },
   "home.respect": {
-    ja: "ブライアン・イーノとスティーヴ・ライヒの音楽と、その手法への敬意を込めて。",
-    en: "Made with deep respect for the music and ideas of Brian Eno and Steve Reich.",
+    ja: "ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップの音楽と、その手法への敬意を込めて。",
+    en: "Made with deep respect for the music and ideas of Brian Eno, Steve Reich and Robert Fripp.",
   },
   "home.sonatas": {
     ja: "作曲家の手法で作る、3 楽章のピアノソナタ。",
