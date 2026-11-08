@@ -33,10 +33,74 @@ function stripUnpublished(): Plugin {
   };
 }
 
+// SNS でリンクを貼ったときのカード（OGP）。画像は public/og.png、URL は公開先の絶対 URL にする
+const SITE_URL = "https://etudesouvertes.github.io/sound-sketch/";
+
+const OGP_PAGES: Record<string, { title: string; description: string }> = {
+  "index.html": {
+    title: "sound-sketch",
+    description: "ブラウザだけで鳴る、ジェネレーティブ音楽のスケッチ集。A collection of generative music sketches that play in your browser.",
+  },
+  "ripples.html": {
+    title: "Ripples - sound-sketch",
+    description: "クリックした場所から波紋が広がり、ぶつかると音が鳴ります。Ripples spread from where you click and sound when they hit.",
+  },
+  "phase.html": {
+    title: "Phase - sound-sketch",
+    description: "周期がわずかに違うループが、少しずつずれていきます。Loops with slightly different periods slowly drift apart.",
+  },
+  "loops.html": {
+    title: "Loops - sound-sketch",
+    description: "長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。Tape loops of different lengths overlap, so the same harmony almost never returns.",
+  },
+  "tape.html": {
+    title: "Tape - sound-sketch",
+    description: "弾いた音が 1 本のテープに録り重ねられ、1 周ごとに遠ざかっていきます。What you play is layered onto a tape loop and drifts further away each time round.",
+  },
+  "sonata.html": {
+    title: "Sonata - sound-sketch",
+    description: "12 人の作曲家の作り方だけを借りた、3 楽章のピアノソナタ。Three-movement piano sonatas built from twelve composers' methods.",
+  },
+  "duo.html": {
+    title: "Duo - sound-sketch",
+    description: "二人のギタリストが、2 台のピアノで連弾したら。As if two guitarists sat down at two pianos.",
+  },
+};
+
+function ogp(): Plugin {
+  return {
+    name: "ogp",
+    apply: "build",
+    transformIndexHtml: (_html, ctx) => {
+      const file = ctx.filename.split("/").pop() ?? "";
+      const page = OGP_PAGES[file];
+      if (!page) return [];
+      const url = file === "index.html" ? SITE_URL : SITE_URL + file;
+      const meta = (attr: "property" | "name", key: string, content: string) => ({
+        tag: "meta",
+        attrs: { [attr]: key, content },
+        injectTo: "head" as const,
+      });
+      return [
+        meta("property", "og:type", "website"),
+        meta("property", "og:site_name", "sound-sketch"),
+        meta("property", "og:title", page.title),
+        meta("property", "og:description", page.description),
+        meta("property", "og:url", url),
+        meta("property", "og:image", SITE_URL + "og.png"),
+        meta("property", "og:image:width", "1200"),
+        meta("property", "og:image:height", "630"),
+        meta("property", "og:image:alt", "sound-sketch — Études ouvertes"),
+        meta("name", "twitter:card", "summary_large_image"),
+      ];
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   // GitHub Pages では https://etudesouvertes.github.io/sound-sketch/ で公開する
   base: command === "build" ? "/sound-sketch/" : "/",
-  plugins: [cloudflareAnalytics(), stripUnpublished()],
+  plugins: [cloudflareAnalytics(), stripUnpublished(), ogp()],
   server: {
     host: "0.0.0.0",
     port: 5173,
