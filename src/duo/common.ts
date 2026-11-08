@@ -43,11 +43,14 @@ export const LEGEND_Y = 62;
 export const INFO_Y = 74;
 // 上端の案内（凡例と楽章ごとの仕組み）の左端。画面が低くて五線が案内の高さまで上がってくるときは、
 // 音部記号と調号に重ならないよう、その右から書く
+// 右に寄せる幅が残らないほど狭い画面では、左端のまま（音部記号に重なる）。
 // bottom は案内の下端（組ごとに行の数が違う）。楽章は、音を描く範囲の上端まで下げた座標で描くので、その分を足して比べる
 export function guideLeft(g: CanvasRenderingContext2D, bottom: number): number {
   const m = g.getTransform();
   const shift = m.f / (m.d || 1);
-  return shift + bottom > clefTop() ? musicFrom(16) : MARGIN_LEFT;
+  if (shift + bottom <= clefTop()) return MARGIN_LEFT;
+  // 縦向きの電話で調号が多いと、右に寄せると画面に収まらない。そのときは重なっても左から書く
+  return g.canvas.clientWidth - musicFrom(16) >= 230 ? musicFrom(16) : MARGIN_LEFT;
 }
 const NAMES: L[] = [
   { ja: "ピアノ I（左）", en: "Piano I (left)" },

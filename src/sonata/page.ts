@@ -617,12 +617,12 @@ export function sonataPage(config: PageConfig) {
         const initials = document.createElement("span");
         initials.className = "composer-initials";
         initials.textContent = s.initials;
-        // 名前を目立たせ、「の手法による」「after」は小さく添える
+        // 名前を目立たせ、「の手法による」「after」は小さく添える（credit のある作品は、一覧では名前だけ。「二人のギタリスト」）
         const label = document.createElement("span");
         const after = document.createElement("span");
         after.className = "composer-after";
         if (s.credit) {
-          label.append(t(s.credit));
+          label.append(t(s.composer));
         } else if (getLang() === "ja") {
           after.textContent = "の手法による";
           label.append(t(s.composer), after);

@@ -737,3 +737,39 @@ HELP_BY_PAGE.duo = {
       " Two Kora Players (the kora is a 21-string West African harp; it starts in F major, with Major, Lydian, Mixolydian and Dorian on offer): every movement turns a 12-pulse cycle (one bar of 12/8), the low notes marking four dotted-quarter beats and the high notes six pairs, so three runs against two. I. Kumbengo (one turns the accompaniment pattern, the kumbengo, while the other fills its gaps or plays fast runs that pour down from high up, the birimintingo, and they swap; the chord cycle travels away from the tonic and back), II. Song (over a sparse turning pattern one plays a sung melody of long notes coming down; they swap partway, and near the end trade phrases every two cycles), III. Quickening (from the two patterns interlocking it gradually speeds up; the runs pass back and forth every two cycles, then every cycle, and at the end both pour down a third apart, return to the pattern and stop). The boxes at the top are the 12 pulses, with the current chord beside them and the two pianos' roles below. Click to pour a short run down from that height.",
   };
 }
+
+// 二人のドラマー（弦楽器奏者とギタリストのあいだに説明を足す）
+{
+  const duo = HELP_BY_PAGE.duo;
+  const insert = (text: { ja: string; en: string }, before: { ja: string; en: string }, add: { ja: string; en: string }) => ({
+    ja: text.ja.replace(before.ja, add.ja + before.ja),
+    en: text.en.replace(before.en, add.en + before.en),
+  });
+  duo["#composer"].text = insert(duo["#composer"].text, { ja: "二人のギタリスト（", en: "Two Guitarists (" }, {
+    ja: "二人のドラマー（ピアノを打楽器として使う。ドラムの 1 つ 1 つを決まった高さの短い音に割り当て、キックは低い主音、タムは 5 度・主音・3 度、スネアは隣り合う 2 音、ハイハットとシンバルは高い音。タムの高さが区切りごとに移るので、ドラムだけで和音が進む。ピアノ I はジャズの、ピアノ II はアフロビートのドラマー。初めは D のドリアンで、旋法はドリアン・エオリアン・ミクソリディアン・フリジア）: I. 重ね（ピアノ II がハイハット・キック・スネア・ゴースト・タムと手足を 1 本ずつ重ねて刻みを作り、ピアノ I がライドの 4 ビートで加わる。ピアノ I のタムの旋律は 1 小節ごとに、繰り返す・ずらす・高低を裏返すなどして育つ。ソロを交代して、最後は手足を 1 本ずつ外す）、II. ワルツ（ピアノ I は 3/4、ピアノ II は 4/4 で、4 小節と 3 小節で頭が揃う。途中で拍子を入れ替え、最後は 2 人とも 3/4 で揃う）、III. 揃う（ソロの交代が 4 小節から 1 小節まで短くなり、少しずつ速くなる。ピアノ I が 5/4 で崩したあと、2 台で同じ打点（キメ）を打ち、2 人のソロからシンバルで終わる）。上端の箱が台ごとの 1 小節で、打った所が明るい。横に役と拍子、下にタムの主音。クリックすると、その高さの音を 3 つ連打する）。 ",
+    en: "Two Drummers (the pianos are played as drums: each drum is a short note at a fixed height, the kick on the low root, the toms on the fifth, root and third, the snare as two neighbouring notes, hi-hat and cymbals up high; the toms move to a new root between sections, so the drums alone carry the harmony. Piano I is a jazz drummer, piano II an Afrobeat drummer. It starts in D Dorian, with Dorian, Aeolian, Mixolydian and Phrygian on offer): I. Layers (piano II builds a groove limb by limb, hi-hat, kick, snare, ghost notes, toms; piano I joins with swing on the ride. Piano I's melodic tom figure grows bar by bar, repeated, shifted, turned upside down; they trade solos, and at the end the limbs drop out one by one), II. Waltz (piano I in 3/4 against piano II in 4/4, meeting every four bars of three; they swap metres midway and end both in 3/4), III. Converge (traded solos shrink from four bars to one while the tempo creeps up; piano I breaks into 5/4, then both pianos play the same hits together and end with two solos and a cymbal). The top boxes show one bar per piano, lit where it struck, with its role and metre beside it and the toms' root below. Click to play the note at that height three times). ",
+  });
+  for (const [id, mode, root] of [
+    ["#key-mode", { ja: "二人のドラマーはドリアン・エオリアン・ミクソリディアン・フリジア、初めはドリアン。", en: "Two Drummers: Dorian, Aeolian, Mixolydian or Phrygian, starting at Dorian; " }, { ja: "二人のギタリスト", en: "Two Guitarists" }],
+    ["#key-root", { ja: "二人のドラマーは D、", en: "Two Drummers: D; " }, { ja: "二人のギタリスト", en: "Two Guitarists" }],
+  ] as const)
+    duo[id].text = insert(duo[id].text, root, mode);
+}
+
+// 二人の録音技師（ギタリストとコラ奏者のあいだに説明を足す）
+{
+  const duo = HELP_BY_PAGE.duo;
+  const insert = (text: { ja: string; en: string }, before: { ja: string; en: string }, add: { ja: string; en: string }) => ({
+    ja: text.ja.replace(before.ja, add.ja + before.ja),
+    en: text.en.replace(before.en, add.en + before.en),
+  });
+  duo["#composer"].text = insert(duo["#composer"].text, { ja: " 二人のコラ奏者（", en: " Two Kora Players (" }, {
+    ja: " 二人の録音技師（ダブ・テクノの作り方をピアノで。一方がトラック（低いキックの 4 つ打ち、裏拍のハイハット、短い和音の刻み）を弾き、もう一方が卓に回って和音をこだまに送る。こだまは 2 台のあいだを左右に跳ね返り、返るたびに弱く、高い音から消えて暗くなり、テープのように音程が少し揺れる。ときどき 1 つの和音を長いこだまに投げ込み、バネの残響を鳴らし、キックを抜く。和音は長く 1 つのまま、根音と 5 度だけの暗い響きから、3 度・7 度・9 度・11 度が足されて開いていく。初めは C のエオリアンで、調律は古いピアノ。旋法はエオリアン・ドリアン・フリジア・ミクソリディアン）: I. 刻み（和音が 2 つのあいだを揺れ、キックを抜いた所でこだまを投げ込む。途中でトラックと卓を交代する）、II. 霧（キックのない遅い楽章。低い根音の持続の上に長い和音をまばらに置き、長いこだまが重なって霞む。2 人が 2 小節ごとに交代で置く）、III. 開いていく（根音と 5 度だけの暗い刻みから、楽章全体で少しずつ響きが開き、キックとハイハットが加わる。開き切って、また閉じる）。上端の箱が 1 小節で、和音を刻む所がトラックの台の色。横に今の和音、下に 2 台の役と卓のつまみ（開き・送り・戻り）。クリックすると、卓がその高さの音をこだまに投げ込む）。",
+    en: " Two Recording Engineers (dub techno, made on pianos: one plays the track, a low four-on-the-floor kick, off-beat hi-hats and short chord stabs, while the other works the desk, sending chords into the echo. The echo bounces left and right between the pianos, each return quieter, losing its top note and drifting slightly in pitch like tape. Now and then a chord is thrown into a long echo, a spring reverb splashes, the kick drops out. The chord stays put for a long time and opens like a filter, from a dark root and fifth to added thirds, sevenths, ninths and elevenths. It starts in C Aeolian on an old piano, with Aeolian, Dorian, Phrygian and Mixolydian on offer): I. Pulse (the chord rocks between two, echoes are thrown in where the kick drops out, and the two swap track and desk midway), II. Fog (a slow movement with no kick: long chords placed sparsely over a low held root, long echoes piling into haze; the two take turns every two bars), III. Opening (from a dark stab of root and fifth the sound opens slowly over the whole movement, kick and hi-hat join, and it opens fully, then closes). The top boxes show one bar, lit in the track piano's colour where the chord falls, with the chord beside it; below are the two roles and the desk's knobs (open, send, feedback). Click to have the desk throw the note at that height into the echo).",
+  });
+  for (const [id, before, add] of [
+    ["#key-mode", { ja: "二人のコラ奏者は", en: "Two Kora Players:" }, { ja: "二人の録音技師はエオリアン・ドリアン・フリジア・ミクソリディアン、初めはエオリアン。", en: "Two Recording Engineers: Aeolian, Dorian, Phrygian or Mixolydian, starting at Aeolian; " }],
+    ["#key-root", { ja: "二人のコラ奏者は", en: "Two Kora Players:" }, { ja: "二人の録音技師は C、", en: "Two Recording Engineers: C; " }],
+  ] as const)
+    duo[id].text = insert(duo[id].text, before, add);
+}
