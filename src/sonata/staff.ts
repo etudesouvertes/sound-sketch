@@ -141,9 +141,13 @@ export const clefGap = () => gap;
 // ト音記号の五線のいちばん上の線の y 座標。最後に描いた大譜表で決まる
 let trebleTop = 0;
 export const staffTop = () => trebleTop;
+// 音部記号と調号の上端の y 座標（記号は五線のいちばん上の線より上へはみ出す）。描いた字の大きさから測る
+let clefTopY = 0;
+export const clefTop = () => clefTopY;
 
 export function drawStaff(g: CanvasRenderingContext2D, width: number, height: number, pitches: Pitch[]) {
   left = STAFF_LEFT;
+  clefTopY = Infinity;
   if (pitches.length < 2) return;
   const { signature, lineY } = staffLayout(pitches, height);
 
@@ -173,6 +177,7 @@ export function drawStaff(g: CanvasRenderingContext2D, width: number, height: nu
     const size = space * 4 * scale;
     g.font = `${size}px "Noto Music", "Segoe UI Symbol", "Apple Symbols", serif`;
     g.fillText(glyph, STAFF_LEFT + 2, lineY(anchor) + size * shift);
+    clefTopY = Math.min(clefTopY, lineY(anchor) + size * shift - g.measureText(glyph).actualBoundingBoxAscent);
     const glyphWidth = g.measureText(glyph).width;
     gap = { x: STAFF_LEFT + 2 + glyphWidth / 2, y: (lineY(TREBLE[0]) + lineY(BASS[4])) / 2 };
     trebleTop = lineY(TREBLE[4]);
@@ -184,11 +189,13 @@ export function drawStaff(g: CanvasRenderingContext2D, width: number, height: nu
     for (const { pc, step } of SHARPS) {
       if (signature(pc) !== 1) continue;
       g.fillText("♯", x, stepY(step - offset) + space * 0.18);
+      clefTopY = Math.min(clefTopY, stepY(step - offset) + space * 0.18 - g.measureText("♯").actualBoundingBoxAscent);
       x += space * 0.9;
     }
     for (const { pc, step } of FLATS) {
       if (signature(pc) !== -1) continue;
       g.fillText("♭", x, stepY(step - offset) - space * 0.27);
+      clefTopY = Math.min(clefTopY, stepY(step - offset) - space * 0.27 - g.measureText("♭").actualBoundingBoxAscent);
       x += space * 0.8;
     }
     g.textBaseline = "alphabetic";

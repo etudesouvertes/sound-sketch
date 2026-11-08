@@ -209,8 +209,8 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     en: "Three-movement sonatas for two pianos, imagining musicians from outside classical and contemporary music at the keyboard.",
   },
   "home.duo": {
-    ja: "二人のギタリストが、左右 2 台のピアノで連弾したら。",
-    en: "As if two guitarists sat down at two pianos, left and right.",
+    ja: "二人の弦楽器奏者、二人のギタリスト、二人のコラ奏者が、左右 2 台のピアノで連弾したら。",
+    en: "As if two string players, two guitarists or two kora players sat down at two pianos, left and right.",
   },
   "home.note": {
     ja: "音が出ないときは、iPhone のマナーモードを解除してください。ヘッドホンでの視聴がおすすめです。",

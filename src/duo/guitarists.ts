@@ -1,17 +1,13 @@
 import * as Tone from "tone";
-import { t, type L } from "../i18n";
+import { t } from "../i18n";
 import { pitchIndexAt, type Scale, SCALES } from "../scales";
 import {
   AEOLIAN,
   clamp,
   DORIAN,
-  type FlowMark,
-  flowView,
   type Layout,
   layout,
-  MARGIN_LEFT,
   type Movement,
-  type MovementContext,
   pendingQueue,
   pick,
   type Queue,
@@ -22,6 +18,7 @@ import {
   TICK,
   timed,
 } from "../sonata/movement";
+import { BOTH, chromaticAt, FIRST, fromLow, INFO_Y, legend, markView, noteName, type Owner, ownerColor, play, SECOND, type View, guideLeft } from "./common";
 
 // 二人のギタリストが、2 台のピアノで連弾したら、という試み。ギターの弾き方をピアノに移している。
 // ピアノ I（左）とピアノ II（右）を、それぞれ 1 人のギタリストが弾く。
@@ -69,76 +66,14 @@ const bassOf = (h: Layout, c: Chord) => fromLow(h, c.bass <= c.root ? c.bass : c
 // 和音の音（度数を 0〜6 に丸めたもの）。sus4 では 3 度を含めない
 const tonesOf = (c: Chord) => [0, isSus(c.root) ? 3 : 2, 4, colorOf(c.root)].map((d) => (c.root + d) % 7);
 
-const FIRST = 0;
-const SECOND = 1;
-const BOTH = 2;
-type Owner = typeof FIRST | typeof SECOND | typeof BOTH;
-const HUES = [28, 200]; // ピアノ I は橙、ピアノ II は青
-
-// --- 画面: 鳴った音が右端から左へ流れる（台ごとに色を分ける）。上には、どちらのピアノが何色かと、楽章ごとの仕組みを出す ---
-
-const WINDOW = 10;
-type DuoMark = FlowMark & { piano: number };
-
-const markView = (ctx: MovementContext) =>
-  flowView<DuoMark>(ctx, WINDOW, (g, m, _x, _y, ringing, fade, _span, note) => {
-    g.fillStyle = `hsla(${HUES[m.piano]}, 65%, ${58 + 20 * ringing}%, ${(0.25 + 0.6 * ringing) * fade})`;
-    note(2 * (2 + 5 * m.velocity + 2 * ringing));
-  });
-type View = ReturnType<typeof markView>;
-
-// index の音を、piano の台で鳴らし、印を付ける（画面の外の音は、オクターブを指定して鳴らす）。cents は音階の外の音にずらすとき
-function play(h: Layout, queue: Queue, view: View, piano: number, index: number, time: number, velocity: number, seconds: number, cents = 0) {
-  queue.add({ time, ...h.place(index), velocity, seconds, piano, cents, onPlay: view.add({ time, index, piano, seconds, velocity }) });
-}
-
 // ピアノ II の音に、付点 8 分おきのこだま（ディレイ）を付けて鳴らす。repeats 回、少しずつ弱く
 function echo(h: Layout, queue: Queue, view: View, index: number, time: number, velocity: number, seconds: number, delay: number, repeats = 2) {
   for (let k = 0; k <= repeats; k++) play(h, queue, view, SECOND, index, time + k * delay, velocity * 0.42 ** k, seconds);
 }
 
-// base の音から semis 半音離れた音を、近い音階の音と、そこからのずれ（セント）で表す（全音音階のように、音階の外の音を弾くため）
-function chromaticAt(h: Layout, base: number, semis: number): { index: number; cents: number } {
-  const freqOf = (i: number) => {
-    const { index, octave } = h.place(i);
-    return h.pitches[index].freq * 2 ** octave;
-  };
-  const target = freqOf(base) * 2 ** (semis / 12);
-  let best = base;
-  for (let i = base - 10; i <= base + 10; i++) if (Math.abs(Math.log2(freqOf(i) / target)) < Math.abs(Math.log2(freqOf(best) / target))) best = i;
-  return { index: best, cents: Math.round(1200 * Math.log2(target / freqOf(best))) };
-}
-
-const LEGEND_Y = 62;
-const INFO_Y = 74;
-const NAMES: L[] = [
-  { ja: "ピアノ I（左）", en: "Piano I (left)" },
-  { ja: "ピアノ II（右）", en: "Piano II (right)" },
-];
-const ownerColor = (owner: Owner, alpha: number) =>
-  owner === BOTH ? `rgba(255, 255, 255, ${alpha})` : `hsla(${HUES[owner]}, 65%, 62%, ${alpha})`;
-
-function legend(g: CanvasRenderingContext2D) {
-  g.font = "11px system-ui, sans-serif";
-  g.textAlign = "left";
-  let x = MARGIN_LEFT;
-  NAMES.forEach((name, i) => {
-    g.fillStyle = ownerColor(i as Owner, 0.9);
-    g.beginPath();
-    g.arc(x + 4, LEGEND_Y - 4, 4, 0, Math.PI * 2);
-    g.fill();
-    const text = t(name);
-    g.fillStyle = "rgba(255, 255, 255, 0.55)";
-    g.fillText(text, x + 12, LEGEND_Y);
-    x += 12 + g.measureText(text).width + 18;
-  });
-}
-
-// 度数（7 で 1 オクターブ上）を、画面の一番下の主音から数えた音の位置に直す
-const fromLow = (h: Layout, degree: number) => h.lowRoot + h.degree(degree);
 
 function chordName(h: Layout, c: Chord): string {
-  const letter = (degree: number) => h.pitches[h.place(fromLow(h, degree)).index].label.replace(/-?\d.*$/, "").replace("#", "♯");
+  const letter = (degree: number) => noteName(h, fromLow(h, degree));
   const third = semi(c.root + 2) - semi(c.root);
   const name = `${letter(c.root)}${isSus(c.root) ? "sus4" : `${third === 3 ? "m" : ""}add9`}`;
   return c.bass === c.root ? name : `${name}/${letter(c.bass)}`;
@@ -330,15 +265,16 @@ const interlock: Movement = {
         fixed[step] = pitchIndexAt(y, height, ctx.pitches().length);
       },
       draw(g, width, height) {
+        const guideBottom = PHASE_I.has(shown.get().section) ? INFO_Y + 16 : INFO_Y + 12; // 案内の下端（音部記号と重なるかを見るため）
         view.draw(g, width, height);
-        legend(g);
+        legend(g, guideBottom);
         // 1 周の 16 分音符を箱で並べ、弾く台の色で塗る（2 台で重ねる所は白）。群の切れ目は少し空ける。
         // ずれていく区切りでは、2 台の線を 2 段に並べる（下の段のピアノ II は 1 つ長い）
         const now = shown.get();
         const meter = METERS[now.section];
         const phase = PHASE_I.has(now.section);
         const row = (groups: number[], y: number, colour: (at: number) => Owner, current: number) => {
-          let x = MARGIN_LEFT;
+          let x = guideLeft(g, guideBottom);
           let at = 0;
           for (const size of groups) {
             for (let i = 0; i < size; i++, at++) {
@@ -499,8 +435,9 @@ const sustain: Movement = {
         play(h, queue, view, SECOND, pitchIndexAt(y, height, h.count), Tone.now() + 0.02, 0.18, 2.5);
       },
       draw(g, width, height) {
+        const guideBottom = INFO_Y + 16; // 案内の下端（音部記号と重なるかを見るため）
         view.draw(g, width, height);
-        legend(g);
+        legend(g, guideBottom);
         // 今の和音と、次の和音の名前
         const h = layout(ctx);
         const i = shownChord.get();
@@ -509,10 +446,10 @@ const sustain: Movement = {
         g.textAlign = "left";
         g.fillStyle = "rgba(255, 255, 255, 0.7)";
         const current = chordName(h, chords[i]);
-        g.fillText(current, MARGIN_LEFT, INFO_Y + 12);
+        g.fillText(current, guideLeft(g, guideBottom), INFO_Y + 12);
         if (next !== undefined) {
           g.fillStyle = "rgba(255, 255, 255, 0.3)";
-          g.fillText(`→ ${chordName(h, next)}`, MARGIN_LEFT + g.measureText(current).width + 10, INFO_Y + 12);
+          g.fillText(`→ ${chordName(h, next)}`, guideLeft(g, guideBottom) + g.measureText(current).width + 10, INFO_Y + 12);
         }
       },
       finished: () => Tone.now() >= endAt,
@@ -731,11 +668,12 @@ const trading: Movement = {
         play(h, queue, view, piano, pitchIndexAt(y, height, h.count), Tone.now() + 0.02, 0.3, 0.25);
       },
       draw(g, width, height) {
+        const guideBottom = INFO_Y + 34; // 案内の下端（音部記号と重なるかを見るため）
         view.draw(g, width, height);
-        legend(g);
+        legend(g, guideBottom);
         // 受け渡しを、長さに比例した帯で並べる（今のものを明るく。前奏は灰色、ユニゾンは白）
         const now = shownTurn.get();
-        let x = MARGIN_LEFT;
+        let x = guideLeft(g, guideBottom);
         for (let i = Math.max(0, now - 3); i < turns.length && x < width - 40; i++) {
           const turnWidth = Math.max(6, turns[i].bars * 14);
           const who = turns[i].who;
@@ -748,7 +686,7 @@ const trading: Movement = {
         g.font = "13px system-ui, sans-serif";
         g.textAlign = "left";
         g.fillStyle = "rgba(255, 255, 255, 0.7)";
-        g.fillText(chordName(layout(ctx), chordOfBar(shownBar.get())), MARGIN_LEFT, INFO_Y + 30);
+        g.fillText(chordName(layout(ctx), chordOfBar(shownBar.get())), guideLeft(g, guideBottom), INFO_Y + 30);
       },
       finished: () => Tone.now() >= endAt,
       stop() {

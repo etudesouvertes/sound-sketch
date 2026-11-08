@@ -35,7 +35,7 @@ Three-movement sonatas for two pianos, imagining musicians from outside classica
 
 | | |
 |---|---|
-| **Duo** | 二人のギタリストが、左右 2 台のピアノで連弾したら。1 本の線を 2 台で分け合う「噛み合わせ」、長く伸ばす音と開いた和音の「伸びる音」、受け渡しが短くなっていく「掛け合い」の 3 楽章です。旋法と主音は設定で選べます（初めは E のエオリアン）。<br>As if two guitarists sat down at two pianos, left and right. Three movements: *Interlock*, one line shared between the two pianos; *Sustain*, long held notes over open chords; and *Trading*, turns that grow ever shorter. Mode and root can be chosen in the settings (E Aeolian to start). |
+| **Duo** | 二人の弦楽器奏者、二人のギタリスト、二人のコラ奏者が、左右 2 台のピアノで連弾したら。組ごとに 3 楽章です。弦楽器奏者は北インドのラーガの演奏の 3 つの段（アーラープ・ジョール・ジャーラー）、ギタリストは 1 本の線を 2 台で分け合う「噛み合わせ」・長く伸ばす音の「伸びる音」・短くなっていく「掛け合い」、コラ奏者は西アフリカのハープの回る伴奏の型と流れ落ちる速い連なり（「回る型」「歌」「速まる」）。旋法と主音は設定で選べます。<br>As if two string players, two guitarists or two kora players sat down at two pianos, left and right, in three movements each: the string players follow the three stages of a North Indian raga performance (*Ālāp*, *Jor*, *Jhālā*); the guitarists play *Interlock* (one line shared between the pianos), *Sustain* (long held notes over open chords) and *Trading* (turns that grow ever shorter); the kora players turn the West African harp's cycling accompaniment and pour down its fast runs (*Kumbengo*, *Song*, *Quickening*). Mode and root can be chosen in the settings. |
 
 どの作品も、日本・中国・中近東・インド・バリ島などのスケール、現在地の天気、何分もかけたゆっくりした変化で、音が移り変わります。
 Each piece can use scales from Japan, China, the Middle East, India, Bali and more, follow the current weather, and slowly evolve over many minutes.

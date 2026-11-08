@@ -866,6 +866,10 @@ export function sonataPage(config: PageConfig) {
     "messiaen-mode-2": "(Mode 2)",
     lydian: "Lydian",
     phrygian: "Phrygian",
+    yaman: "Yaman",
+    bhairav: "Bhairav",
+    bhairavi: "Bhairavi",
+    todi: "Todi",
   };
   const keyName = (s: Sonata) => [s.root.replace("#", "♯"), MODE_NAMES[s.scale.id]].filter(Boolean).join(" ");
 

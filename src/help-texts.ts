@@ -675,15 +675,15 @@ HELP_BY_PAGE.duo = {
   "#key-mode": {
     title: { ja: "旋法", en: "Mode" },
     text: {
-      ja: "曲の音階です。エオリアン（自然短音階）・ドリアン・フリジア・リディアンから選べます。和音は音階に合わせて選び直されるので、どれでも曲は崩れません。初めはエオリアンです。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
-      en: "The scale of the piece: Aeolian (natural minor), Dorian, Phrygian or Lydian. The chords are re-chosen to fit the scale, so the piece holds together in any of them. It starts at Aeolian. Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
+      ja: "曲の音階です。選べる旋法は組ごとに違います（二人の弦楽器奏者はラーガのヤマン・バイラヴ・バイラヴィ・トーディ、初めはヤマン。二人のギタリストはエオリアン（自然短音階）・ドリアン・フリジア・リディアン、初めはエオリアン。二人のコラ奏者は長音階・リディアン・ミクソリディアン・ドリアン、初めは長音階）。和音は音階に合わせて選び直されるので、どれでも曲は崩れません。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
+      en: "The scale of the piece. The modes on offer differ by pair (Two String Players: the ragas Yaman, Bhairav, Bhairavi or Todi, starting at Yaman; Two Guitarists: Aeolian (natural minor), Dorian, Phrygian or Lydian, starting at Aeolian; Two Kora Players: Major, Lydian, Mixolydian or Dorian, starting at Major). The chords are re-chosen to fit the scale, so the piece holds together in any of them. Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
     },
   },
   "#key-root": {
     title: { ja: "主音", en: "Root" },
     text: {
-      ja: "音階の基準になる音です。初めはギターの一番低い開放弦の E です。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
-      en: "The base note of the scale. It starts at E, the guitar's lowest open string. Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
+      ja: "音階の基準になる音です。初めは組ごとに違います（二人の弦楽器奏者は C、二人のギタリストはギターの一番低い開放弦の E、二人のコラ奏者は F）。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
+      en: "The base note of the scale. Where it starts differs by pair (Two String Players: C; Two Guitarists: E, the guitar's lowest open string; Two Kora Players: F). Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
     },
   },
   "#tuning": {
@@ -715,3 +715,25 @@ HELP_BY_PAGE.duo = {
     },
   },
 };
+
+// 組の説明を、一覧と同じ順（弦楽器奏者・ギタリスト・コラ奏者）に並べる（ギタリストの説明の前と後ろに足す）
+{
+  const pair = HELP_BY_PAGE.duo["#composer"];
+  const strings = {
+    ja: "二人の弦楽器奏者（北インドの 2 つの弦楽器が 1 つのラーガを共に弾く形。初めはラーガ・ヤマンで主音は C。旋法でバイラヴ・バイラヴィ・トーディに変えられる）: I. アーラープ（拍のない導入。ピアノ II が低いところで持続音を回し、2 人が句を交互に弾く。答える方は前の句の終わりを真似てから進み、届く高さが少しずつ上へ開いていく）、II. ジョール（拍が出る。弾き手は 1 拍に 2 つ・3 つ・4 つと細かくなる音型で進み、もう一方は低い主音と高い主音の刻みで支える。交代は 16 拍から 4 拍まで短くなる）、III. ジャーラー（旋律の音 1 つと高い主音の刻み 3 つを速く繰り返す。問いと答えが 8 拍から 1 拍まで短くなり、そろって弾いたあと、同じ句を 3 度繰り返して頭の拍に着いて終わる（ティハーイー））。上端に、鳴った音の階名（サルガム。r g d n は低い音、M は高いマ）が流れる。 ",
+    en: "Two String Players (two North Indian string instruments playing one raga together; it starts in Raga Yaman on C, and Mode switches to Bhairav, Bhairavi or Todi): I. Ālāp (unmetred opening: piano II keeps a low drone while the two take turns with phrases, each answer first echoing the end of the last phrase; the reach widens upward little by little), II. Jor (a pulse appears: the lead moves in figures of two, then three, then four notes a beat while the other keeps time with low and high tonic strokes; turns shrink from 16 beats to 4), III. Jhālā (one melody note and three quick high-tonic strokes, over and over; questions and answers shrink from eight beats to one, and after playing together they end with a tihāī, one phrase three times landing on the downbeat). The sargam (Indian note names; r g d n are the flattened notes and M the raised Ma) of the notes played flows along the top. ",
+  };
+  const at = (text: string, name: string) => text.indexOf(name);
+  pair.text = {
+    ja: pair.text.ja.slice(0, at(pair.text.ja, "二人のギタリスト（")) + strings.ja + pair.text.ja.slice(at(pair.text.ja, "二人のギタリスト（")),
+    en: pair.text.en.slice(0, at(pair.text.en, "Two Guitarists (")) + strings.en + pair.text.en.slice(at(pair.text.en, "Two Guitarists (")),
+  };
+  pair.text = {
+    ja:
+      pair.text.ja +
+      " 二人のコラ奏者（コラは西アフリカの 21 弦のハープ。初めは F の長音階で、旋法は長音階・リディアン・ミクソリディアン・ドリアン）: どの楽章も 12 拍（8 分の 12 拍子の 1 小節）の周期を回し、低い音が付点 4 分の 4 拍、高い音が 2 つずつの 6 拍を刻んで、3 と 2 が重なる。I. 回る型（一方が伴奏の型（クンベング）を回し、もう一方が隙間を埋めるか、高い所から流れ落ちる速い連なり（ビリミンティンゴ）を弾いて、役を入れ替える。和音の周期が主音から離れて戻る）、II. 歌（まばらに回る型の上で、一方が長い音で降りてくる歌の旋律を弾く。途中で入れ替わり、終わりの方では 2 周ごとに歌い交わす）、III. 速まる（2 人の型の噛み合わせから、少しずつ速くなる。連なりの受け渡しが 2 周から 1 周に短くなり、最後は 2 人が 3 度で重ねて流れ落ち、型に戻って止まる）。上端の箱が 12 拍で、横に今の和音、下に 2 台の役。クリックすると、その高さから短い連なりが流れ落ちる。",
+    en:
+      pair.text.en +
+      " Two Kora Players (the kora is a 21-string West African harp; it starts in F major, with Major, Lydian, Mixolydian and Dorian on offer): every movement turns a 12-pulse cycle (one bar of 12/8), the low notes marking four dotted-quarter beats and the high notes six pairs, so three runs against two. I. Kumbengo (one turns the accompaniment pattern, the kumbengo, while the other fills its gaps or plays fast runs that pour down from high up, the birimintingo, and they swap; the chord cycle travels away from the tonic and back), II. Song (over a sparse turning pattern one plays a sung melody of long notes coming down; they swap partway, and near the end trade phrases every two cycles), III. Quickening (from the two patterns interlocking it gradually speeds up; the runs pass back and forth every two cycles, then every cycle, and at the end both pour down a third apart, return to the pattern and stop). The boxes at the top are the 12 pulses, with the current chord beside them and the two pianos' roles below. Click to pour a short run down from that height.",
+  };
+}
