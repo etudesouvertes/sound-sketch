@@ -654,3 +654,64 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     },
   },
 };
+
+// Duo（2 台のピアノのためのソナタ）は、Sonata と同じ仕組みのページ。違う所だけ書き換える
+HELP_BY_PAGE.duo = {
+  ...HELP_BY_PAGE.sonata,
+  [PAGE_GUIDE]: {
+    title: { ja: "Duo の遊び方", en: "How to play Duo" },
+    text: withBarNote({
+      ja: "2 人の音楽家が 2 台のピアノで連弾したら、という想像のソナタです。組ごとに独立した 3 楽章のソナタです。ピアノ I は左、ピアノ II は右から鳴り、2 台は調律のずれ方も時間の揺らぎも別々です。背景の大譜表は 1 つで、2 台の音を色で分けて流します（上端に、どちらが何色かが出ます）。演奏中にクリックすると、その高さの音が音楽に加わります。大譜表の見方は Sonata と同じです。",
+      en: "What if two musicians sat down at two pianos together? Each pair has an independent three-movement sonata. Piano I plays on the left and piano II on the right, and the two are out of tune and sway in time in their own ways. One grand staff shows both pianos, with their notes in different colours (the top shows which is which). Click while it plays to add a note at that height. The staff reads the same way as in Sonata.",
+    }),
+  },
+  "#composer": {
+    title: { ja: "組", en: "Pair" },
+    text: {
+      ja: "どの組のソナタを鳴らすかです。押すと一覧が開き、名前を押すとその組の I から、楽章を押すとその楽章から鳴らします。二人のギタリスト（ピアノ I が左、ピアノ II が右。初めは E のエオリアン（自然短音階）で、ギターの一番低い開放弦の E が主音。設定の旋法と主音で変えられる）: I. 噛み合わせ（1 本の速い 16 分音符の線を 2 台で 1 音ずつ分け合い、どちらか一方だけでは線にならない。線は 5 度を積んだギターの弦をまたいで転がる形で、拍子は 7/8・5/8・9/8 と移り、2 周ごとに 1 音が隣の弦へ移って、1 音を相手に渡す。中ほどの 2 つの区切りでは 2 台が別々の線を弾き、ピアノ II の線が 1 音長いので少しずつずれていき（上端の箱が 2 段になる）、盛り上がりでまた 1 本の線に噛み合う。盛り上がりでは群の頭を 2 台で重ねる。和音は 2 周ごとに進み、主音の上で始まって、離れて巡り、盛り上がりで低い音が上っていき、主音を保って戻る。上端の箱が 1 周の音で、弾く台の色。その横に今の和音）、II. 伸びる音（ピアノ II が add9 の開いた和音をゆっくり分散して置き、高い 2 音を裏で鳴らす。ピアノ I は長く伸ばすギターの音をトレモロで弾き、長い音の旋律が昇ってまた降りる。中ほどではピアノ II が 8 分音符の分散和音に変わり、付点 8 分のこだまが重なる。和音は、主音と VI の揺り返しから離れて巡り、低い音が 1 段ずつ上って旋律の頂点で VII に着き、主音を低く保ったまま戻る。上端に今と次の和音）、III. 掛け合い（一方が弾くあいだ、もう一方が伴奏に回る。ピアノ I は 3 つ・5 つずつの群で上り下りする速い連なり、ピアノ II は付点 8 分の間を空けた分散和音。伴奏はピアノ II が裏拍の短い和音、ピアノ I が 3+3+2 の 5 度。受け渡しは 4 小節から半小節まで短くなり、それにつれて和音も主音から離れて速く巡り、半小節の受け渡しではピアノ I の連なりが全音音階で音階の外に出る。ピアノ II の句には付点 8 分のこだまが付く。最後は 2 台のユニゾンで VI–VII から主音へ戻り、和音で終わる。上端の帯が受け渡しの順、その下に今の和音）。",
+      en: "Whose sonata to play. Press it to open the list; press a name to play from movement I, or a movement to play from there. Two Guitarists (piano I on the left, piano II on the right; it starts in E Aeolian (natural minor), on the guitar's lowest open string; change it with Mode and Root in the settings): I. Interlock (one fast line of sixteenths is split note by note between the two pianos, so neither makes the line alone; the line rolls across the strings of a guitar tuned in fifths, the metre moves through 7/8, 5/8 and 9/8, and every two cycles one note moves to a neighbouring string and one note passes to the other piano; in two middle sections the pianos play separate lines, piano II's one note longer, so they drift apart (the boxes split into two rows) and lock back into one line at the peak, where both pianos play the group heads; the chord moves every two cycles, starting over the tonic, travelling away, climbing in the bass at the peak and returning over a held tonic; the boxes at the top are the cycle, coloured by who plays each note, with the current chord beside them), II. Sustain (piano II slowly spreads open add9 chords and rings two high notes off the beat, while piano I plays long sustained guitar notes as piano tremolos, in a melody of long notes that climbs and comes back down; in the middle piano II switches to running eighth-note arpeggios with dotted-eighth echoes; the chords move from rocking between the tonic and VI to further away, climb step by step in the bass to reach VII at the melody's peak, and return over a low held tonic; the current and next chord show at the top), III. Trading (one plays while the other accompanies: piano I runs up and down in groups of three or five, piano II plays spaced arpeggios in dotted eighths; the accompaniment is piano II's short off-beat chords or piano I's fifths in 3+3+2; the turns shrink from four bars to half a bar, and the chords travel further from the tonic and faster as they do; in the half-bar trades piano I's runs leave the scale in whole tones, and piano II's phrases carry dotted-eighth echoes; both pianos end in unison, going VI–VII back to the tonic, and a final chord; the bar at the top shows the turns, with the current chord below).",
+    },
+  },
+  "#key-mode": {
+    title: { ja: "旋法", en: "Mode" },
+    text: {
+      ja: "曲の音階です。エオリアン（自然短音階）・ドリアン・フリジア・リディアンから選べます。和音は音階に合わせて選び直されるので、どれでも曲は崩れません。初めはエオリアンです。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
+      en: "The scale of the piece: Aeolian (natural minor), Dorian, Phrygian or Lydian. The chords are re-chosen to fit the scale, so the piece holds together in any of them. It starts at Aeolian. Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
+    },
+  },
+  "#key-root": {
+    title: { ja: "主音", en: "Root" },
+    text: {
+      ja: "音階の基準になる音です。初めはギターの一番低い開放弦の E です。鳴っているときに変えると、今の楽章を頭から鳴らし直します。選んだものは、このブラウザに覚えておきます。",
+      en: "The base note of the scale. It starts at E, the guitar's lowest open string. Changing it while playing restarts the current movement. Your choice is remembered in this browser.",
+    },
+  },
+  "#tuning": {
+    title: { ja: "調律", en: "Tuning" },
+    text: {
+      ja: "ピアノの調律の具合です。ぴったり: 平均律のとおり。少しずれ: 鍵ごとに少しずつ音程が外れます（同じ鍵はいつも同じずれ）。古いピアノ: ずれが大きく、1 つの鍵の弦どうしもそろわず、うなりが出ます。2 台のピアノは、同じ鍵でもずれ方が違うので、同じ音を重ねるとわずかにうなります。初めは「少しずれ」で、組を移すとその組の値に戻ります。",
+      en: "How well the pianos are tuned. In tune: exact equal temperament. Slightly off: each key is a little out, always by the same amount. Old piano: keys are further out and the strings of each key disagree, so they beat. The two pianos are out in different ways, so the same note on both beats slightly. It starts at Slightly off, and switching pairs goes back to that pair's setting.",
+    },
+  },
+  "#tempo": {
+    title: { ja: "テンポ", en: "Tempo" },
+    text: {
+      ja: "4 分音符の速さです。二人のギタリストでは、I と III の 16 分音符が決まります。II はその 0.4 倍の遅さを 1 拍にします（ピアノ I のトレモロの細かさは変わりません）。天気を使うと、気温でさらに速くなったり遅くなったりします。",
+      en: "Quarter-note tempo. In Two Guitarists it sets the sixteenths in I and III; II takes a beat at 0.4 times that speed (piano I's tremolo stays as fast). With weather on, temperature makes it faster or slower.",
+    },
+  },
+  "#repeat": {
+    title: { ja: "ずっと再生", en: "Keep playing" },
+    text: {
+      ja: "入れると、ソナタが終わっても止まらず、次の組のソナタへ順に移り続けます（組が 1 つのうちは、同じ組をもう一度鳴らします）。もう一度押すと切れます。止まっているときに入れると、鳴らし始めます。",
+      en: "When on, playback doesn't stop after a sonata but moves on to the next pair's sonata (while there is only one pair, it plays it again). Press again to turn it off. Turning it on while stopped starts playing.",
+    },
+  },
+  "#shuffle": {
+    title: { ja: "シャッフル再生", en: "Shuffle" },
+    text: {
+      ja: "入れると、組を混ぜた順で、ソナタを止まらずに鳴らし続けます（組が 1 つのうちは、同じ組を鳴らし続けます）。もう一度押すと切れます。",
+      en: "When on, sonatas keep playing with the pairs in shuffled order (while there is only one pair, it keeps playing it). Press again to turn it off.",
+    },
+  },
+};

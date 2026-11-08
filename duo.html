@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Duo - sound-sketch</title>
+  </head>
+  <body>
+    <header class="bar">
+      <nav class="nav">
+        <a href="./">sound-sketch</a>
+        <a href="./ripples.html">Ripples</a>
+        <a href="./phase.html">Phase</a>
+        <a href="./loops.html">Loops</a>
+        <a href="./tape.html">Tape</a>
+        <a href="./sonata.html">Sonata</a>
+        <a href="./duo.html" aria-current="page">Duo</a>
+      </nav>
+      <div class="bar-actions">
+        <div class="transport" role="group" aria-label="再生" data-i18n-aria="transport">
+          <button id="play" type="button" aria-label="再生" data-i18n-aria="play">▶</button>
+          <button id="stop" type="button" aria-label="停止" data-i18n-aria="playStop">■</button>
+          <button id="repeat" type="button" aria-pressed="false" aria-label="ずっと再生" data-i18n-aria="playRepeat">↻</button>
+          <button id="shuffle" type="button" aria-pressed="false" aria-label="シャッフル再生" data-i18n-aria="playShuffle">⇄</button>
+        </div>
+        <button id="composer" type="button" aria-expanded="false" aria-controls="composers" aria-haspopup="dialog" aria-label="作曲家" data-i18n-aria="composer"></button>
+        <select id="movement" autocomplete="off" aria-label="楽章" data-i18n-aria="movement"></select>
+        <button id="restart" type="button" data-i18n="restart">最初から</button>
+        <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings" data-i18n="settings">⚙ 設定</button>
+      </div>
+    </header>
+    <div id="composers" class="composer-panel" role="dialog" aria-label="作曲家" data-i18n-aria="composer" hidden></div>
+    <aside id="settings" class="settings" aria-label="設定" data-i18n-aria="settingsPanel" hidden>
+      <button id="settings-close" class="settings-close" type="button" aria-label="設定を閉じる" data-i18n-aria="settingsClose">×</button>
+      <section data-section="sound">
+        <h2 data-i18n="sec.sound">音</h2>
+        <label><span data-i18n="keyMode">旋法</span> <select id="key-mode" autocomplete="off"></select></label>
+        <label><span data-i18n="root">主音</span> <select id="key-root" autocomplete="off"></select></label>
+        <label>
+          <span data-i18n="register">音域</span>
+          <span class="range"><input id="register" type="range" min="1" max="5" step="1" /><output id="register-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="density">密度</span>
+          <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="reverbLevel">響き</span>
+          <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="sway">揺らぎ</span>
+          <span class="range"><input id="sway" type="range" min="1" max="5" step="1" /><output id="sway-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="tuning">調律</span>
+          <select id="tuning" autocomplete="off">
+            <option value="exact" data-i18n="tuning.exact">ぴったり</option>
+            <option value="loose" data-i18n="tuning.loose">少しずれ</option>
+            <option value="old" data-i18n="tuning.old">古いピアノ</option>
+          </select>
+        </label>
+        <label><span data-i18n="prepared">プリペアド・ピアノ</span> <input id="prepared" type="checkbox" autocomplete="off" /></label>
+        <p class="credit">
+          <a href="https://creativecommons.org/licenses/by/3.0/" target="_blank" rel="noopener">Piano: Salamander Grand Piano by Alexander Holm (CC BY 3.0)</a>
+        </p>
+      </section>
+      <section data-section="performance">
+        <h2 data-i18n="sec.performance">演奏</h2>
+        <label>
+          <span data-i18n="seed">作品番号（Op.）</span>
+          <input id="seed" type="text" inputmode="numeric" maxlength="5" size="6" autocomplete="off" />
+        </label>
+        <button id="seed-keep" type="button" data-i18n="seedKeep">今の演奏の Op. を使う</button>
+        <!-- unpublished -->
+        <label><span data-i18n="ratingCount">評価の記録（件）</span> <output id="rating-count">0</output></label>
+        <div class="rating-export">
+          <button id="rating-json" type="button" data-i18n="ratingJson">JSON で書き出す</button>
+          <button id="rating-csv" type="button" data-i18n="ratingCsv">CSV で書き出す</button>
+          <button id="rating-clear" type="button" data-i18n="ratingClear">消す</button>
+        </div>
+        <!-- /unpublished -->
+      </section>
+      <section data-section="repeat">
+        <h2 data-i18n="sec.repeat">反復</h2>
+        <label>
+          <span data-i18n="tempo">テンポ</span>
+          <span class="range"><input id="tempo" type="range" min="80" max="200" step="4" value="132" /><output id="tempo-value"></output></span>
+        </label>
+      </section>
+      <section data-section="weather">
+        <h2 data-i18n="sec.weather">天気</h2>
+        <label><span data-i18n="useWeather">天気を使う</span> <input id="weather" type="checkbox" /></label>
+        <label><span data-i18n="place">場所</span> <select id="place"></select></label>
+        <p class="credit"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a></p>
+      </section>
+      <section data-section="drift">
+        <h2 data-i18n="sec.drift">変化</h2>
+        <label><span data-i18n="driftOn">ゆっくり変化させる</span> <input id="drift" type="checkbox" /></label>
+        <label>
+          <span data-i18n="driftSpeed">速さ</span>
+          <select id="drift-speed">
+            <option value="1">×1</option>
+            <option value="10">×10</option>
+            <option value="60">×60</option>
+          </select>
+        </label>
+      </section>
+    </aside>
+    <footer class="status-line">
+      <span id="weather-status"></span>
+      <span id="drift-status"></span>
+    </footer>
+    <canvas id="canvas"></canvas>
+    <!-- unpublished -->
+    <div id="rating" class="rating" hidden>
+      <span data-i18n="ratingPrompt">この楽章は</span>
+      <button type="button" data-rating="good" aria-pressed="false" data-i18n="rating.good">良い</button>
+      <button type="button" data-rating="ok" aria-pressed="false" data-i18n="rating.ok">普通</button>
+      <button type="button" data-rating="bad" aria-pressed="false" data-i18n="rating.bad">ダメ</button>
+    </div>
+    <!-- /unpublished -->
+    <p id="hint" class="hint" data-i18n="hint.duo">
+      クリックすると、2 台のピアノのためのソナタが I 楽章から始まります。ピアノ I は左、II は右から鳴ります<br />
+      演奏中にクリックすると、その高さの音が音楽に加わります
+    </p>
+    <p class="rotate-hint" data-i18n="rotateHint">横向きにすると、大譜表が大きく見やすくなります</p>
+    <script type="module" src="/src/duo/main.ts"></script>
+  </body>
+</html>

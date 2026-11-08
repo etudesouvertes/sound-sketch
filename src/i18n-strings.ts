@@ -157,6 +157,11 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "クリックすると、ソナタが I 楽章から始まります。3 つの楽章が続けて鳴り、III が終わるとソナタも終わります\n演奏中にクリックすると、その高さの音が音楽に加わります" + SILENT_NOTE.ja,
     en: "Click to start the sonata from movement I. The three movements play in turn, and the sonata ends after III.\nClick while it plays to add a note at that height to the music." + SILENT_NOTE.en,
   },
+  keyMode: { ja: "旋法", en: "Mode" },
+  "hint.duo": {
+    ja: "クリックすると、2 台のピアノのためのソナタが I 楽章から始まります。ピアノ I は左、II は右から鳴ります\n演奏中にクリックすると、その高さの音が音楽に加わります" + SILENT_NOTE.ja,
+    en: "Click to start the sonata for two pianos from movement I. Piano I plays on the left, piano II on the right.\nClick while it plays to add a note at that height to the music." + SILENT_NOTE.en,
+  },
 
   // トップページ
   "home.lead": {
@@ -198,6 +203,14 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "home.sonataRespect": {
     ja: "エリック・サティ、オリヴィエ・メシアン、ジョン・ケージ、コンロン・ナンカロウ、ジェルジ・リゲティ、モートン・フェルドマン、一柳慧、テリー・ライリー、アルヴォ・ペルト、スティーヴ・ライヒ、フィリップ・グラス、ブライアン・イーノの音楽と、その手法への敬意を込めて。",
     en: "Made with deep respect for the music and ideas of Erik Satie, Olivier Messiaen, John Cage, Conlon Nancarrow, György Ligeti, Morton Feldman, Toshi Ichiyanagi, Terry Riley, Arvo Pärt, Steve Reich, Philip Glass and Brian Eno.",
+  },
+  "home.duos": {
+    ja: "2 台のピアノのための、3 楽章のソナタ。クラシックと現代音楽の外の音楽家が、ピアノに向かったら。",
+    en: "Three-movement sonatas for two pianos, imagining musicians from outside classical and contemporary music at the keyboard.",
+  },
+  "home.duo": {
+    ja: "二人のギタリストが、左右 2 台のピアノで連弾したら。",
+    en: "As if two guitarists sat down at two pianos, left and right.",
   },
   "home.note": {
     ja: "音が出ないときは、iPhone のマナーモードを解除してください。ヘッドホンでの視聴がおすすめです。",

@@ -7,7 +7,8 @@ import { ledgersFor, musicLeft, staffLayout, viewRange } from "./staff";
 // ページ（main.ts）は、終わった楽章を止めて次の楽章を始め、III が終わったらソナタを終える
 
 export type MovementContext = {
-  piano: Tone.Sampler;
+  piano: Tone.Sampler; // 1 台目のピアノ（pianos[0]）
+  pianos: Tone.Sampler[]; // ピアノの全部の台（Sonata は 1 台、Duo は 2 台。I が左、II が右）
   transport: ReturnType<typeof Tone.getTransport>;
   pitches: () => Pitch[]; // 画面に割り当てている音高（低い順）
   density: () => number; // 密度の段階・天気・変化を掛け合わせた頻度の倍率（標準 1）
@@ -31,7 +32,9 @@ export type Movement = {
 // scale と root は、その作曲家の音階と主音（Sonata では、スケールと主音を設定で選ばず、作曲家にまかせる）
 // initials は、作曲家のプルダウンに出す頭文字（右下の表示とヘルプはフルネーム）
 // tuning と prepared は、その作曲家を選んだときの設定の「調律」と「プリペアド・ピアノ」の初めの値（書かなければ、ぴったり・切）
-export type Sonata = { id: string; composer: L; initials: string; scale: Scale; root: string; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
+// credit は、「〜の手法による」「after 〜」の代わりに出す言葉（作り手の名を出さないとき）。
+// modes のある作品は、設定で旋法（modes から）と主音を選べる（scale と root を書き換える。楽章は scale を毎回読み直す）
+export type Sonata = { id: string; composer: L; credit?: L; modes?: Scale[]; initials: string; scale: Scale; root: string; movements: Movement[]; tuning?: Tuning; prepared?: boolean };
 export type Tuning = "exact" | "loose" | "old";
 
 // 作曲家の音階のうち、何人かで共有するもの
@@ -290,7 +293,8 @@ export function scheduler(ctx: MovementContext, tick: (time: number) => void) {
 }
 
 // cents は、平均律からのずれ（半音の 100 分の 1。純正律などで使う）
-export type Pending = { time: number; index: number; velocity: number; seconds: number; octave?: number; cents?: number; onPlay?: () => void };
+// piano は、鳴らすピアノの番号（書かなければ 1 台目）
+export type Pending = { time: number; index: number; velocity: number; seconds: number; octave?: number; cents?: number; piano?: number; onPlay?: () => void };
 
 // 先の時刻の音を貯めておき、時刻が近づいたら鳴らす
 export function pendingQueue(ctx: MovementContext) {
@@ -300,7 +304,7 @@ export function pendingQueue(ctx: MovementContext) {
   let flushedAt = -Infinity;
   const play = (p: Pending) => {
     const at = Math.max(p.time, flushedAt);
-    ctx.piano.triggerAttackRelease(pitchAt(ctx.pitches(), p.index).freq * 2 ** ((p.octave ?? 0) + (p.cents ?? 0) / 1200), p.seconds, at, p.velocity);
+    ctx.pianos[p.piano ?? 0].triggerAttackRelease(pitchAt(ctx.pitches(), p.index).freq * 2 ** ((p.octave ?? 0) + (p.cents ?? 0) / 1200), p.seconds, at, p.velocity);
     if (p.onPlay) Tone.getDraw().schedule(p.onPlay, at);
   };
   return {

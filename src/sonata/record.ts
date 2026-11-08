@@ -34,6 +34,7 @@ const report = (state: State, detail?: string) => {
 
 export function recordSonata(options: {
   canvas: HTMLCanvasElement;
+  page: string; // ページの名前（sonata・duo）
   ready: () => Promise<unknown>; // ピアノの録音を読み終えたら解決する
   info: () => RecordingInfo;
   start: () => void; // ソナタを I から鳴らす
@@ -81,12 +82,12 @@ export function recordSonata(options: {
     options.start();
     while (!options.ended()) await wait(0.5);
     await wait(TAIL);
-    card = { lines: CREDITS, footer: `etudesouvertes.github.io/sound-sketch/sonata.html?composer=${info.composerId}&seed=${info.seed}`, from: now(), until: now() + OUTRO };
+    card = { lines: CREDITS, footer: `etudesouvertes.github.io/sound-sketch/${options.page}.html?composer=${info.composerId}&seed=${info.seed}`, from: now(), until: now() + OUTRO };
     await wait(OUTRO);
     recorder.stop();
     await stopped;
 
-    const name = `sonata-${info.composerId}-op${info.seed}`;
+    const name = `${options.page}-${info.composerId}-op${info.seed}`;
     download(new Blob(chunks, { type: "video/webm" }), `${name}.webm`);
     download(new Blob([JSON.stringify({ ...info, credits: CREDITS, recordedAt: new Date().toISOString() }, null, 2)], { type: "application/json" }), `${name}.json`);
     report("done", name);

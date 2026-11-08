@@ -52,6 +52,7 @@ export default defineConfig(({ command }) => ({
         loops: page("./loops.html"),
         tape: page("./tape.html"),
         sonata: page("./sonata.html"),
+        duo: page("./duo.html"),
       },
     },
   },
