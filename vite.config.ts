@@ -87,7 +87,8 @@ function ogp(): Plugin {
         meta("property", "og:title", page.title),
         meta("property", "og:description", page.description),
         meta("property", "og:url", url),
-        meta("property", "og:image", SITE_URL + "og.png"),
+        // 画像を差し替えたら v を上げる（X などが古い画像を覚えているため）
+        meta("property", "og:image", SITE_URL + "og.png?v=2"),
         meta("property", "og:image:width", "1200"),
         meta("property", "og:image:height", "630"),
         meta("property", "og:image:alt", "sound-sketch — Études ouvertes"),
