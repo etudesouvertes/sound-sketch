@@ -96,6 +96,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   driftSpeed: { ja: "速さ", en: "Speed" },
   autoOn: { ja: "自動で置く", en: "Place automatically" },
   autoTape: { ja: "自動で弾く", en: "Play automatically" },
+  autoDial: { ja: "自動でダイヤルを回す", en: "Turn the dials automatically" },
 
   // キャンバスのページのヒント
   "hint.ripples": {
@@ -114,6 +115,23 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "クリックで音を弾き、ドラッグでなぞった高さの音を順に弾きます。押したままにすると音が伸びます\n弾いた音はテープに録られ、1 周ごとに少しずつ小さくなりながら何度も戻ってきます\n右の操作盤で残り方を変え、ソロ（Shift）・ホールド（Space）・フェード（F）・オクターブ（O）・逆再生（R）・マイク（M）・ラジオ（T）を使えます" + SILENT_NOTE.ja,
     en: "Click to play a note, or drag to play the notes you pass over. Hold to let a note ring.\nWhat you play is recorded on tape and keeps coming back, a little quieter each time round.\nUse the panel on the right for feedback, Solo (Shift), Hold (Space), Fade (F), Octave (O), Reverse (R), Mic (M) and Radio (T)." + SILENT_NOTE.en,
   },
+  "hint.radio": {
+    ja: "ダイヤルを左右にドラッグして選局します。局に近づくと、ビート音がスケールの音で鳴り、合わせると放送が聞こえます\n何台もの受信機が、世界のインターネットラジオを短波のように拾います" + SILENT_NOTE.ja,
+    en: "Drag a dial left or right to tune. Near a station a beat tone sounds on the notes of the scale; tune it in to hear the broadcast.\nSeveral receivers pick up internet radio from around the world as if it were shortwave." + SILENT_NOTE.en,
+  },
+  // Radio
+  "radio.newDial": { ja: "↻ 局を入れ替える", en: "↻ New stations" },
+  "sec.receivers": { ja: "受信機", en: "Receivers" },
+  receiverCount: { ja: "台数", en: "Number" },
+  broadcastLevel: { ja: "放送の大きさ", en: "Broadcast level" },
+  whistleLevel: { ja: "ビート音の大きさ", en: "Beat tone level" },
+  noiseLevel: { ja: "雑音の大きさ", en: "Noise level" },
+  "sec.stations": { ja: "局", en: "Stations" },
+  stationKind: { ja: "選ぶ局", en: "Stations to pick" },
+  "stationKind.all": { ja: "音楽も話し声も", en: "Music and speech" },
+  "stationKind.talk": { ja: "話し声だけ", en: "Speech only" },
+  "stationKind.weather": { ja: "天気予報", en: "Weather forecasts" },
+  "radioStatus.listFailed": { ja: "ラジオの局の一覧を取得できませんでした", en: "Couldn't get the list of radio stations" },
   // Tape のヘッドの名前（画面に描く）
   "tape.playHead": { ja: "再生", en: "Play" },
   "tape.recHead": { ja: "録音", en: "Rec" },
@@ -188,9 +206,13 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "1 本のテープに弾いた音が録り重ねられ、少しずつ遠ざかっていきます。マイクで楽器を、世界のラジオから声の断片も録れます。",
     en: "What you play is layered onto a single tape loop and slowly drifts away. You can also record an instrument with the mic, or fragments of voices from radio around the world.",
   },
+  "home.radio": {
+    ja: "何台もの短波受信機で、世界のラジオを拾います。局と局のあいだで、うなりがスケールの音を鳴らします。",
+    en: "Several shortwave receivers pick up radio from around the world. Between stations, the beat tones play the notes of a scale.",
+  },
   "home.respect": {
-    ja: "ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップの音楽と、その手法への敬意を込めて。",
-    en: "Made with deep respect for the music and ideas of Brian Eno, Steve Reich and Robert Fripp.",
+    ja: "ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップ、ジョン・ケージ、カールハインツ・シュトックハウゼンの音楽と、その手法への敬意を込めて。",
+    en: "Made with deep respect for the music and ideas of Brian Eno, Steve Reich, Robert Fripp, John Cage and Karlheinz Stockhausen.",
   },
   "home.sonatas": {
     ja: "作曲家の手法で作る、3 楽章のピアノソナタ。",

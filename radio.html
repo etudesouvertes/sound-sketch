@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
+    <title>Radio - sound-sketch</title>
+  </head>
+  <body>
+    <header class="bar">
+      <nav class="nav">
+        <a href="./">sound-sketch</a>
+        <a href="./ripples.html">Ripples</a>
+        <a href="./phase.html">Phase</a>
+        <a href="./loops.html">Loops</a>
+        <a href="./tape.html">Tape</a>
+        <a href="./radio.html" aria-current="page">Radio</a>
+        <a href="./sonata.html">Sonata</a>
+        <a href="./duo.html">Duo</a>
+      </nav>
+      <div class="bar-actions">
+        <button id="new-dial" type="button" data-i18n="radio.newDial">↻ 局を入れ替える</button>
+        <button id="settings-toggle" type="button" aria-expanded="false" aria-controls="settings" data-i18n="settings">⚙ 設定</button>
+      </div>
+    </header>
+    <aside id="settings" class="settings" aria-label="設定" data-i18n-aria="settingsPanel" hidden>
+      <button id="settings-close" class="settings-close" type="button" aria-label="設定を閉じる" data-i18n-aria="settingsClose">×</button>
+      <section data-section="sound">
+        <h2 data-i18n="sec.sound">音</h2>
+        <label><span data-i18n="scale">スケール</span> <select id="scale"></select></label>
+        <label><span data-i18n="root">主音</span> <select id="root"></select></label>
+        <label>
+          <span data-i18n="register">音域</span>
+          <span class="range"><input id="register" type="range" min="1" max="5" step="1" /><output id="register-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="density">密度</span>
+          <span class="range"><input id="density" type="range" min="1" max="5" step="1" /><output id="density-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="reverbLevel">響き</span>
+          <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
+        </label>
+      </section>
+      <section data-section="receivers">
+        <h2 data-i18n="sec.receivers">受信機</h2>
+        <label>
+          <span data-i18n="receiverCount">台数</span>
+          <span class="range"><input id="receivers" type="range" min="1" max="4" step="1" value="3" /><output id="receivers-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="broadcastLevel">放送の大きさ</span>
+          <span class="range"><input id="broadcast-level" type="range" min="0" max="100" step="1" value="70" /><output id="broadcast-level-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="whistleLevel">ビート音の大きさ</span>
+          <span class="range"><input id="whistle-level" type="range" min="0" max="100" step="1" value="50" /><output id="whistle-level-value"></output></span>
+        </label>
+        <label>
+          <span data-i18n="noiseLevel">雑音の大きさ</span>
+          <span class="range"><input id="noise-level" type="range" min="0" max="100" step="1" value="40" /><output id="noise-level-value"></output></span>
+        </label>
+      </section>
+      <section data-section="stations">
+        <h2 data-i18n="sec.stations">局</h2>
+        <label>
+          <span data-i18n="stationKind">選ぶ局</span>
+          <select id="station-kind">
+            <option value="all" data-i18n="stationKind.all">音楽も話し声も</option>
+            <option value="talk" data-i18n="stationKind.talk">話し声だけ</option>
+            <option value="weather" data-i18n="stationKind.weather">天気予報</option>
+          </select>
+        </label>
+        <label><span data-i18n="radioSkipPolitics">政治色の強い局を除く</span> <input id="radio-skip-politics" type="checkbox" checked /></label>
+        <label><span data-i18n="radioSkipReligion">宗教の局を除く</span> <input id="radio-skip-religion" type="checkbox" checked /></label>
+        <p class="credit"><a href="https://www.radio-browser.info/" target="_blank" rel="noopener">Stations from radio-browser.info</a> · <a href="https://wxradio.org/" target="_blank" rel="noopener">NOAA Weather Radio via wxradio.org</a></p>
+      </section>
+      <section data-section="weather">
+        <h2 data-i18n="sec.weather">天気</h2>
+        <label><span data-i18n="useWeather">天気を使う</span> <input id="weather" type="checkbox" /></label>
+        <label><span data-i18n="place">場所</span> <select id="place"></select></label>
+        <p class="credit"><a href="https://open-meteo.com/" target="_blank" rel="noopener">Weather data by Open-Meteo.com</a></p>
+      </section>
+      <section data-section="drift">
+        <h2 data-i18n="sec.drift">変化</h2>
+        <label><span data-i18n="driftOn">ゆっくり変化させる</span> <input id="drift" type="checkbox" /></label>
+        <label>
+          <span data-i18n="driftSpeed">速さ</span>
+          <select id="drift-speed">
+            <option value="1">×1</option>
+            <option value="10">×10</option>
+            <option value="60">×60</option>
+          </select>
+        </label>
+      </section>
+      <section data-section="auto">
+        <h2 data-i18n="sec.auto">自動</h2>
+        <label><span data-i18n="autoDial">自動でダイヤルを回す</span> <input id="auto" type="checkbox" checked /></label>
+      </section>
+    </aside>
+    <footer class="status-line">
+      <span id="weather-status"></span>
+      <span id="drift-status"></span>
+      <span id="radio-status"></span>
+    </footer>
+    <canvas id="canvas"></canvas>
+    <p id="hint" class="hint" data-i18n="hint.radio">
+      ダイヤルを左右にドラッグして選局します。局に近づくと、ビート音がスケールの音で鳴り、合わせると放送が聞こえます<br />
+      何台もの受信機が、世界のインターネットラジオを短波のように拾います
+    </p>
+    <script type="module" src="/src/radio/main.ts"></script>
+  </body>
+</html>

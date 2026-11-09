@@ -57,6 +57,10 @@ const OGP_PAGES: Record<string, { title: string; description: string }> = {
     title: "Tape - sound-sketch",
     description: "弾いた音が 1 本のテープに録り重ねられ、1 周ごとに遠ざかっていきます。What you play is layered onto a tape loop and drifts further away each time round.",
   },
+  "radio.html": {
+    title: "Radio - sound-sketch",
+    description: "何台もの短波受信機で世界のラジオを拾い、局のあいだのうなりがスケールの音を鳴らします。Shortwave receivers pick up radio from around the world; between stations, the beat tones play a scale.",
+  },
   "sonata.html": {
     title: "Sonata - sound-sketch",
     description: "12 人の作曲家の作り方だけを借りた、3 楽章のピアノソナタ。Three-movement piano sonatas built from twelve composers' methods.",
@@ -116,6 +120,7 @@ export default defineConfig(({ command }) => ({
         phase: page("./phase.html"),
         loops: page("./loops.html"),
         tape: page("./tape.html"),
+        radio: page("./radio.html"),
         sonata: page("./sonata.html"),
         duo: page("./duo.html"),
       },

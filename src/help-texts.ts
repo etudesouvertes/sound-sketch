@@ -653,6 +653,121 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
       text: { ja: "テープに録ってある音をすべて消します。", en: "Erases everything on the tape." },
     },
   },
+  radio: {
+    [PAGE_GUIDE]: {
+      title: { ja: "Radio の遊び方", en: "How to play Radio" },
+      text: withBarNote({
+        ja: "何台かの短波受信機で、世界のインターネットラジオを拾います（ジョン・ケージ『Imaginary Landscape No. 4』の 12 台のラジオや、シュトックハウゼン『Kurzwellen』のように）。横長の帯が 1 台の受信機のダイヤルで、左右にドラッグすると赤い針が動いて選局します。局と局のあいだは雑音だけです。局（目盛りの上の三角）に近づくと、局の搬送波とのうなり（ビート音）が鳴ります。うなりの高さは針と局のずれで決まり、ずれの段ごとにスケールの音に割り当ててあるので、ダイヤルを回すとうなりがスケールを上り下りします。ぴったり合わせるとうなりは消え、放送が聞こえます。灰色の三角は放送のない搬送波で、うなりだけが鳴ります。放送はゆっくり大きくなったり小さくなったりします（フェージング）。トラックパッドやホイールで細かく合わせられます。局は radio-browser.info の一覧からランダムに選ばれ、針が近づいたときに初めて受け取り始めます。",
+        en: "Several shortwave receivers pick up internet radio from around the world (in the spirit of the twelve radios of John Cage's Imaginary Landscape No. 4 and Stockhausen's Kurzwellen). Each long strip is one receiver's dial: drag left or right to move the red needle and tune. Between stations there is only noise. Near a station (a triangle above the scale) you hear the beat tone with its carrier. Its pitch depends on how far the needle is from the station, and each step of that distance is mapped to a note of the scale, so turning the dial walks the beat tone up and down the scale. Tune in exactly and the beat disappears and the broadcast comes through. Grey triangles are carriers with no programme: only the beat tone. Broadcasts slowly swell and fade (fading). A trackpad or mouse wheel tunes finely. Stations are picked at random from radio-browser.info and are only connected when a needle comes near.",
+      }),
+    },
+    "#new-dial": {
+      title: { ja: "局を入れ替える", en: "New stations" },
+      text: {
+        ja: "すべてのダイヤルの局を、新しい位置と新しい局に置き直します。",
+        en: "Puts new stations at new places on every dial.",
+      },
+    },
+    '[data-section="sound"] h2': {
+      title: { ja: "音", en: "Sound" },
+      text: {
+        ja: "うなりの音の高さと、自動でダイヤルを回す頻度の設定です。",
+        en: "Settings for the pitches of the beat tones and how often the dials turn by themselves.",
+      },
+    },
+    "#register": {
+      title: { ja: "音域", en: "Register" },
+      text: {
+        ja: "うなりに割り当てる音の高さの範囲です。1 で 1 オクターブ低く、5 で 1 オクターブ高くなります。3 が標準です。",
+        en: "The pitch range of the beat tones. 1 is an octave lower, 5 is an octave higher, and 3 is the default.",
+      },
+    },
+    "#density": {
+      title: { ja: "密度", en: "Density" },
+      text: {
+        ja: "自動でダイヤルを回す頻度です。1 で 1 か所に長くとどまり、5 でよく回します。",
+        en: "How often the dials turn by themselves. 1 lingers long in one place, 5 turns often.",
+      },
+    },
+    '[data-section="receivers"] h2': {
+      title: { ja: "受信機", en: "Receivers" },
+      text: { ja: "受信機の数と、聞こえる音の大きさの設定です。", en: "Settings for the number of receivers and the levels of what they play." },
+    },
+    "#receivers": {
+      title: { ja: "台数", en: "Number" },
+      text: {
+        ja: "受信機（ダイヤル）の数です（1〜4）。台ごとに違う短波のバンドで、左右に広げて鳴らします。変えると、局は新しく置き直します。",
+        en: "How many receivers (dials) there are (1–4). Each covers a different shortwave band, spread from left to right. Changing it puts new stations on the dials.",
+      },
+    },
+    "#broadcast-level": {
+      title: { ja: "放送の大きさ", en: "Broadcast level" },
+      text: { ja: "合わせた局の放送の大きさです。", en: "How loud a tuned-in broadcast is." },
+    },
+    "#whistle-level": {
+      title: { ja: "ビート音の大きさ", en: "Beat tone level" },
+      text: {
+        ja: "局の近くで鳴る、うなりの大きさです。0% にすると、うなりは鳴りません。",
+        en: "How loud the beat tones near a station are. At 0% there are none.",
+      },
+    },
+    "#noise-level": {
+      title: { ja: "雑音の大きさ", en: "Noise level" },
+      text: {
+        ja: "局のあいだの雑音と、パチパチという空電の大きさです。局に合わせると、雑音は小さくなります。",
+        en: "How loud the hiss between stations and the crackles of static are. Tuning in to a station quiets the noise.",
+      },
+    },
+    '[data-section="stations"] h2': {
+      title: { ja: "局", en: "Stations" },
+      text: {
+        ja: "ダイヤルに置く局の選び方です。局の一覧は radio-browser.info（天気予報は wxradio.org も）のものです。放送には権利があるので、録音を公開するときは気をつけてください。",
+        en: "How stations are chosen for the dials. Stations come from radio-browser.info (and, for weather forecasts, wxradio.org). Broadcasts have rights holders, so take care when sharing recordings.",
+      },
+    },
+    "#station-kind": {
+      title: { ja: "選ぶ局", en: "Stations to pick" },
+      text: {
+        ja: "「音楽も話し声も」はすべての局から選びます。「話し声だけ」はニュースやトークの局（news・talk・spoken のタグ）から選び、放送が音楽だと分かったら、同じ位置の局を別の局に差し替えます。話し声と分かるまでの数秒は、放送を鳴らしません（局名の横に 👂 が出ます）。「天気予報」は天気予報だけを流す局から選びます。ほとんどはアメリカの NOAA Weather Radio で、合成音声が各地の予報や警報を読み続けます（wxradio.org が各地の受信機から中継している 100 か所ほどの送信所と、radio-browser.info の天気予報の局）。",
+        en: "“Music and speech” picks from all stations. “Speech only” picks news and talk stations (tagged news, talk or spoken), and when a broadcast turns out to be music, the station at that place is replaced with another. For the few seconds until it hears speech, the broadcast stays silent (👂 shows next to the station name). “Weather forecasts” picks stations that broadcast only the weather. Almost all are the US NOAA Weather Radio, where a synthetic voice keeps reading local forecasts and warnings: about 100 transmitters relayed by wxradio.org from receivers around the country, plus the weather stations on radio-browser.info.",
+      },
+    },
+    "#radio-skip-politics": {
+      title: { ja: "政治色の強い局を除く", en: "Skip political stations" },
+      text: {
+        ja: "局の名前やタグに、政治・プロパガンダ・保守・リベラル・政府などの言葉がある局を選びません。タグのない局は見分けられないので、すべてを除けるわけではありません。",
+        en: "Skip stations whose name or tags mention politics, propaganda, conservative, liberal, government and the like. Stations without such tags can't be told apart, so some may still get through.",
+      },
+    },
+    "#radio-skip-religion": {
+      title: { ja: "宗教の局を除く", en: "Skip religious stations" },
+      text: {
+        ja: "局の名前やタグに、キリスト教・イスラム教・教会・ゴスペル・説教・聖書・礼拝などの言葉がある局を選びません。タグのない局は見分けられないので、すべてを除けるわけではありません。",
+        en: "Skip stations whose name or tags mention Christianity, Islam, church, gospel, sermons, the Bible, worship and the like. Stations without such tags can't be told apart, so some may still get through.",
+      },
+    },
+    '[data-section="auto"] h2': {
+      title: { ja: "自動", en: "Auto" },
+      text: {
+        ja: "操作しなくても、ダイヤルがひとりでに回るようにする設定です。",
+        en: "Settings for letting the dials turn by themselves.",
+      },
+    },
+    "#auto": {
+      title: { ja: "自動", en: "Auto" },
+      text: {
+        ja: "オンにすると、しばらく操作がないとき、受信機ごとにダイヤルがゆっくり回ります。局に合わせる、局の近くでうなりを 1 つの音に止める、局のないところで雑音を聴く、のどれかへ回り、しばらくとどまります。",
+        en: "When on, after a while without interaction each receiver's dial turns slowly by itself: to tune in a station, to hold a beat tone on one note near a station, or to listen to the noise between stations, staying there for a while.",
+      },
+    },
+    "#weather": {
+      title: { ja: "天気", en: "Weather" },
+      text: {
+        ja: "オンにすると、選んだ場所の今の天気で音が変わります。雨でパチパチという空電が増え、風でフェージングが深くなり、雲で雑音と響きが増えます。15 分ごとに更新します。",
+        en: "When on, the current weather at the chosen place shapes the sound: rain brings more crackles of static, wind deepens the fading, and clouds add noise and reverb. Updates every 15 minutes.",
+      },
+    },
+  },
 };
 
 // Duo（2 台のピアノのためのソナタ）は、Sonata と同じ仕組みのページ。違う所だけ書き換える
