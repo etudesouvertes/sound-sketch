@@ -65,6 +65,8 @@ const rampBrightness = steppedRamp(8, (modulationIndex) => bell.set({ modulation
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "C" },
+  // ▶ で、自動の波紋をすぐ出し始める
+  onPlay: () => (untilAuto = 0),
   reverb: { node: reverb, wet: 0.2, decay: 6 },
   applyParams: (params) => {
     transport.bpm.rampTo(BPM * params.mood.speed, params.ramp);
@@ -198,7 +200,7 @@ function frame(now: number) {
   const dt = Math.min((now - last) / 1000, 0.05);
   last = now;
 
-  if (page.started() && autoEl.checked) {
+  if (page.playing() && autoEl.checked) {
     untilAuto -= dt;
     if (untilAuto <= 0) {
       spawn(Math.random() * width, Math.random() * height);
@@ -206,7 +208,8 @@ function frame(now: number) {
     }
   }
 
-  update(dt);
+  // 一時停止のあいだは、波紋も止める（ぶつかって鳴る音が、再開したときにまとめて鳴らないように）
+  if (!page.started() || page.playing()) update(dt);
   draw();
   requestAnimationFrame(frame);
 }

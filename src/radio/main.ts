@@ -178,6 +178,16 @@ const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "D" },
   reverb: { node: reverb, wet: 0.1, decay: 4 },
   applyParams: (params) => (mood = params.mood),
+  // ▶ で、自動でダイヤルを回すのをすぐ始める。一時停止のあいだは放送の受信を止める
+  // （止めたまま受け取ると、届いた放送がたまって、再開したときに遅れて鳴る）。再開すると、針の近くの局につなぎ直す
+  onPlay: () => {
+    idle = IDLE_BEFORE_AUTO;
+    const now = performance.now() / 1000;
+    receivers.forEach((r, i) => (r.autoAt = now + i * 2));
+  },
+  onPause: () => {
+    for (const r of receivers) disconnect(r);
+  },
 });
 
 const talkOnly = () => stationKindEl.value === "talk";
@@ -798,10 +808,10 @@ function frame(nowMs: number) {
   last = nowMs;
   const now = nowMs / 1000;
   idle += dt;
-  const auto = page.started() && autoEl.checked && idle > IDLE_BEFORE_AUTO && !ensembleOn();
+  const auto = page.playing() && autoEl.checked && idle >= IDLE_BEFORE_AUTO && !ensembleOn();
   for (const r of receivers) {
     if (auto) autoTune(r, now);
-    if (page.started()) updateReceiver(r, dt, now);
+    if (page.playing()) updateReceiver(r, dt, now);
     else if (ensembleOn()) {
       // 始める前も、針は楽譜どおりに動かして見せる
       const state = scoreOf(r);

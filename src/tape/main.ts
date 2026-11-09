@@ -694,6 +694,19 @@ let lowpass = LOOP_LOWPASS;
 const wearCutoff = (w = wear()) => 20000 * 2 ** (-WEAR_DARKEN * w);
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "A" },
+  // ▶ で、自動（オンのとき）をすぐ始める。ラジオは一時停止のあいだ受信を止め、再開したら局を探し直す
+  // （止めたまま受け取ると、届いた放送がたまって、再開したときに遅れて鳴る）
+  onPlay: () => {
+    idle = IDLE_BEFORE_AUTO;
+    untilAuto = 0;
+    if (radioOn) void tune();
+  },
+  onPause: () => {
+    if (!radioOn) return;
+    tuning++;
+    radioStream.stop();
+    stopFragments();
+  },
   reverb: { node: reverb, wet: 0.35, decay: 6 },
   // テープの音の音域は Tape だけのもの（はじめは低く。ソロの音域と同じく、ほかのページとは引き継がない）
   register: { param: "tape-register", initial: 1 },
@@ -991,7 +1004,7 @@ function updateAuto(dt: number, tape: number) {
   if (micOn() && (micMeter.getValue() as number) > MIC_ACTIVE) idle = 0;
   if (touches.size > 0) idle = 0;
   idle += dt;
-  if (!page.started() || !autoEl.checked || !recording() || solo() || clearing || idle < IDLE_BEFORE_AUTO) return;
+  if (!page.playing() || !autoEl.checked || !recording() || solo() || clearing || idle < IDLE_BEFORE_AUTO) return;
   untilAuto -= dt;
   if (untilAuto > 0) return;
   if (crowdingAtRecHead(tape) > AUTO_CROWDED) {

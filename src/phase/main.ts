@@ -57,6 +57,11 @@ const rampBrightness = steppedRamp(2.5, (modulationIndex) => synth.set({ modulat
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "D" },
+  // ▶ で、自動で置くのをすぐ始める
+  onPlay: () => {
+    idle = IDLE_BEFORE_AUTO;
+    untilAuto = 0;
+  },
   reverb: { node: reverb, wet: 0.25, decay: 8 },
   applyParams: (params) => {
     rampBrightness(2.5 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
@@ -230,7 +235,7 @@ function frame(now: number) {
   last = now;
 
   idle += dt;
-  if (page.started() && autoEl.checked && idle > IDLE_BEFORE_AUTO) {
+  if (page.playing() && autoEl.checked && idle >= IDLE_BEFORE_AUTO) {
     untilAuto -= dt;
     if (untilAuto <= 0) {
       plant(Math.random() * width, height * (0.15 + Math.random() * 0.7));

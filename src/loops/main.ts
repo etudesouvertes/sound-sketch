@@ -75,6 +75,11 @@ let sustain = 1; // 1 音の長さの倍率（空模様で変わる）
 // （音を先に作っておく。applyParams は音を参照する）
 const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "F" },
+  // ▶ で、自動で置くのをすぐ始める
+  onPlay: () => {
+    idle = IDLE_BEFORE_AUTO;
+    untilAuto = 0;
+  },
   reverb: { node: reverb, wet: 0.35, decay: 10 },
   applyParams: (params) => {
     filter.frequency.rampTo(1800 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
@@ -313,7 +318,7 @@ function frame(now: number) {
   }
 
   idle += dt;
-  if (page.started() && autoEl.checked && idle > IDLE_BEFORE_AUTO && loops.length < autoMaxLoops()) {
+  if (page.playing() && autoEl.checked && idle >= IDLE_BEFORE_AUTO && loops.length < autoMaxLoops()) {
     untilAuto -= dt;
     if (untilAuto <= 0) {
       place(Math.random() * width, height * (0.15 + Math.random() * 0.7));

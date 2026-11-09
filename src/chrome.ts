@@ -59,7 +59,8 @@ export function setupChrome() {
     bar.querySelector(":focus-visible") !== null ||
     document.querySelector("button.recording") !== null ||
     document.querySelector(".help-popover.open, .help-sheet.open") !== null ||
-    document.querySelector(".qr-backdrop:not([hidden])") !== null;
+    document.querySelector(".qr-backdrop:not([hidden])") !== null ||
+    document.body.classList.contains("paused");
 
   function restart() {
     clearTimeout(timer);

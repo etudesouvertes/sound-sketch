@@ -91,6 +91,23 @@ canvas {
   white-space: nowrap;
 }
 
+/* バーの再生のボタン（再生・一時停止。Sonata・Duo は停止・ずっと再生・シャッフル再生も）。押してある状態は色で示す */
+
+.transport {
+  display: flex;
+  gap: 4px;
+}
+
+.transport button {
+  min-width: 34px;
+  padding-inline: 8px;
+}
+
+.transport button[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .bar-actions .status {
   font-size: 12px;
 }

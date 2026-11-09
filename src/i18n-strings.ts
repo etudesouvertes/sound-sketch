@@ -16,6 +16,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   transport: { ja: "再生", en: "Playback" },
   play: { ja: "再生", en: "Play" },
   playStop: { ja: "停止", en: "Stop" },
+  playPause: { ja: "一時停止", en: "Pause" },
   playRepeat: { ja: "ずっと再生", en: "Keep playing" },
   playShuffle: { ja: "シャッフル再生", en: "Shuffle" },
   settings: { ja: "⚙ 設定", en: "⚙ Settings" },

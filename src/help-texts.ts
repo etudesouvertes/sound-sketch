@@ -24,6 +24,20 @@ export const HELP_COMMON: Record<string, HelpText> = {
       en: "Opens and closes the settings panel for scale, weather and more. You can keep playing while it is open. The “×” at its top right or Esc also closes it.",
     },
   },
+  "#play": {
+    title: { ja: "再生", en: "Play" },
+    text: {
+      ja: "音を鳴らし始めます。「自動」がオンなら、触らなくてもすぐに音がひとりでに鳴り始めます。一時停止しているときは、止めたところから続けます。キャンバスを触っても始まります。",
+      en: "Starts the sound. With Auto on, sounds begin playing by themselves right away, without touching anything. When paused, it continues from where it stopped. Touching the canvas also starts it.",
+    },
+  },
+  "#pause": {
+    title: { ja: "一時停止", en: "Pause" },
+    text: {
+      ja: "その場で音を止めます。置いたループやテープの音はそのまま残り、▶ かキャンバスを触ると、そこから続きます。止めているあいだは、上のバーを隠しません。",
+      en: "Stops the sound where it is. Placed loops and what's on the tape stay as they are; ▶ or touching the canvas continues from there. The top bar stays visible while paused.",
+    },
+  },
   "#qr": {
     title: { ja: "QR コード", en: "QR code" },
     text: {

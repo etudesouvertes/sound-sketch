@@ -4,7 +4,7 @@ import { setupChrome } from "./chrome";
 import { type Drift, densityFactor, NEUTRAL_DRIFT, setupDrift } from "./drift";
 import { setupHelp } from "./help";
 import { setupQr } from "./qr";
-import { setupI18n } from "./i18n";
+import { setupI18n, tk } from "./i18n";
 import { setupNav } from "./nav";
 import { densityLevelFactor, registerOffset, setupLevel } from "./levels";
 import { clamp01 } from "./math";
@@ -43,6 +43,10 @@ export function setupGenerativePage(options: {
   fixedScale?: () => { scale: Scale; root: string };
   // 天気・変化の値が変わったときに、ページ固有の音に反映する
   applyParams: (params: SoundParams) => void;
+  // ▶（再生）を押したとき・■（一時停止）を押したときに、ページですること（自動をすぐ始める、ラジオの受信を止めるなど）。
+  // ▶ ■ のボタンは、ページに #play がなければ（Sonata・Duo は自前で持つ）、バーに置く
+  onPlay?: () => void;
+  onPause?: () => void;
   // ページのリバーブと、響きが 3（標準）のときの深さ・残響の長さ。設定の「響き」・天気・変化で動かす
   reverb: { node: Tone.Reverb; wet: number; decay: number };
   // 設定の「音域」を、ほかのページと共通の register でなく、ページ専用の名前で URL に残すとき（初めの値も変えられる）
@@ -153,6 +157,7 @@ export function setupGenerativePage(options: {
   );
 
   let started = false;
+  let paused = false; // ■ で一時停止している（AudioContext を止めている）
   let starting: Promise<void> | null = null;
   let requested = false; // この操作で、音を出し始めるよう頼まれたか（キャンバスを押した、Sonata の再生を押したなど）
 
@@ -160,6 +165,8 @@ export function setupGenerativePage(options: {
   // 音を出せなかったとき（ブラウザが許可しないなど）は、次の操作でもう一度試す
   const ensureStarted = (): Promise<void> => {
     requested = true;
+    // 一時停止しているときは、キャンバスを触るなどの演奏で再開する
+    if (started && paused) return resume();
     starting ??= (async () => {
       try {
         await Tone.start();
@@ -185,8 +192,78 @@ export function setupGenerativePage(options: {
     Tone.start().catch(() => {}); // 失敗は ensureStarted の側で扱う
     void ensureStarted();
     requested = false; // 頼み直すのは 1 回の操作につき 1 回
-
   });
+
+  // --- ▶ ■（再生・一時停止） ---
+  // ■ は AudioContext を止める。テープの音、置いたループ、鳴っている音はその場で止まり、▶ でそこから続く。
+  // 画面の動き（波紋など）や自動は、ページが playing() を見て止める。▶ は、はじめて押したときも、自動をすぐ始める
+  const playButton = document.createElement("button");
+  const pauseButton = document.createElement("button");
+
+  const showTransport = () => {
+    const playing = started && !paused;
+    playButton.setAttribute("aria-pressed", String(playing));
+    pauseButton.setAttribute("aria-pressed", String(started && paused));
+    document.body.classList.toggle("paused", started && paused);
+  };
+
+  async function resume() {
+    if (!paused) return;
+    paused = false;
+    try {
+      await (Tone.getContext().rawContext as AudioContext).resume();
+    } catch (e) {
+      console.warn(e);
+    }
+    showTransport();
+    options.onPlay?.();
+  }
+
+  const play = async () => {
+    if (started && paused) {
+      await resume();
+      return;
+    }
+    await ensureStarted();
+    if (!started) return;
+    showTransport();
+    options.onPlay?.();
+  };
+
+  const pause = () => {
+    if (!started || paused) return;
+    paused = true;
+    options.onPause?.();
+    void (Tone.getContext().rawContext as AudioContext).suspend().catch(() => {});
+    showTransport();
+  };
+
+  if (!document.querySelector("#play")) {
+    const group = document.createElement("div");
+    group.className = "transport";
+    group.setAttribute("role", "group");
+    group.dataset.i18nAria = "transport";
+    group.setAttribute("aria-label", tk("transport"));
+    playButton.type = "button";
+    playButton.id = "play";
+    playButton.textContent = "▶";
+    playButton.dataset.i18nAria = "play";
+    playButton.setAttribute("aria-label", tk("play"));
+    pauseButton.type = "button";
+    pauseButton.id = "pause";
+    pauseButton.textContent = "■";
+    pauseButton.dataset.i18nAria = "playPause";
+    pauseButton.setAttribute("aria-label", tk("playPause"));
+    group.append(playButton, pauseButton);
+    document.querySelector(".bar-actions")?.prepend(group);
+    // ▶ は click で始める（click は iPhone でも音を出す許可になる）。始めたあとはキャンバスで演奏する
+    playButton.addEventListener("click", () => {
+      void play();
+      document.dispatchEvent(new Event("performance-start"));
+    });
+    pauseButton.addEventListener("click", pause);
+    showTransport();
+  }
 
   // iPhone の消音スイッチがオンでも鳴らす（音楽を聴くページとして扱ってもらう。対応していないブラウザでは何もしない）
   const audioSession = (navigator as Navigator & { audioSession?: { type: string } }).audioSession;
@@ -210,6 +287,8 @@ export function setupGenerativePage(options: {
     // ページが決める音階と主音が変わったときに、音高を作り直す
     refreshScale: () => (scalePicker ? scalePicker.refresh() : fixedPitches()),
     started: () => started,
+    // 音が鳴っている（始めていて、一時停止していない）
+    playing: () => started && !paused,
     ensureStarted,
   };
 }
