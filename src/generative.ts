@@ -3,6 +3,7 @@ import { protectOutput } from "./audio";
 import { setupChrome } from "./chrome";
 import { type Drift, densityFactor, NEUTRAL_DRIFT, setupDrift } from "./drift";
 import { setupHelp } from "./help";
+import { setupQr } from "./qr";
 import { setupI18n } from "./i18n";
 import { setupNav } from "./nav";
 import { densityLevelFactor, registerOffset, setupLevel } from "./levels";
@@ -50,6 +51,7 @@ export function setupGenerativePage(options: {
   protectOutput();
   setupNav();
   setupI18n();
+  setupQr();
   setupChrome();
   setupHelp();
 
@@ -152,10 +154,12 @@ export function setupGenerativePage(options: {
 
   let started = false;
   let starting: Promise<void> | null = null;
+  let requested = false; // この操作で、音を出し始めるよう頼まれたか（キャンバスを押した、Sonata の再生を押したなど）
 
   // 最初の操作で音を出せる状態にし、ヒントを消す。
   // 音を出せなかったとき（ブラウザが許可しないなど）は、次の操作でもう一度試す
   const ensureStarted = (): Promise<void> => {
+    requested = true;
     starting ??= (async () => {
       try {
         await Tone.start();
@@ -174,11 +178,14 @@ export function setupGenerativePage(options: {
   };
 
   // iPhone などのタッチ操作では、触れた瞬間（pointerdown）は音を出す許可にならず、指を離したとき（pointerup）に許可される。
-  // 触れた瞬間の ensureStarted が許可を待っているあいだに、ここで改めて頼む
+  // 触れた瞬間の ensureStarted が許可を待っているあいだに、ここで改めて頼む。
+  // 音を出すよう頼まれていない操作（QR・設定などのボタン）では始めない
   document.addEventListener("pointerup", () => {
-    if (started) return;
+    if (started || !requested) return;
     Tone.start().catch(() => {}); // 失敗は ensureStarted の側で扱う
     void ensureStarted();
+    requested = false; // 頼み直すのは 1 回の操作につき 1 回
+
   });
 
   // iPhone の消音スイッチがオンでも鳴らす（音楽を聴くページとして扱ってもらう。対応していないブラウザでは何もしない）

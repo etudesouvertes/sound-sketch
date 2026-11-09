@@ -50,7 +50,7 @@ export function setupChrome() {
   };
 
   // 隠さないとき: パネル（設定、ナビの Sketches、Sonata の作曲家）が開いている、バーの上にマウスがある、キーボードでバーのボタンにフォーカスがある、
-  // 録音中、説明を表示している。マウスで押したあとに残るフォーカスは :focus-visible に当たらないので、
+  // 録音中、説明や QR コードを表示している。マウスで押したあとに残るフォーカスは :focus-visible に当たらないので、
   // クリアや設定を押したあとはこれまでどおり隠れる
   const busy = () =>
     !panel.hidden ||
@@ -58,7 +58,8 @@ export function setupChrome() {
     hovering ||
     bar.querySelector(":focus-visible") !== null ||
     document.querySelector("button.recording") !== null ||
-    document.querySelector(".help-popover.open, .help-sheet.open") !== null;
+    document.querySelector(".help-popover.open, .help-sheet.open") !== null ||
+    document.querySelector(".qr-backdrop:not([hidden])") !== null;
 
   function restart() {
     clearTimeout(timer);

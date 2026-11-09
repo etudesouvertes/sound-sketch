@@ -5,6 +5,7 @@ import { setupCanvas, setupGenerativePage } from "../generative";
 import { NEUTRAL_MOOD, type Mood } from "../weather";
 import { onLangChange, tk } from "../i18n";
 import { RadioStream } from "../broadcast/stream";
+import { addWorkletModule, workletsAvailable } from "../audio";
 import { findStations, reportClick, type Station, type StationKind } from "../broadcast/stations";
 import speechProcessorUrl from "../broadcast/speech-processor.ts?worker&url";
 import type { SpeechMessage } from "../broadcast/speech-processor";
@@ -97,7 +98,8 @@ const DRAG_FOLLOW = 0.1; // 手で回すとき、針が指に追いつく速さ�
 const NOISE_LEVEL = 0.3;
 const WHISTLE_LEVEL = 0.12;
 const BROADCAST_LEVEL = 1;
-const CRACKLE_RATE = 3; // 1 秒あたりのパチパチの数（雨で増える）
+const CRACKLE_RATE = 2; // 「空電」100% のときの、1 台あたり 1 秒あたりのパチパチの数（雨で増える）
+const CRACKLE_LEVEL = [0.03, 0.12]; // パチパチ 1 つの大きさ（この範囲で選ぶ）
 
 const RADIO_WAIT = 8000; // 1 局の音が出るまで待つ時間 (ミリ秒)
 const RADIO_TRIES = 6; // 1 つの局の位置で試す局の数
@@ -123,6 +125,8 @@ const whistleLevelEl = document.querySelector<HTMLInputElement>("#whistle-level"
 const whistleLevelValueEl = document.querySelector<HTMLOutputElement>("#whistle-level-value")!;
 const noiseLevelEl = document.querySelector<HTMLInputElement>("#noise-level")!;
 const noiseLevelValueEl = document.querySelector<HTMLOutputElement>("#noise-level-value")!;
+const staticLevelEl = document.querySelector<HTMLInputElement>("#static-level")!;
+const staticLevelValueEl = document.querySelector<HTMLOutputElement>("#static-level-value")!;
 const stationKindEl = document.querySelector<HTMLSelectElement>("#station-kind")!;
 const skipPoliticsEl = document.querySelector<HTMLInputElement>("#radio-skip-politics")!;
 const skipReligionEl = document.querySelector<HTMLInputElement>("#radio-skip-religion")!;
@@ -207,7 +211,9 @@ async function takeStation(): Promise<Station | null> {
 
 // --- 受信機 ---
 
-const speechReady = Tone.getContext().rawContext.audioWorklet.addModule(speechProcessorUrl);
+// 「話し声だけ」の聞き分け。AudioWorklet が使えないとき（LAN の http の開発サーバー）は、聞き分けずに鳴らす
+const speechReady = addWorkletModule(speechProcessorUrl);
+speechReady.catch(() => {});
 
 function makeSlots(): Slot[] {
   const positions: number[] = [];
@@ -242,7 +248,8 @@ function makeReceiver(index: number, count: number): Receiver {
   const noiseGain = new Tone.Gain(0);
   noise.chain(noiseFilter, noiseGain, out);
   const crackle = new Tone.Noise("white");
-  const crackleFilter = new Tone.Filter({ type: "highpass", frequency: 1500 });
+  // 高い音だけにすると耳に刺さるので、中ほどの帯域にする
+  const crackleFilter = new Tone.Filter({ type: "bandpass", frequency: 2200, Q: 0.7 });
   const crackleGain = new Tone.Gain(0);
   crackle.chain(crackleFilter, crackleGain, out);
 
@@ -308,7 +315,7 @@ function makeReceiver(index: number, count: number): Receiver {
   // 受信機ごとに、どれだけ雑音の帯域がずれているかを少し変える
   noiseFilter.frequency.value = 900 + Math.random() * 1200;
 
-  void speechReady.then(() => {
+  speechReady.then(() => {
     if (r.disposed) return;
     const node = Tone.getContext().createAudioWorkletNode("speech-detector", {
       channelCount: 1,
@@ -318,7 +325,7 @@ function makeReceiver(index: number, count: number): Receiver {
     node.port.onmessage = (e: MessageEvent<SpeechMessage>) => hearSpeech(r, e.data.speech);
     Tone.connect(stream.output, node);
     r.speechNode = node;
-  });
+  }, () => {});
   // 消すときに一緒に消すノード
   disposables.set(r, [noiseFilter, crackleFilter]);
   return r;
@@ -377,7 +384,7 @@ function resetSpeech(r: Receiver) {
 }
 
 function applySpeechGate(r: Receiver) {
-  const open = !talkOnly() || r.hearingSpeech;
+  const open = !talkOnly() || r.hearingSpeech || !workletsAvailable();
   r.speechGate.gain.setTargetAtTime(open ? 1 : 0, Tone.now(), 0.05);
 }
 
@@ -511,10 +518,15 @@ function updateReceiver(r: Receiver, dt: number, now: number) {
   r.noiseGain.gain.setTargetAtTime(noise, t, 0.05);
 
   // パチパチという雑音（空電）
-  const crackles = CRACKLE_RATE * (0.5 + 0.5 * mood.density) * (1 - 0.7 * strength) * level(noiseLevelEl) * 2;
+  const crackles = CRACKLE_RATE * (0.5 + 0.5 * mood.density) * (1 - 0.7 * strength) * level(staticLevelEl);
   if (Math.random() < crackles * dt) {
-    const amount = 0.1 + Math.random() * 0.5;
-    r.crackleGain.gain.cancelScheduledValues(t).setValueAtTime(amount, t).setTargetAtTime(0, t + 0.002, 0.003 + Math.random() * 0.01);
+    // 立ち上がりを 2 ミリ秒かけて、カチッという角を丸める
+    const amount = between(CRACKLE_LEVEL);
+    r.crackleGain.gain
+      .cancelScheduledValues(t)
+      .setValueAtTime(0, t)
+      .linearRampToValueAtTime(amount, t + 0.002)
+      .setTargetAtTime(0, t + 0.002, 0.003 + Math.random() * 0.008);
   }
 
   // うなり: ずれを WHISTLE_STEPS 段に分け、段ごとにスケールの音を割り当てる。ぴったり合うと消える
@@ -749,6 +761,7 @@ showValue(receiversEl, receiversValueEl, (v) => v);
 showValue(broadcastLevelEl, broadcastLevelValueEl, (v) => `${v}%`);
 showValue(whistleLevelEl, whistleLevelValueEl, (v) => `${v}%`);
 showValue(noiseLevelEl, noiseLevelValueEl, (v) => `${v}%`);
+showValue(staticLevelEl, staticLevelValueEl, (v) => `${v}%`);
 receiversEl.addEventListener("change", buildReceivers);
 
 // 局の選び方を変えたら、ダイヤルに置いた局を選び直す（局の位置はそのまま）

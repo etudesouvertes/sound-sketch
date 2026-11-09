@@ -106,6 +106,11 @@ export default defineConfig(({ command }) => ({
   // GitHub Pages では https://etudesouvertes.github.io/sound-sketch/ で公開する
   base: command === "build" ? "/sound-sketch/" : "/",
   plugins: [cloudflareAnalytics(), stripUnpublished(), ogp()],
+  // QR コード（src/qr.ts）: 開発サーバーを localhost で開いたときに、スマホで開ける LAN のアドレスにする。
+  // アドレスは .env の LAN_HOST から compose.yaml 経由で渡す。本番のビルドでは使わない
+  define: {
+    __LAN_HOST__: JSON.stringify(command === "serve" ? (process.env.LAN_HOST ?? "") : ""),
+  },
   server: {
     host: "0.0.0.0",
     port: 5173,

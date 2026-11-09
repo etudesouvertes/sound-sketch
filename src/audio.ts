@@ -27,3 +27,15 @@ export function steppedRamp(initial: number, apply: (value: number) => void) {
     else timer = setInterval(next, STEP_SECONDS * 1000);
   };
 }
+
+// AudioWorklet は、安全な接続（https か localhost）でしか使えない。開発サーバーを LAN の http の URL で開くと使えない。
+// 使えないときは、それを使う機能（Tape の逆再生、音楽と話し声の聞き分け）を止め、ページのほかの部分は動かす
+export const workletsAvailable = (): boolean =>
+  (Tone.getContext().rawContext as AudioContext).audioWorklet !== undefined;
+
+// AudioWorklet のモジュールを読み込む。使えないときは失敗する Promise を返す
+// （Tone の addAudioWorkletModule は最初の 1 モジュールしか読み込まないため、rawContext に直接登録する）
+export function addWorkletModule(url: string): Promise<void> {
+  const worklet = (Tone.getContext().rawContext as AudioContext).audioWorklet as AudioWorklet | undefined;
+  return worklet ? worklet.addModule(url) : Promise.reject(new Error("AudioWorklet is not available here"));
+}

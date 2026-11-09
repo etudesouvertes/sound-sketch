@@ -4,6 +4,7 @@ import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
+import { addWorkletModule, workletsAvailable } from "../audio";
 import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
 import type { ReverseMessage } from "./reverse-processor";
@@ -225,19 +226,18 @@ const backward = new Tone.Gain(0);
 tapeDelay.connect(forward);
 forward.connect(wobble);
 backward.connect(wobble);
-// Tone の addAudioWorkletModule は最初の 1 モジュールしか読み込まないため、rawContext に直接登録する
-const reverseNode = Tone.getContext()
-  .rawContext.audioWorklet.addModule(reverseProcessorUrl)
-  .then(() => {
-    const node = Tone.getContext().createAudioWorkletNode("tape-reverse", {
-      channelCount: 1,
-      channelCountMode: "explicit",
-      outputChannelCount: [1],
-    });
-    Tone.connect(writeBus, node);
-    Tone.connect(node, backward);
-    return node;
+// AudioWorklet が使えないとき（LAN の http の開発サーバー）は、逆再生を使えなくする（toggle）
+const reverseNode = addWorkletModule(reverseProcessorUrl).then(() => {
+  const node = Tone.getContext().createAudioWorkletNode("tape-reverse", {
+    channelCount: 1,
+    channelCountMode: "explicit",
+    outputChannelCount: [1],
   });
+  Tone.connect(writeBus, node);
+  Tone.connect(node, backward);
+  return node;
+});
+reverseNode.catch(() => {});
 
 // オクターブ。ずらした音（octaveWet）と、同じだけ遅らせた元の音（octaveDry）を切り替える
 const pitchShift = new Tone.PitchShift({ pitch: 12, windowSize: PITCH_WINDOW, wet: 1 });
@@ -499,18 +499,22 @@ let stationSince = 0; // 今の局につながった時刻 (AudioContext の秒)
 let hearingSpeech = false; // 今、話し声として録っているか
 let unsureSince: number | null = null; // 話し声と分からないまま待ち始めた時刻
 let speechHistory: number[] = []; // 最近の話し声らしさ
-const speechNode = Tone.getContext()
-  .rawContext.audioWorklet.addModule(speechProcessorUrl)
-  .then(() => {
-    const node = Tone.getContext().createAudioWorkletNode("speech-detector", {
-      channelCount: 1,
-      channelCountMode: "explicit",
-      numberOfOutputs: 0,
-    });
-    node.port.onmessage = (e: MessageEvent<SpeechMessage>) => hearSpeech(e.data.speech);
-    Tone.connect(radioStream.output, node);
-    return node;
+const speechNode = addWorkletModule(speechProcessorUrl).then(() => {
+  const node = Tone.getContext().createAudioWorkletNode("speech-detector", {
+    channelCount: 1,
+    channelCountMode: "explicit",
+    numberOfOutputs: 0,
   });
+  node.port.onmessage = (e: MessageEvent<SpeechMessage>) => hearSpeech(e.data.speech);
+  Tone.connect(radioStream.output, node);
+  return node;
+});
+speechNode.catch(() => {});
+// 聞き分けられないときは、「音楽ならほかの局へ」を使えなくする（オンのままだと、話し声と分からないので何も録らない）
+if (!workletsAvailable()) {
+  radioSkipMusicEl.checked = false;
+  radioSkipMusicEl.disabled = true;
+}
 
 function hearSpeech(speech: number | null) {
   if (!radioOn || radioSearching) return;
@@ -631,7 +635,7 @@ async function tune(searchingStatus = "radioStatus.searching") {
     speechHistory = [];
     fragmentsLeft = Math.round(between([FRAGMENTS_PER_STATION[0] - 0.49, FRAGMENTS_PER_STATION[1] + 0.49]));
     if (radioFragmentsEl.checked && !fragmentTimer) waitFragment(0.5);
-    void speechNode.then((node) => node.port.postMessage("reset"));
+    speechNode.then((node) => node.port.postMessage("reset"), () => {});
     applyMusicGate();
     reportClick(station);
     return;
@@ -732,7 +736,7 @@ function scheduleReverse() {
   if (!reverse) return;
   const early = LOOP_AFTER / 2;
   const message: ReverseMessage = { start: timeAt(reverse.anchor) - early, length: clock.seconds };
-  void reverseNode.then((node) => node.port.postMessage(message));
+  reverseNode.then((node) => node.port.postMessage(message), () => {});
   const now = Tone.immediate();
   forward.gain.cancelScheduledValues(now);
   backward.gain.cancelScheduledValues(now);
@@ -904,6 +908,7 @@ function toggle(button: Button) {
   }
   if (button === "octave") octave = octave === 0 ? 1 : octave === 1 ? -1 : 0;
   if (button === "reverse") {
+    if (!workletsAvailable()) return; // 逆向きに読む AudioWorklet がないと、テープが鳴らなくなる
     const now = Tone.immediate();
     if (!reverse) reverse = { anchor: tapeAt(now + REVERSE_LEAD), until: null };
     else if (reverse.until === null) reverse.until = reverse.anchor + Math.max(1, Math.floor(tapeAt(now) - reverse.anchor) + 1);

@@ -24,6 +24,13 @@ export const HELP_COMMON: Record<string, HelpText> = {
       en: "Opens and closes the settings panel for scale, weather and more. You can keep playing while it is open. The “×” at its top right or Esc also closes it.",
     },
   },
+  "#qr": {
+    title: { ja: "QR コード", en: "QR code" },
+    text: {
+      ja: "スマホで開くための QR コードを出します。はじめは今のページを、スケールなどの今の設定ごと開けます。「トップページ」に切り替えたり、設定を含めないようにもできます。",
+      en: "Shows a QR code for opening the page on a phone. By default it opens this page with the current settings, such as the scale. You can switch to the top page, or leave the settings out.",
+    },
+  },
   '[data-section="sound"] h2': {
     title: { ja: "音", en: "Sound" },
     text: {
@@ -714,8 +721,15 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#noise-level": {
       title: { ja: "雑音の大きさ", en: "Noise level" },
       text: {
-        ja: "局のあいだの雑音と、パチパチという空電の大きさです。局に合わせると、雑音は小さくなります。",
-        en: "How loud the hiss between stations and the crackles of static are. Tuning in to a station quiets the noise.",
+        ja: "局のあいだのザーッという雑音の大きさです。局に合わせると、雑音は小さくなります。",
+        en: "How loud the hiss between stations is. Tuning in to a station quiets it.",
+      },
+    },
+    "#static-level": {
+      title: { ja: "パチパチ（空電）", en: "Crackles (static)" },
+      text: {
+        ja: "雷などが起こす、パチパチという空電の多さです。0% にすると鳴りません。局に合わせると減り、天気を使うと雨で増えます。",
+        en: "How often the crackles of static (from lightning and the like) come. At 0% there are none. They thin out when a station is tuned in, and with weather on, rain brings more.",
       },
     },
     '[data-section="stations"] h2': {
