@@ -4,6 +4,7 @@ import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
+import { RECORD } from "../record";
 import { addWorkletModule, workletsAvailable } from "../audio";
 import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
@@ -800,7 +801,8 @@ let height = 0;
 const playX = () => Math.max(PLAY_HEAD_MIN, width * PLAY_HEAD);
 const compact = () => height < COMPACT_HEIGHT;
 const panelMinWidth = () => (compact() ? BUTTON_MIN_WIDTH + 8 + FADERS_MIN_WIDTH : BUTTON_MIN_WIDTH + 4);
-const recX = () => Math.min(width * REC_HEAD, width - PANEL_GAP - panelMinWidth());
+// 録音モード（投稿用の動画）では操作盤を描かないので、録音ヘッドを右端から再生ヘッドと同じだけ離して置く
+const recX = () => (RECORD ? width - playX() : Math.min(width * REC_HEAD, width - PANEL_GAP - panelMinWidth()));
 const hintEl = document.querySelector<HTMLElement>("#hint")!;
 const barEl = document.querySelector<HTMLElement>(".bar")!;
 const g = setupCanvas(canvas, (w, h) => {
@@ -1479,7 +1481,7 @@ function draw(tape: number) {
   for (const head of activeHeads()) drawExtraHead(head.u);
   // 録っていない間（ホールド・フェード、録らない設定のソロ）は、録音ヘッドを淡くする
   drawHead(recX(), tk("tape.recHead"), recording());
-  drawPanel();
+  if (!RECORD) drawPanel();
 }
 
 // 録音ヘッドを通り過ぎたテープの位置に、前の周の分（1 周分小さくなる）と、今マイクから入った分を足して書く。

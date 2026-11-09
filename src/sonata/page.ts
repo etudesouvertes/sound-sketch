@@ -7,13 +7,13 @@ import { setupLevel } from "../levels";
 import { syncNavQuery } from "../nav";
 import { clearRecords, exportCsv, exportJson, type Listening, loadRecords, midiOf, nextPlayIndex, rate, type Rating } from "./ratings";
 import { flowXOf, keepRandom, musicFrom, type MovementContext, type MovementRun, seedRandom, type Sonata, type Tuning } from "./movement";
-import { recordSonata } from "./record";
+import { PIANO_CREDIT, pageLink, RECORD } from "../record";
 import { drawStaff, staffTop, viewRange } from "./staff";
 import { ROOTS } from "../scales";
 
 // ソナタを鳴らすページの設定。Sonata（作曲家ごとのソナタ）と Duo（2 台のピアノのためのソナタ）が、同じ仕組みを使う
 export type PageConfig = {
-  page: "sonata" | "duo"; // ページの名前（sonata.html・duo.html。録音のファイル名と、終わりのカードの URL に使う）
+  page: "sonata" | "duo"; // ページの名前（sonata.html・duo.html。録音のファイル名に使う）
   works: Sonata[]; // 並べる順
   pianos: 1 | 2; // ピアノの台数。2 台のときは、I を左、II を右に置き、調律のずれと時間の揺らぎも台ごとに別にする
   title: (key: string) => string; // 楽章の始めに出す表題（key は「C Lydian」など）
@@ -32,8 +32,7 @@ export function sonataPage(config: PageConfig) {
   // shuffle（シャッフル再生）は作曲家を選ばずに混ぜた順で移り続ける。URL の ?continuous で repeat、?shuffle で shuffle から始まる
   type PlayMode = "once" | "repeat" | "shuffle";
   const query = new URLSearchParams(location.search);
-  // 録音モード（?record）では、1 つのソナタだけを鳴らす（record.ts）
-  const RECORD = query.has("record");
+  // 録音モード（?record）では、1 つのソナタだけを鳴らす（src/record.ts）
   let mode: PlayMode = RECORD ? "once" : query.has("shuffle") ? "shuffle" : query.has("continuous") ? "repeat" : "once";
 
   // 試すとき用: ?short を付けると、どの楽章も 5 分の 1 の長さになる（終わり方をすぐ確かめられる）
@@ -267,6 +266,22 @@ export function sonataPage(config: PageConfig) {
       filter.frequency.rampTo(6000 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
       speed = params.mood.speed;
       sustain = params.mood.sustain;
+    },
+    // 録音モード: ソナタを I から終わりまで録る。題は楽章の始めの表題（drawTitle）と同じ言葉にする
+    recording: {
+      ready: () => pianoLoaded,
+      start: () => request(0),
+      ended: () => ended,
+      info: () => {
+        const op = fixedSeed() ?? seed;
+        return {
+          slug: `${config.page}-${sonata.id}-op${op}`,
+          title: `${config.title(keyName(sonata))}, Op. ${op} — ${sonata.credit?.en ?? `after ${sonata.composer.en}`}`,
+          link: `${pageLink}?composer=${sonata.id}&seed=${op}`,
+          credits: [PIANO_CREDIT],
+          details: { movements: sonata.movements.map((m) => ({ title: m.title.en, seconds: m.duration })) },
+        };
+      },
     },
   });
   const { transport } = page;
@@ -788,7 +803,6 @@ export function sonataPage(config: PageConfig) {
     run?.draw(g, width, music.height);
     g.restore();
     drawTitle();
-    drawCard?.(g, width, height);
 
     // 右下: 作曲家・楽章・経過時間と、その下に今の演奏の種を作品番号（Op.）として出す（設定に入れると、同じ演奏をもう一度聴ける）
     const movement = sonata.movements[index];
@@ -895,23 +909,6 @@ export function sonataPage(config: PageConfig) {
     }
     play();
   });
-
-  // 録音モード: 始まりのカード、ソナタ、終わりのクレジットを録る
-  const drawCard = RECORD
-    ? recordSonata({
-        canvas,
-        page: config.page,
-        ready: () => pianoLoaded,
-        info: () => ({
-          composer: sonata.composer.en,
-          composerId: sonata.id,
-          movements: sonata.movements.map((m) => ({ title: m.title.en, duration: m.duration })),
-          seed: fixedSeed() ?? seed,
-        }),
-        start: () => request(0),
-        ended: () => ended,
-      })
-    : null;
 
   requestAnimationFrame(frame);
 }

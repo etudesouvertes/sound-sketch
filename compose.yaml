@@ -10,7 +10,7 @@ services:
       - .:/app
       - node_modules:/app/node_modules
 
-  # Sonata を録る（recorder/record-sonata.mjs）。web と同じネットワークで、開発サーバーを localhost として開く
+  # 投稿用の動画を録る（recorder/record.mjs）。web と同じネットワークで、開発サーバーを localhost として開く
   recorder:
     build: ./recorder
     profiles: [record]
@@ -21,7 +21,7 @@ services:
     depends_on: [web]
     volumes:
       - ./recordings:/recordings
-      - ./recorder/record-sonata.mjs:/recorder/record-sonata.mjs:ro
+      - ./recorder/record.mjs:/recorder/record.mjs:ro
 
 volumes:
   node_modules:

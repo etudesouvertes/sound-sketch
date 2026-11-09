@@ -107,14 +107,21 @@ Pushing to `main` builds and deploys to GitHub Pages via GitHub Actions.
 開発サーバーでは、音源やエフェクトを試すための Keyboard のページ（`/keyboard.html`）も開けます。公開版には含めていません。
 The development server also serves a Keyboard page (`/keyboard.html`) for trying instruments and effects. It is not part of the published site.
 
-### Sonata の録音 / Recording Sonata
+### 投稿用の動画 / Videos for posting
 
 ```sh
-docker compose --profile record run --rm recorder [--composer satie] [--seed 12345] [--short]
+docker compose --profile record run --rm recorder --page ripples [--page sonata …]   # または --all
 ```
 
-ヘッドレスの Chromium で Sonata を 1 つ鳴らして録り、`recordings/` に動画（`.mp4`、YouTube 用）、音声（`.flac`、SoundCloud 用）、情報（`.json`）を書き出します。始まりにタイトルのカード、終わりにクレジットが入ります。作曲家と Op. を省くと、でたらめに選びます。`--short` は楽章を 5 分の 1 の長さにします（試すとき用）。ページは `sonata.html?record` で録音モードになります。
-Plays one Sonata in headless Chromium and writes a video (`.mp4`, for YouTube), audio (`.flac`, for SoundCloud) and metadata (`.json`) to `recordings/`, with a title card at the start and credits at the end. Without a composer or Op. it picks them at random. `--short` plays each movement at a fifth of its length (for testing). The page enters recording mode with `sonata.html?record`.
+ヘッドレスの Chromium でページを鳴らして録り、`recordings/` に書き出します。横長（`.mp4`、YouTube 用）には音声（`.flac`、SoundCloud 用）とサムネイル（`-thumbnail.png`）が付き、縦長（`-vertical.mp4`、1080×1920・60 秒以内）はショート・X・Instagram 用です。`.json` に、投稿の題と説明文の下書きが入ります。始まりに名前のカード、終わりにクレジットが入ります。
+
+- `--format horizontal|vertical|both`（既定は both）
+- `--minutes 10`: 終わりのない作品の長さ。Sonata と Duo の横長は、ソナタの終わりまで録ります
+- `--composer satie` / `--seed 12345`: Sonata・Duo の作品と Op.（省くと、でたらめに選びます）。`--short` は楽章を 5 分の 1 の長さにします（試すとき用）
+
+録音では天気を使わず、変化と自動を入れます。Radio は、アメリカの NOAA Weather Radio（パブリックドメイン）だけを受けます。ページは `?record` で録音モードになります（`src/record.ts`）。
+
+Plays a page in headless Chromium and writes to `recordings/`: a landscape video (`.mp4`, for YouTube) with audio (`.flac`, for SoundCloud) and a thumbnail (`-thumbnail.png`), and a portrait video (`-vertical.mp4`, 1080×1920, under 60 s) for Shorts, X and Instagram. The `.json` holds a draft title and description for posting. Recordings use drift and auto but not the weather, and Radio tunes only to NOAA Weather Radio (public domain). Pages enter recording mode with `?record` (`src/record.ts`).
 
 ## ライセンス / License
 

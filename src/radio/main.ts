@@ -10,6 +10,7 @@ import { findStations, reportClick, type Station, type StationKind } from "../br
 import speechProcessorUrl from "../broadcast/speech-processor.ts?worker&url";
 import { newSeed, scoreNow, scoreState, seededRandom, seedNumber, syncClock } from "./score";
 import { syncNavQuery } from "../nav";
+import { pageLink, pageName, pageTitle, RECORD } from "../record";
 import type { SpeechMessage } from "../broadcast/speech-processor";
 
 // 何台かの短波受信機で、世界のインターネットラジオを拾う
@@ -178,6 +179,15 @@ const page = setupGenerativePage({
   defaults: { scale: "major-pentatonic", root: "D" },
   reverb: { node: reverb, wet: 0.1, decay: 4 },
   applyParams: (params) => (mood = params.mood),
+  // 録音モードでは、NOAA Weather Radio だけを受ける（上の findStations）。投稿の説明とクレジットにも書く
+  recording: {
+    info: () => ({
+      slug: pageName,
+      title: `${pageTitle} — NOAA Weather Radio`,
+      link: pageLink,
+      credits: ["Broadcasts: NOAA Weather Radio (U.S. public domain), relayed by wxradio.org"],
+    }),
+  },
   // ▶ で、自動でダイヤルを回すのをすぐ始める。一時停止のあいだは放送の受信を止める
   // （止めたまま受け取ると、届いた放送がたまって、再開したときに遅れて鳴る）。再開すると、針の近くの局につなぎ直す
   onPlay: () => {
@@ -229,7 +239,7 @@ async function takeStation(): Promise<Station | null> {
     }
     if (performance.now() < staleUntil) return null;
     const version = listVersion;
-    fetching ??= findStations({ kind: stationKindEl.value as StationKind, skipPolitics: skipPoliticsEl.checked, skipReligion: skipReligionEl.checked })
+    fetching ??= findStations({ kind: RECORD ? "noaa" : (stationKindEl.value as StationKind), skipPolitics: skipPoliticsEl.checked, skipReligion: skipReligionEl.checked })
       .then((list) => {
         if (version !== listVersion) return;
         const fresh = list.filter((s) => !listed.has(s.stationuuid));

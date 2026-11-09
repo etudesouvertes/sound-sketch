@@ -14,8 +14,10 @@ export type Station = {
   tags: string;
 };
 
-// all: すべての局、talk: 話の多い局（news / talk などのタグ）、weather: 天気予報の局
-export type StationKind = "all" | "talk" | "weather";
+// all: すべての局、talk: 話の多い局（news / talk などのタグ）、weather: 天気予報の局。
+// noaa: wxradio.org が中継するアメリカの NOAA Weather Radio だけ（設定では選べない。録音モードで使う。アメリカ政府の放送は
+// パブリックドメインなので、録音を投稿できる）
+export type StationKind = "all" | "talk" | "weather" | "noaa";
 
 export type StationFilter = {
   kind: StationKind;
@@ -84,7 +86,9 @@ export async function findStations(filter: StationFilter): Promise<Station[]> {
       ? SPEECH_TAGS.map((tag) => searchStations(`tag=${tag}`))
       : filter.kind === "weather"
         ? [...WEATHER_SEARCHES.map((search) => searchStations(search, 200)), wxradioStations()]
-        : [searchStations()];
+        : filter.kind === "noaa"
+          ? [wxradioStations()]
+          : [searchStations()];
   // 探し方のどれかが失敗しても、ほかの結果は使う（すべて失敗したら、失敗として返す）
   const results = await Promise.allSettled(searches);
   const lists = results.flatMap((r) => (r.status === "fulfilled" ? [r.value] : []));

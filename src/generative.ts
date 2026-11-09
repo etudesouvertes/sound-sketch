@@ -8,6 +8,7 @@ import { setupI18n, tk } from "./i18n";
 import { setupNav } from "./nav";
 import { densityLevelFactor, registerOffset, setupLevel } from "./levels";
 import { clamp01 } from "./math";
+import { pageLink, pageName, pageTitle, RECORD, type RecordingInfo, setupRecording } from "./record";
 import { type Pitch, pitchesOf, type Scale, setupScalePicker, visiblePitches } from "./scales";
 import { type Mood, NEUTRAL_MOOD, setupWeather } from "./weather";
 
@@ -51,6 +52,13 @@ export function setupGenerativePage(options: {
   reverb: { node: Tone.Reverb; wet: number; decay: number };
   // 設定の「音域」を、ほかのページと共通の register でなく、ページ専用の名前で URL に残すとき（初めの値も変えられる）
   register?: { param: string; initial: number };
+  // 録音モード（?record、record.ts）で、ページが自分で決めること。決めなければ、音源を読み終えてから ▶ で始め、ページの名前で録る
+  recording?: {
+    ready?: () => Promise<unknown>;
+    start?: () => void;
+    ended?: () => boolean; // 終わりのある作品（Sonata・Duo）が終わったか
+    info?: () => RecordingInfo;
+  };
 }) {
   protectOutput();
   setupNav();
@@ -263,6 +271,23 @@ export function setupGenerativePage(options: {
     });
     pauseButton.addEventListener("click", pause);
     showTransport();
+  }
+
+  // 録音モード: 天気は使わない（どこの天気かが動画からわからない）。変化を入れ、自動のあるページは自動で鳴らす
+  if (RECORD) {
+    for (const id of ["drift", "auto"]) {
+      const el = document.querySelector<HTMLInputElement>(`#${id}`);
+      if (!el || el.checked) continue;
+      el.checked = true;
+      el.dispatchEvent(new Event("change"));
+    }
+    setupRecording({
+      canvas: document.querySelector<HTMLCanvasElement>("#canvas")!,
+      ready: options.recording?.ready ?? (() => Tone.loaded()),
+      start: options.recording?.start ?? (() => void play()),
+      ended: options.recording?.ended,
+      info: options.recording?.info ?? (() => ({ slug: pageName, title: pageTitle, link: pageLink })),
+    });
   }
 
   // iPhone の消音スイッチがオンでも鳴らす（音楽を聴くページとして扱ってもらう。対応していないブラウザでは何もしない）
