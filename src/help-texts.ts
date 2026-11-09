@@ -1,11 +1,11 @@
 import type { L } from "./i18n";
 
 // 説明文。キーは対象のコントロールを指すセレクタ。
-// 現在のページへのナビのリンク（a[aria-current="page"]）には、そのページの遊び方を書く。
+// ナビの今のページの印（[aria-current="page"]。Sketches のページでは「Radio ▾」のようなボタン）には、そのページの遊び方を書く。
 
 export type HelpText = { title: L; text: L };
 
-const PAGE_GUIDE = '.nav a[aria-current="page"]';
+const PAGE_GUIDE = '.nav [aria-current="page"]';
 
 // キャンバスのページの遊び方の最後に足す、バーの隠れ方の説明
 const BAR_NOTE: L = {

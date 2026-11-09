@@ -52,6 +52,10 @@ h1 {
   color: var(--fg);
 }
 
+.nav .nav-group {
+  font-size: 14px;
+}
+
 .nav a[aria-current="page"] {
   border-color: var(--accent);
   color: var(--accent);

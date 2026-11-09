@@ -4,6 +4,7 @@ import { setupChrome } from "./chrome";
 import { type Drift, densityFactor, NEUTRAL_DRIFT, setupDrift } from "./drift";
 import { setupHelp } from "./help";
 import { setupI18n } from "./i18n";
+import { setupNav } from "./nav";
 import { densityLevelFactor, registerOffset, setupLevel } from "./levels";
 import { clamp01 } from "./math";
 import { type Pitch, pitchesOf, type Scale, setupScalePicker, visiblePitches } from "./scales";
@@ -47,6 +48,7 @@ export function setupGenerativePage(options: {
   register?: { param: string; initial: number };
 }) {
   protectOutput();
+  setupNav();
   setupI18n();
   setupChrome();
   setupHelp();
