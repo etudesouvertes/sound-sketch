@@ -9,8 +9,8 @@ A collection of generative music sketches that play right in your browser.
 
 ### Sketches
 
-触ると変わり、終わらずに鳴り続ける音楽。ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップの音楽と、その手法への敬意を込めて。
-Music that changes as you touch it and never ends. Made with deep respect for the music and ideas of Brian Eno, Steve Reich and Robert Fripp.
+触ると変わり、終わらずに鳴り続ける音楽。ブライアン・イーノ、スティーヴ・ライヒ、ロバート・フリップ、ジョン・ケージ、カールハインツ・シュトックハウゼンの音楽と、その手法への敬意を込めて。
+Music that changes as you touch it and never ends. Made with deep respect for the music and ideas of Brian Eno, Steve Reich, Robert Fripp, John Cage and Karlheinz Stockhausen.
 
 | | |
 |---|---|
@@ -18,6 +18,7 @@ Music that changes as you touch it and never ends. Made with deep respect for th
 | **Phase** | 周期がわずかに違うループが、少しずつずれていきます。スティーヴ・ライヒのフェイジング（『Piano Phase』など）に着想を得ています。<br>Loops with slightly different periods slowly drift apart, inspired by Steve Reich's phasing (e.g. *Piano Phase*). |
 | **Loops** | 長さの違うテープループが重なり、同じ響きはほとんど二度と来ません。ブライアン・イーノ『Music for Airports』の手法に着想を得ています。<br>Tape loops of different lengths overlap so the same harmony almost never returns, inspired by Brian Eno's *Music for Airports*. |
 | **Tape** | 1 本のテープに弾いた音が録り重ねられ、1 周ごとに少しずつ遠ざかっていきます。ロバート・フリップとブライアン・イーノの 2 台のテープレコーダー（フリッパートロニクス、『Discreet Music』）に着想を得ています。マイクで楽器を、世界のインターネットラジオから声の断片も録れます（[ラジオ](#tape-のラジオ--tapes-radio)）。<br>What you play is layered onto a single tape loop and drifts a little further away each time round, inspired by Robert Fripp and Brian Eno's two-tape-recorder setup (Frippertronics, *Discreet Music*). You can also record an instrument with the mic, or fragments of voices from internet radio around the world ([radio](#tape-のラジオ--tapes-radio)). |
+| **Radio** | 何台かの短波受信機で、世界のインターネットラジオを拾います。ダイヤルを回すと、局と局のあいだは雑音、局に近づくと搬送波とのうなり（ビート音）が鳴り、合わせると放送が聞こえます。うなりの高さは針と局のずれをスケールの音に割り当てたもので、ダイヤルを回すとスケールを上り下りします。ジョン・ケージ『Imaginary Landscape No. 4』の 12 台のラジオと、シュトックハウゼン『Kurzwellen』に着想を得ています。局は「音楽も話し声も」「話し声だけ」「天気予報」から選べます（[radio-browser.info](https://www.radio-browser.info/) の局と、天気予報は [wxradio.org](https://wxradio.org/) が中継するアメリカの NOAA Weather Radio）。<br>Several shortwave receivers pick up internet radio from around the world. Turning a dial gives noise between stations, a beat tone with the carrier near a station, and the broadcast when tuned in. The beat tone's pitch maps the needle's distance from the station onto the notes of the scale, so turning the dial walks up and down the scale. Inspired by the twelve radios of John Cage's *Imaginary Landscape No. 4* and Stockhausen's *Kurzwellen*. Stations can be music and speech, speech only, or weather forecasts (stations from [radio-browser.info](https://www.radio-browser.info/); for weather, the US NOAA Weather Radio relayed by [wxradio.org](https://wxradio.org/)). |
 
 ### Sonatas
 
@@ -69,8 +70,8 @@ Besides the mic, internet radio from around the world (stations from [radio-brow
 | オフ / off | オン / on | すべての局から選び、話し声だけを録ります。ほとんどの局は音楽なので飛ばすことが多く、テープはまばらになります。<br>Any station, speech only. Most stations play music, so it skips a lot and the tape stays sparse. |
 | オフ / off | オフ / off | すべての局から選び、何でも録ります。ジョン・ケージ『Imaginary Landscape No. 4』のような、ラジオそのものの寄せ集めに近い形です。<br>Any station, anything goes — close to the radio collage of John Cage's *Imaginary Landscape No. 4*. |
 
-音楽と話し声は、音の特徴（声の切れ目、音の高さの安定、一定の拍、低音の量）から見分けます（`src/tape/speech-detector.ts`）。判定の重みは、110 局の録音に Google の音分類モデル YAMNet で付けた「話し声 / 音楽」に合わせて学習させました（YAMNet はページには含めていません）。判断の時間を取るため、放送は 4 秒遅れてテープに入ります。ラップや BGM の上の話し声では迷うことがあります。
-Music and speech are told apart from the sound itself — pauses between words, steady pitches, a regular beat, the amount of bass (`src/tape/speech-detector.ts`). Its weights were fitted to speech/music labels that Google's YAMNet sound classifier gave to recordings of 110 stations (YAMNet itself is not part of the page). The broadcast reaches the tape 4 seconds late to leave time for the decision. Rap and talk over background music can confuse it.
+音楽と話し声は、音の特徴（声の切れ目、音の高さの安定、一定の拍、低音の量）から見分けます（`src/broadcast/speech-detector.ts`）。判定の重みは、110 局の録音に Google の音分類モデル YAMNet で付けた「話し声 / 音楽」に合わせて学習させました（YAMNet はページには含めていません）。判断の時間を取るため、放送は 4 秒遅れてテープに入ります。ラップや BGM の上の話し声では迷うことがあります。
+Music and speech are told apart from the sound itself — pauses between words, steady pitches, a regular beat, the amount of bass (`src/broadcast/speech-detector.ts`). Its weights were fitted to speech/music labels that Google's YAMNet sound classifier gave to recordings of 110 stations (YAMNet itself is not part of the page). The broadcast reaches the tape 4 seconds late to leave time for the decision. Rap and talk over background music can confuse it.
 
 放送には権利があります。ラジオを使った録音を公開するときは気をつけてください。
 Broadcasts have rights holders; take care when sharing recordings made with the radio.

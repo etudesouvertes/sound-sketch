@@ -7,9 +7,10 @@ import { setupLevel } from "../levels";
 import { celloBassVoice, celloVoice, mellotronVoice, sawVoice, stringsVoice, type Voice } from "./voices";
 import reverseProcessorUrl from "./reverse-processor.ts?worker&url";
 import type { ReverseMessage } from "./reverse-processor";
-import { RadioStream } from "./radio-stream";
-import speechProcessorUrl from "./speech-processor.ts?worker&url";
-import type { SpeechMessage } from "./speech-processor";
+import { RadioStream } from "../broadcast/stream";
+import { findStations as searchRadio, reportClick, type Station } from "../broadcast/stations";
+import speechProcessorUrl from "../broadcast/speech-processor.ts?worker&url";
+import type { SpeechMessage } from "../broadcast/speech-processor";
 
 // 1 本のテープに録った音が、再生ヘッドから録音ヘッドへ戻されて何度も録り重ねられる
 // （ブライアン・イーノ『Discreet Music』、ロバート・フリップとイーノの 2 台のテープレコーダーの仕組み）。
@@ -421,19 +422,8 @@ showMicLevel();
 // 局を探している間は、ダイヤルを回すような雑音を鳴らす（これもテープに録る）。
 // 放送は鳴り続けるので、マイクと違って自動は休ませない。
 // 設定で、話の多い局（news / talk などのタグ）だけを選ぶ、政治色の強い局を除く、音楽ならほかの局へ、を選べる
-const RADIO_API = "https://all.api.radio-browser.info";
 const RADIO_WAIT = 8000; // 1 局の音が出るまで待つ時間 (ミリ秒)
 const RADIO_TRIES = 12; // 1 回の選局で試す局の数
-const RADIO_CODECS = ["MP3", "AAC", "AAC+"]; // フレームに切って音に戻せる形式（radio-stream.ts）
-type Station = { stationuuid: string; name: string; countrycode: string; url_resolved: string; codec: string; hls: number; tags: string };
-// 話の多い局を探すタグ（部分一致なので、"news talk" や "talk & speech" なども含む）
-const SPEECH_TAGS = ["talk", "news", "spoken"];
-// 政治色の強い局。局の名前とタグで見分ける（progressive rock のような音楽のジャンルは除かない）
-const POLITICAL =
-  /politi|propagand|conservative|liberal\b|progressive(?!\s*(rock|house|trance|metal|psy|music))|patriot|government|opinion|activis|socialis|communis|nationalis|election|sputnik|voice of korea/i;
-// 宗教の局。局の名前とタグで見分ける（Christchurch のような地名や、フランス語の émission には当てない）
-const RELIGIOUS =
-  /christ(?!church)|(?<!christ)church|religi|islam|muslim|quran|coran|gospel|sermon|preach|bible|biblical|worship|catholi|evangel|pentecost|baptist|adventist|jesus|cristo|cristian|iglesia|igreja|kirche|\bkerk|église|chrétien|hindu|bhajan|buddhis|sikh|gurbani|kirtan|jewish|torah|devotion|spiritual|faith|ministr|prayer|radio mar[ií]a|vatican|dharma|\bgod\b|\blord\b|salvation|hymn|holy|sacred|messianic|apostol|missionar/i;
 // 音楽を見分けるため、放送を遅らせてからテープに送る。その音を含む判断が出そろってから録るかを決める
 const RADIO_DELAY = 4;
 const SPEECH_AVERAGE = 5; // 0.5 秒ごとに届く話し声らしさを、これだけ平均して使う
@@ -494,30 +484,12 @@ onLangChange(() => {
   if (radioStatus) showRadioStatus(radioStatus, radioStation ?? undefined);
 });
 
-async function searchStations(tag?: string): Promise<Station[]> {
-  const query = new URLSearchParams({ hidebroken: "true", is_https: "true", order: "random", limit: "40" });
-  if (tag) query.set("tag", tag);
-  const response = await fetch(`${RADIO_API}/json/stations/search?${query}`);
-  return response.json();
-}
-
-async function findStations(): Promise<Station[]> {
-  const lists = await Promise.all(radioSpeechEl.checked ? SPEECH_TAGS.map((tag) => searchStations(tag)) : [searchStations()]);
-  const seen = new Set<string>();
-  const stations = lists.flat().filter((s) => {
-    if (seen.has(s.stationuuid)) return false;
-    seen.add(s.stationuuid);
-    if (radioSkipPoliticsEl.checked && POLITICAL.test(`${s.name} ${s.tags}`)) return false;
-    if (radioSkipReligionEl.checked && RELIGIOUS.test(`${s.name} ${s.tags}`)) return false;
-    return s.hls === 0 && RADIO_CODECS.includes(s.codec.toUpperCase());
+const findStations = () =>
+  searchRadio({
+    kind: radioSpeechEl.checked ? "talk" : "all",
+    skipPolitics: radioSkipPoliticsEl.checked,
+    skipReligion: radioSkipReligionEl.checked,
   });
-  // いくつかのタグで探した局を混ぜる
-  for (let i = stations.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [stations[i], stations[j]] = [stations[j], stations[i]];
-  }
-  return stations;
-}
 
 // 音楽を見分ける。放送を受けたらすぐ（遅らせる前の音で）判断する
 let radioStation: Station | null = null;
@@ -661,8 +633,7 @@ async function tune(searchingStatus = "radioStatus.searching") {
     if (radioFragmentsEl.checked && !fragmentTimer) waitFragment(0.5);
     void speechNode.then((node) => node.port.postMessage("reset"));
     applyMusicGate();
-    // 鳴らした局を Radio Browser に知らせる（局の人気の集計に使われる）
-    fetch(`${RADIO_API}/json/url/${station.stationuuid}`).catch(() => {});
+    reportClick(station);
     return;
   }
   if (id !== tuning) return;
