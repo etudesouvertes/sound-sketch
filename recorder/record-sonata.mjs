@@ -12,7 +12,7 @@ const { values } = parseArgs({
     composer: { type: "string" },
     seed: { type: "string" },
     short: { type: "boolean", default: false },
-    base: { type: "string", default: process.env.SONATA_URL ?? "http://localhost:5173/sonata.html" },
+    base: { type: "string", default: process.env.SONATA_URL ?? "https://localhost:5173/sonata.html" },
     out: { type: "string", default: "/recordings" },
   },
 });
@@ -26,7 +26,8 @@ mkdirSync(values.out, { recursive: true });
 
 // 古いヘッドレス（headless shell）ではキャンバスの録画がコマ落ちするので、新しいヘッドレスモードの Chromium を使う
 const browser = await chromium.launch({ channel: "chromium", args: ["--autoplay-policy=no-user-gesture-required"] });
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, locale: "en-US", acceptDownloads: true });
+// 開発サーバーは自己署名の証明書の https なので、証明書の警告は無視する
+const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1, locale: "en-US", acceptDownloads: true, ignoreHTTPSErrors: true });
 page.on("console", (m) => {
   if (m.type() === "error" || m.type() === "warning") console.log(`[page ${m.type()}] ${m.text()}`);
 });

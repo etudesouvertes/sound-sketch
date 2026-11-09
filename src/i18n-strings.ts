@@ -119,7 +119,23 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
     ja: "ダイヤルを左右にドラッグして選局します。局に近づくと、ビート音がスケールの音で鳴り、合わせると放送が聞こえます\n何台もの受信機が、世界のインターネットラジオを短波のように拾います" + SILENT_NOTE.ja,
     en: "Drag a dial left or right to tune. Near a station a beat tone sounds on the notes of the scale; tune it in to hear the broadcast.\nSeveral receivers pick up internet radio from around the world as if it were shortwave." + SILENT_NOTE.en,
   },
+  "hint.radioEnsemble": {
+    ja: "みんなで同じ楽譜を鳴らしています。画面をタップすると、あなたのパートの受信機が鳴り始めます\nダイヤルは楽譜どおりに回ります。手で回すこともでき、離すと楽譜に戻ります" + SILENT_NOTE.ja,
+    en: "Everyone is playing the same score. Tap the screen to start your part's receiver.\nThe dial turns as the score says. You can turn it by hand too; let go and it returns to the score." + SILENT_NOTE.en,
+  },
   // Radio
+  "sec.ensemble": { ja: "みんなで鳴らす", en: "Play together" },
+  "ensemble.start": { ja: "楽譜を作って始める", en: "Make a score and start" },
+  "ensemble.stop": { ja: "楽譜をやめる", en: "Stop the score" },
+  ensemblePart: { ja: "パート", en: "Part" },
+  "ensemblePart.all": { ja: "全パート", en: "All parts" },
+  "ensemble.part": { ja: "パート", en: "Part" },
+  "ensemble.score": { ja: "楽譜", en: "Score" },
+  "ensemble.rest": { ja: "休み", en: "Rest" },
+  ensembleNote: {
+    ja: "楽譜を作ったら「QR」で配ってください。開いた人のスマホが、それぞれ 1 つのパートを鳴らします。",
+    en: "Once the score is made, share it with “QR”. Each phone that opens it plays one part.",
+  },
   "radio.newDial": { ja: "↻ 局を入れ替える", en: "↻ New stations" },
   "sec.receivers": { ja: "受信機", en: "Receivers" },
   receiverCount: { ja: "台数", en: "Number" },
@@ -131,7 +147,10 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "qr.page": { ja: "このページ", en: "This page" },
   "qr.home": { ja: "トップページ", en: "Top page" },
   "qr.withSettings": { ja: "今の設定ごと", en: "With the current settings" },
-  "qr.lan": { ja: "開発サーバー: 同じ Wi-Fi のスマホで開けます", en: "Dev server: opens on a phone on the same Wi-Fi" },
+  "qr.lan": {
+    ja: "開発サーバー: 同じ Wi-Fi のスマホで開けます。はじめは証明書の警告が出るので、進めてください",
+    en: "Dev server: opens on a phone on the same Wi-Fi. Accept the certificate warning the first time",
+  },
   "qr.noLan": {
     ja: "開発サーバー: .env に LAN_HOST を書くと、スマホで開ける URL になります",
     en: "Dev server: set LAN_HOST in .env to get a URL your phone can open",

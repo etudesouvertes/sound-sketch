@@ -1,4 +1,5 @@
 import { fileURLToPath } from "node:url";
+import basicSsl from "@vitejs/plugin-basic-ssl";
 import { defineConfig, type Plugin } from "vite";
 
 const page = (file: string) => fileURLToPath(new URL(file, import.meta.url));
@@ -105,7 +106,14 @@ function ogp(): Plugin {
 export default defineConfig(({ command }) => ({
   // GitHub Pages では https://etudesouvertes.github.io/sound-sketch/ で公開する
   base: command === "build" ? "/sound-sketch/" : "/",
-  plugins: [cloudflareAnalytics(), stripUnpublished(), ogp()],
+  // 開発サーバーは https にする（自己署名の証明書）。AudioWorklet・マイク・端末の傾きなどは、安全な接続でしか使えないため、
+  // LAN の URL でスマホから開いても使えるようにする。はじめて開くときは、ブラウザの警告を進める
+  plugins: [
+    cloudflareAnalytics(),
+    stripUnpublished(),
+    ogp(),
+    basicSsl({ name: "sound-sketch-dev", domains: ["localhost", ...(process.env.LAN_HOST ? [process.env.LAN_HOST] : [])] }),
+  ],
   // QR コード（src/qr.ts）: 開発サーバーを localhost で開いたときに、スマホで開ける LAN のアドレスにする。
   // アドレスは .env の LAN_HOST から compose.yaml 経由で渡す。本番のビルドでは使わない
   define: {

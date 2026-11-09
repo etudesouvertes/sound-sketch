@@ -15,7 +15,11 @@ type Target = "page" | "home";
 function qrUrl(target: Target, withSettings: boolean): string {
   const url = new URL(target === "home" ? "./" : location.href, location.href);
   url.hash = "";
+  // みんなで鳴らす楽譜（Radio の score）は、設定を含めなくても渡す。パート（part）は端末ごとなので渡さない
+  const score = url.searchParams.get("score");
   if (target === "home" || !withSettings) url.search = "";
+  if (target === "page" && score) url.searchParams.set("score", score);
+  url.searchParams.delete("part");
   if (LOCAL_HOSTS.includes(url.hostname) && __LAN_HOST__) url.hostname = __LAN_HOST__;
   return url.toString();
 }

@@ -8,6 +8,8 @@ import { RadioStream } from "../broadcast/stream";
 import { addWorkletModule, workletsAvailable } from "../audio";
 import { findStations, reportClick, type Station, type StationKind } from "../broadcast/stations";
 import speechProcessorUrl from "../broadcast/speech-processor.ts?worker&url";
+import { newSeed, scoreNow, scoreState, seededRandom, seedNumber, syncClock } from "./score";
+import { syncNavQuery } from "../nav";
 import type { SpeechMessage } from "../broadcast/speech-processor";
 
 // 何台かの短波受信機で、世界のインターネットラジオを拾う
@@ -18,7 +20,10 @@ import type { SpeechMessage } from "../broadcast/speech-processor";
 // ダイヤルを回すと、うなりがスケールの音を階段のように上り下りする。ぴったり合わせると、うなりは消えて放送が聞こえる。
 // 局の放送は、針が近づいたときに初めて受け取り始める（離れて少しすると止める）。つながらない局は、別の局に差し替える。
 // 放送は、ゆっくり大きくなったり小さくなったりする（フェージング）。
-// 天気: 雨でパチパチという雑音が増え、風でフェージングが深くなり、雲で雑音が増える
+// 天気: 雨でパチパチという雑音が増え、風でフェージングが深くなり、雲で雑音が増える。
+// 「みんなで鳴らす」: 楽譜（score.ts）を作って QR で配ると、開いた人のスマホがそれぞれ 1 つのパートの受信機になり、
+// 同じ楽譜に従ってダイヤルを回し、音量を変える。局の位置は楽譜の種で決まるので、どの端末でも同じ。
+// どの局が鳴るかは端末ごとに違う（同じ動きで、違う声が重なる）。手で回すと、離して少しすると楽譜の位置へ戻る
 
 type Slot = {
   pos: number; // ダイヤルの上の位置 (0〜1)
@@ -31,7 +36,12 @@ type Slot = {
 };
 
 type Receiver = {
-  index: number;
+  index: number; // 画面の上から何番目か
+  band: number; // どのバンドか（BANDS の番号。みんなで鳴らすときはパートの番号 - 1）
+  part: number | null; // みんなで鳴らすときのパート（1〜4）。そうでなければ null
+  manualUntil: number; // 手で回したあと、楽譜に戻るまでの時刻 (秒)
+  scoreTarget: number | null; // 楽譜で向かっている位置（描くため）
+  volume: number; // 楽譜の音量
   slots: Slot[];
   pos: number; // 針の位置 (0〜1)
   target: number; // 針が向かう位置
@@ -109,6 +119,8 @@ const SPEECH_OPEN = 0.7;
 const SPEECH_CLOSE = 0.4;
 const UNSURE_SWITCH = 20;
 
+const RETURN_AFTER = 4; // みんなで鳴らすとき、手を離してから楽譜に戻るまで (秒)
+const RETURN_SPEED = 0.12; // 楽譜の位置へ戻る速さ（ダイヤル幅/秒）
 const IDLE_BEFORE_AUTO = 6; // 操作がない状態が何秒続いたら自動で回し始めるか
 const AUTO_SPEED = [0.015, 0.06]; // 自動で回す速さ（ダイヤル幅/秒）
 const AUTO_DWELL = [8, 30]; // 回したあと、その位置にとどまる時間 (秒)
@@ -133,6 +145,28 @@ const skipReligionEl = document.querySelector<HTMLInputElement>("#radio-skip-rel
 const autoEl = document.querySelector<HTMLInputElement>("#auto")!;
 const newDialEl = document.querySelector<HTMLButtonElement>("#new-dial")!;
 const radioStatusEl = document.querySelector<HTMLElement>("#radio-status")!;
+const ensembleToggleEl = document.querySelector<HTMLButtonElement>("#ensemble-toggle")!;
+const ensemblePartEl = document.querySelector<HTMLSelectElement>("#ensemble-part")!;
+const ensembleStatusEl = document.querySelector<HTMLElement>("#ensemble-status")!;
+
+// --- みんなで鳴らす ---
+
+// 楽譜の種（URL の score）と、この端末のパート（URL の part。"all" はすべてのパートを、受信機の台数だけ鳴らす）。
+// part のない URL（QR で配った URL）を開いたら、パートをランダムに選ぶ
+const PARTS = 4;
+const params = new URLSearchParams(location.search);
+let scoreSeed: string | null = params.get("score");
+let ensemblePart: "all" | number = "all";
+if (scoreSeed) {
+  const part = params.get("part");
+  const n = Number(part);
+  ensemblePart = part === "all" ? "all" : Number.isInteger(n) && n >= 1 && n <= PARTS ? n : 1 + Math.floor(Math.random() * PARTS);
+  // 楽譜の URL を開いた人には、はじめの案内もそれに合わせる（setupGenerativePage が表示する前に書き換える）
+  document.querySelector<HTMLElement>("#hint")!.dataset.i18n = "hint.radioEnsemble";
+}
+const ensembleOn = () => scoreSeed !== null;
+void syncClock();
+
 
 // --- 音 ---
 
@@ -215,30 +249,31 @@ async function takeStation(): Promise<Station | null> {
 const speechReady = addWorkletModule(speechProcessorUrl);
 speechReady.catch(() => {});
 
-function makeSlots(): Slot[] {
+// ダイヤルに局と搬送波を並べる。みんなで鳴らすときは、楽譜の種から決まる乱数で並べ、どの端末でも同じ位置にする
+function makeSlots(random: () => number = Math.random): Slot[] {
   const positions: number[] = [];
   const count = STATIONS_PER_BAND + CARRIERS_PER_BAND;
   for (let tries = 0; positions.length < count && tries < 1000; tries++) {
-    const pos = SLOT_EDGE + Math.random() * (1 - 2 * SLOT_EDGE);
+    const pos = SLOT_EDGE + random() * (1 - 2 * SLOT_EDGE);
     if (positions.every((p) => Math.abs(p - pos) >= SLOT_GAP)) positions.push(pos);
   }
   // 放送のない搬送波にする位置を、ランダムに選ぶ
   const carriers = new Set<number>();
-  while (carriers.size < Math.min(CARRIERS_PER_BAND, positions.length)) carriers.add(Math.floor(Math.random() * positions.length));
+  while (carriers.size < Math.min(CARRIERS_PER_BAND, positions.length)) carriers.add(Math.floor(random() * positions.length));
   return positions
     .sort((a, b) => a - b)
     .map((pos, i) => ({
       pos,
       kind: carriers.has(i) ? "carrier" : "station",
-      degree: Math.floor(Math.random() * 5),
-      hue: (i / positions.length) * 300 + Math.random() * 30,
+      degree: Math.floor(random() * 5),
+      hue: (i / positions.length) * 300 + random() * 30,
       station: null,
       heard: null,
       dead: false,
     }));
 }
 
-function makeReceiver(index: number, count: number): Receiver {
+function makeReceiver(index: number, count: number, part: number | null): Receiver {
   const out = new Tone.Gain(1);
   const panner = new Tone.Panner(count === 1 ? 0 : -0.6 + (1.2 * index) / (count - 1));
   out.chain(panner, master);
@@ -270,10 +305,15 @@ function makeReceiver(index: number, count: number): Receiver {
   const waveform = new Tone.Waveform(256);
   out.connect(waveform);
 
-  const slots = makeSlots();
+  const slots = part !== null && scoreSeed ? makeSlots(seededRandom(seedNumber(scoreSeed), part)) : makeSlots();
   const start = Math.random();
   const r: Receiver = {
     index,
+    band: part !== null ? part - 1 : index,
+    part,
+    manualUntil: 0,
+    scoreTarget: null,
+    volume: 1,
     slots,
     pos: start,
     target: start,
@@ -366,8 +406,19 @@ let receivers: Receiver[] = [];
 
 function buildReceivers() {
   for (const r of receivers) disposeReceiver(r);
-  const count = Number(receiversEl.value);
-  receivers = Array.from({ length: count }, (_, i) => makeReceiver(i, count));
+  // みんなで鳴らすときは、受け持つパートの数だけ（全パートなら台数の設定だけ）
+  const parts: (number | null)[] = !ensembleOn()
+    ? Array.from({ length: Number(receiversEl.value) }, () => null)
+    : ensemblePart === "all"
+      ? Array.from({ length: Number(receiversEl.value) }, (_, i) => i + 1)
+      : [ensemblePart];
+  const count = parts.length;
+  receivers = parts.map((part, i) => makeReceiver(i, count, part));
+  // 楽譜の途中から入るので、針ははじめから楽譜の位置に置く
+  for (const r of receivers) {
+    const state = scoreOf(r);
+    if (state) r.pos = r.target = state.pos;
+  }
   const now = performance.now() / 1000;
   // 自動で回し始める時刻を、受信機ごとにずらす
   receivers.forEach((r, i) => (r.autoAt = now + i * 3 + Math.random() * 3));
@@ -473,9 +524,31 @@ function nearestSlot(r: Receiver): { slot: Slot; offset: number } {
 
 // --- 1 フレームごとの更新 ---
 
+const SCORE_WIDTHS = { tune: TUNE_WIDTH, whistle: WHISTLE_WIDTH, whistleSteps: WHISTLE_STEPS };
+const scoreOf = (r: Receiver) => (r.part !== null && scoreSeed ? scoreState(scoreSeed, r.part, r.slots, SCORE_WIDTHS, scoreNow()) : null);
+
+// みんなで鳴らすとき、針を楽譜の位置へ。手で回しているあいだと、離してから少しのあいだは手のまま。
+// 楽譜から離れているときは、楽譜の位置へゆっくり戻り、追いついたら楽譜どおりに動く
+function followScore(r: Receiver, now: number) {
+  const state = scoreOf(r);
+  if (!state) {
+    r.scoreTarget = null;
+    r.volume = 1;
+    return;
+  }
+  r.scoreTarget = state.target;
+  r.volume = state.volume;
+  if (r.pointer !== null || now < r.manualUntil) return;
+  r.target = state.pos;
+  r.speed = Math.abs(r.pos - state.pos) > 0.003 ? RETURN_SPEED : null;
+}
+
 function updateReceiver(r: Receiver, dt: number, now: number) {
   // 雑音とうなりは、音を出せるようになってから鳴らし始める
   if (r.noise.state !== "started") for (const source of [r.noise, r.crackle, r.whistle, r.whistleWobble]) source.start();
+
+  followScore(r, now);
+  r.out.gain.setTargetAtTime(r.volume, Tone.now(), 0.3);
 
   // 針を動かす
   if (r.speed === null) r.pos += (r.target - r.pos) * (1 - Math.exp(-dt / DRAG_FOLLOW));
@@ -576,17 +649,20 @@ const g = setupCanvas(canvas, (w, h) => {
   height = h;
 });
 
-const TOP = 64; // 上のバーの分
 const BOTTOM = 36; // 下の表示の分
 const SIDE = 24;
+const barEl = document.querySelector<HTMLElement>(".bar")!;
+// 上のバーの分。狭い画面ではバーが 2 段以上に折り返すので、その高さに合わせる（隠れているあいだも、場所は空けたまま）
+let top = 64;
+const measureTop = () => (top = Math.max(64, barEl.getBoundingClientRect().bottom + 4));
 
-const bandHeight = () => (height - TOP - BOTTOM) / receivers.length;
-const bandTop = (i: number) => TOP + i * bandHeight();
+const bandHeight = () => (height - top - BOTTOM) / receivers.length;
+const bandTop = (i: number) => top + i * bandHeight();
 const xOf = (pos: number) => SIDE + pos * (width - 2 * SIDE);
 const posOf = (x: number) => clamp((x - SIDE) / (width - 2 * SIDE), 0, 1);
 
 function drawReceiver(r: Receiver) {
-  const band = BANDS[r.index];
+  const band = BANDS[r.band];
   const top = bandTop(r.index) + 6;
   const h = bandHeight() - 12;
   const bottom = top + h;
@@ -602,7 +678,16 @@ function drawReceiver(r: Receiver) {
   g.font = "11px system-ui, sans-serif";
   g.textAlign = "left";
   g.fillStyle = "rgba(255, 255, 255, 0.4)";
-  g.fillText(`${band.name}  ${band.from.toFixed(2)}–${band.to.toFixed(2)} MHz`, left, top + 16);
+  const partLabel = r.part !== null ? `🎼 ${tk("ensemble.part")} ${r.part}  ·  ` : "";
+  g.fillText(`${partLabel}${band.name}  ${band.from.toFixed(2)}–${band.to.toFixed(2)} MHz`, left, top + 16);
+  // 楽譜で黙っているあいだは、帯を暗くして「休み」と出す
+  if (r.part !== null && r.volume < 0.05) {
+    g.fillStyle = "rgba(27, 29, 35, 0.6)";
+    g.fillRect(left - 12, top + 22, right - left + 24, h - 22);
+    g.fillStyle = "rgba(255, 255, 255, 0.35)";
+    g.textAlign = "center";
+    g.fillText(tk("ensemble.rest"), (left + right) / 2, top + h / 2);
+  }
   const mhz = band.from + r.pos * (band.to - band.from);
   const { slot } = nearestSlot(r);
   let label = `${mhz.toFixed(3)} MHz`;
@@ -666,6 +751,19 @@ function drawReceiver(r: Receiver) {
   });
   g.stroke();
 
+  // 楽譜で向かっている位置（薄い点線）
+  if (r.scoreTarget !== null && Math.abs(r.scoreTarget - r.pos) > 0.003) {
+    const tx = xOf(r.scoreTarget);
+    g.strokeStyle = "rgba(255, 122, 89, 0.3)";
+    g.lineWidth = 1;
+    g.setLineDash([3, 4]);
+    g.beginPath();
+    g.moveTo(tx, top + 24);
+    g.lineTo(tx, bottom - 4);
+    g.stroke();
+    g.setLineDash([]);
+  }
+
   // 針
   const x = xOf(r.pos);
   g.strokeStyle = `rgba(255, 122, 89, ${0.6 + 0.4 * r.strength})`;
@@ -684,6 +782,7 @@ function drawReceiver(r: Receiver) {
 }
 
 function draw() {
+  measureTop(); // フォントの読み込みや言語の切り替えでも、バーの高さは変わる
   g.fillStyle = "#1b1d23";
   g.fillRect(0, 0, width, height);
   for (const r of receivers) drawReceiver(r);
@@ -699,17 +798,22 @@ function frame(nowMs: number) {
   last = nowMs;
   const now = nowMs / 1000;
   idle += dt;
-  const auto = page.started() && autoEl.checked && idle > IDLE_BEFORE_AUTO;
+  const auto = page.started() && autoEl.checked && idle > IDLE_BEFORE_AUTO && !ensembleOn();
   for (const r of receivers) {
     if (auto) autoTune(r, now);
     if (page.started()) updateReceiver(r, dt, now);
+    else if (ensembleOn()) {
+      // 始める前も、針は楽譜どおりに動かして見せる
+      const state = scoreOf(r);
+      if (state) r.pos = r.target = state.pos;
+    }
   }
   draw();
   requestAnimationFrame(frame);
 }
 
 function receiverAt(y: number): Receiver | null {
-  const i = Math.floor((y - TOP) / bandHeight());
+  const i = Math.floor((y - top) / bandHeight());
   return receivers[clamp(i, 0, receivers.length - 1)] ?? null;
 }
 
@@ -717,8 +821,10 @@ function grab(r: Receiver, x: number) {
   r.target = posOf(x);
   r.speed = null;
   idle = 0;
-  // 手を離したあと、自動はしばらく待ってから回す
-  r.autoAt = performance.now() / 1000 + IDLE_BEFORE_AUTO + between(AUTO_DWELL) / 2;
+  // 手を離したあと、自動はしばらく待ってから回す。みんなで鳴らすときは、しばらくしてから楽譜に戻る
+  const now = performance.now() / 1000;
+  r.autoAt = now + IDLE_BEFORE_AUTO + between(AUTO_DWELL) / 2;
+  r.manualUntil = now + RETURN_AFTER;
 }
 
 canvas.addEventListener("pointerdown", async (e) => {
@@ -781,10 +887,61 @@ stationKindEl.addEventListener("change", reselectStations);
 skipPoliticsEl.addEventListener("change", reselectStations);
 skipReligionEl.addEventListener("change", reselectStations);
 
+// みんなで鳴らすときは、局の位置は楽譜で決まっているので、局だけを選び直す
 newDialEl.addEventListener("click", () => {
+  if (ensembleOn()) {
+    reselectStations();
+    return;
+  }
   clearQueue();
   buildReceivers();
 });
+
+function writeEnsembleUrl() {
+  const url = new URL(location.href);
+  if (scoreSeed) {
+    url.searchParams.set("score", scoreSeed);
+    url.searchParams.set("part", String(ensemblePart));
+  } else {
+    url.searchParams.delete("score");
+    url.searchParams.delete("part");
+  }
+  history.replaceState(null, "", url);
+  syncNavQuery();
+}
+
+function showEnsemble() {
+  ensembleToggleEl.textContent = tk(ensembleOn() ? "ensemble.stop" : "ensemble.start");
+  ensemblePartEl.disabled = !ensembleOn();
+  ensemblePartEl.value = String(ensemblePart);
+  // 1 つのパートだけを鳴らすときは、台数は 1 台
+  receiversEl.disabled = ensembleOn() && ensemblePart !== "all";
+  autoEl.disabled = ensembleOn();
+  ensembleStatusEl.textContent = scoreSeed
+    ? `🎼 ${tk("ensemble.score")} ${scoreSeed} · ${ensemblePart === "all" ? tk("ensemblePart.all") : `${tk("ensemble.part")} ${ensemblePart}`}`
+    : "";
+}
+onLangChange(showEnsemble);
+
+ensembleToggleEl.addEventListener("click", () => {
+  if (ensembleOn()) scoreSeed = null;
+  else {
+    // 新しい楽譜を作り、このページ（ふつうはスピーカーにつないだパソコン）は全パートを鳴らす
+    scoreSeed = newSeed();
+    ensemblePart = "all";
+  }
+  writeEnsembleUrl();
+  showEnsemble();
+  buildReceivers();
+});
+ensemblePartEl.addEventListener("change", () => {
+  ensemblePart = ensemblePartEl.value === "all" ? "all" : Number(ensemblePartEl.value);
+  writeEnsembleUrl();
+  showEnsemble();
+  buildReceivers();
+});
+if (scoreSeed) writeEnsembleUrl();
+showEnsemble();
 
 buildReceivers();
 requestAnimationFrame(frame);

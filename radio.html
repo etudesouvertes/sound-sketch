@@ -33,6 +33,21 @@
           <span class="range"><input id="reverb" type="range" min="1" max="5" step="1" /><output id="reverb-value"></output></span>
         </label>
       </section>
+      <section data-section="ensemble">
+        <h2 data-i18n="sec.ensemble">みんなで鳴らす</h2>
+        <button id="ensemble-toggle" type="button">楽譜を作って始める</button>
+        <label>
+          <span data-i18n="ensemblePart">パート</span>
+          <select id="ensemble-part">
+            <option value="all" data-i18n="ensemblePart.all">全パート</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+          </select>
+        </label>
+        <p class="credit" data-i18n="ensembleNote">楽譜を作ったら「QR」で配ってください。開いた人のスマホが、それぞれ 1 つのパートを鳴らします。</p>
+      </section>
       <section data-section="receivers">
         <h2 data-i18n="sec.receivers">受信機</h2>
         <label>
@@ -97,6 +112,7 @@
       <span id="weather-status"></span>
       <span id="drift-status"></span>
       <span id="radio-status"></span>
+      <span id="ensemble-status"></span>
     </footer>
     <canvas id="canvas"></canvas>
     <p id="hint" class="hint" data-i18n="hint.radio">

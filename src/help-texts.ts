@@ -668,6 +668,27 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
         en: "Several shortwave receivers pick up internet radio from around the world (in the spirit of the twelve radios of John Cage's Imaginary Landscape No. 4 and Stockhausen's Kurzwellen). Each long strip is one receiver's dial: drag left or right to move the red needle and tune. Between stations there is only noise. Near a station (a triangle above the scale) you hear the beat tone with its carrier. Its pitch depends on how far the needle is from the station, and each step of that distance is mapped to a note of the scale, so turning the dial walks the beat tone up and down the scale. Tune in exactly and the beat disappears and the broadcast comes through. Grey triangles are carriers with no programme: only the beat tone. Broadcasts slowly swell and fade (fading). A trackpad or mouse wheel tunes finely. Stations are picked at random from radio-browser.info and are only connected when a needle comes near.",
       }),
     },
+    '[data-section="ensemble"] h2': {
+      title: { ja: "みんなで鳴らす", en: "Play together" },
+      text: {
+        ja: "何台ものスマホで、1 つの楽譜を一緒に演奏します（ケージ『Imaginary Landscape No. 4』の、楽譜に従って 12 台のラジオを鳴らすやり方）。楽譜は、いつダイヤルをどこへ回し、音量をどうするか（ときどき休む）を決めたもので、パートは 4 つあります。楽譜を作って「QR」で配ると、開いた人のスマホがランダムに選ばれた 1 つのパートを鳴らします。局の位置はどのスマホでも同じですが、そこで鳴る局はスマホごとに違うので、同じ動きで違う声が重なります。楽譜は時刻で進むので、通信はせず、途中から開いてもその時刻の箇所から入ります（時計は、このサイトのサーバーの時刻で合わせます）。楽譜に終わりはありません。",
+        en: "Play one score together on many phones (the way John Cage's Imaginary Landscape No. 4 has twelve radios follow a score). The score says when to turn each dial, where to, and how loud to play, with rests now and then; there are four parts. Make a score and share it with “QR”: each phone that opens it plays one randomly chosen part. The stations sit at the same places on every phone, but which station plays there differs from phone to phone, so the same moves bring different voices. The score runs by the clock, so there is no network connection between phones, and anyone joining later comes in at that moment of the score (clocks are matched to this site's server time). The score never ends.",
+      },
+    },
+    "#ensemble-toggle": {
+      title: { ja: "楽譜を作って始める", en: "Make a score" },
+      text: {
+        ja: "新しい楽譜を作り、このページで全パートを鳴らします（受信機の台数だけ）。もう一度押すと、楽譜をやめてふつうの Radio に戻ります。楽譜は URL に入るので、「QR」で配れます。",
+        en: "Makes a new score and plays all parts on this page (as many as there are receivers). Press again to stop the score and go back to the usual Radio. The score is in the URL, so you can share it with “QR”.",
+      },
+    },
+    "#ensemble-part": {
+      title: { ja: "パート", en: "Part" },
+      text: {
+        ja: "この端末が鳴らすパートです。楽譜の QR を開くとランダムに選ばれます。「全パート」では、受信機の台数だけのパートを鳴らします。ダイヤルは手でも回せて、離して 4 秒ほどすると楽譜の位置へ戻ります。点線は、楽譜で向かっている位置です。",
+        en: "The part this device plays. Opening a score's QR picks one at random. “All parts” plays as many parts as there are receivers. You can still turn the dial by hand; about 4 seconds after you let go, it returns to the score. The dashed line shows where the score is heading.",
+      },
+    },
     "#new-dial": {
       title: { ja: "局を入れ替える", en: "New stations" },
       text: {
