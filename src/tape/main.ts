@@ -450,6 +450,11 @@ const radioHighpass = new Tone.Filter({ type: "highpass", frequency: 120 });
 const radioMeter = new Tone.Meter({ normalRange: true, smoothing: 0.8 });
 radioIn.chain(radioCompressor, radioHighpass, recordGate);
 radioHighpass.connect(radioMeter);
+// 断片で録るとき、最初の断片がテープを 1 周して戻ってくるまでは、録っている断片をそのまま鳴らす
+// （1 周が長いと、ラジオを入れてから何も聞こえない時間が長くなるため）
+const radioMonitor = new Tone.Gain(0).connect(reverb);
+radioHighpass.connect(radioMonitor);
+let firstFragmentBack: number | null = null; // 最初に録った断片が再生ヘッドに届く時刻。まだ録っていなければ null
 
 // 選局の雑音。帯域を絞ったノイズの中心を、ダイヤルを回すように揺らす
 const tuneNoise = new Tone.Noise("pink");
@@ -576,6 +581,11 @@ function recordFragment() {
   const now = Tone.now();
   fragmentGate.gain.cancelScheduledValues(now).setValueAtTime(0, now).linearRampToValueAtTime(1, now + FRAGMENT_EDGE);
   fragmentGate.gain.setValueAtTime(1, now + length - FRAGMENT_EDGE).linearRampToValueAtTime(0, now + length);
+  // テープからまだ断片が聞こえてこないうちは、録っている断片をそのまま鳴らす（断片の頭と終わりのフェードは fragmentGate が付ける）
+  if (firstFragmentBack === null || now < firstFragmentBack) {
+    radioMonitor.gain.cancelScheduledValues(now).setValueAtTime(1, now).setValueAtTime(0, now + length + 0.05);
+  }
+  if (firstFragmentBack === null && recording()) firstFragmentBack = now + loopSeconds();
   fragmentRecording = true;
   showStationStatus();
   fragmentTimer = setTimeout(() => {
@@ -593,6 +603,7 @@ function stopFragments() {
   fragmentTimer = null;
   fragmentRecording = false;
   const now = Tone.now();
+  radioMonitor.gain.cancelScheduledValues(now).setTargetAtTime(0, now, 0.02);
   fragmentGate.gain.cancelScheduledValues(now).setTargetAtTime(radioFragmentsEl.checked ? 0 : 1, now, 0.02);
 }
 
@@ -1279,6 +1290,7 @@ clearEl.addEventListener("click", () => {
   for (const m of marks) Object.assign(m, { start: tapeAt(now), level: 1, turns: 0, worn: 0, bends: [] });
   glows = [];
   micTrack.fill(0);
+  firstFragmentBack = null; // テープが空になるので、次の断片はまた録りながら鳴らす
   clearTimer = setTimeout(() => {
     clearing = false;
     applyLoop();

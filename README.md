@@ -53,7 +53,7 @@ Besides the mic, internet radio from around the world (stations from [radio-brow
 
 | 設定 / Setting | はじめ / Default | 内容 / What it does |
 |---|---|---|
-| 断片で録る / Record in fragments | オン / on | 短い断片を間を空けて録り、1 局で 1〜3 個録ると別の局へ移ります。<br>Records short fragments with gaps, moving to another station after 1–3 of them. |
+| 断片で録る / Record in fragments | オン / on | 短い断片を間を空けて録り、1 局で 1〜3 個録ると別の局へ移ります。最初の断片がテープから戻ってくるまでは、録っている断片もそのまま鳴らします。<br>Records short fragments with gaps, moving to another station after 1–3 of them. Until the first fragment comes back from the tape, the fragments being recorded are also played directly. |
 | 断片の長さ / Fragment length | 8 s | 1 つの断片のおよその長さ（毎回 0.5〜1.5 倍）。<br>Rough length of a fragment (0.5–1.5× each time). |
 | 断片の間 / Gap between fragments | ×2.5 | 断片の後の間を、断片の長さの何倍にするか（毎回 0.5〜1.5 倍）。0 で間なし。<br>Gap after a fragment as a multiple of its length (0.5–1.5× each time); 0 for no gap. |
 | 話の多い局を選ぶ / Prefer talk stations | オン / on | news・talk・spoken のタグの局から選びます。<br>Picks from stations tagged news, talk or spoken. |

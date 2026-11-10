@@ -595,8 +595,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="radio"] h2': {
       title: { ja: "ラジオ", en: "Radio" },
       text: {
-        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります。局の一覧は radio-browser.info のものです。設定で、断片で録る、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、宗教の局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
-        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, never sent straight to the speakers. Stations come from radio-browser.info. Settings let you record in fragments, prefer talk stations, skip music, skip political stations and skip religious stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
+        ja: "世界のインターネットラジオを、テープに録る音として使います（ジョン・ケージ『Imaginary Landscape No. 4』や、イーノとバーン『My Life in the Bush of Ghosts』のように）。操作盤の「ラジオ」か T キーでオン・オフし、オンのときに N キーか「別の局へ」で局を変えます。局はランダムに選ばれ、探している間はダイヤルを回すような雑音が鳴ります。マイクと同じく、放送はスピーカーから直接は鳴らさず、テープにだけ録ります（断片で録るときは、最初の断片がテープから戻ってくるまでだけ、録っている断片も鳴らします）。局の一覧は radio-browser.info のものです。設定で、断片で録る、話の多い局を選ぶ、音楽ならほかの局へ、政治色の強い局を除く、宗教の局を除く、を選べます（はじめはどれもオン）。音楽を除いても、放送には権利があるので、録音を公開するときは気をつけてください。",
+        en: "Use internet radio from around the world as material for the tape (in the spirit of John Cage's Imaginary Landscape No. 4 and Eno and Byrne's My Life in the Bush of Ghosts). Turn it on and off with Radio on the panel or the T key; while it's on, N or Another station changes station. Stations are picked at random, with dial-like noise while tuning. Like the mic, the broadcast is only recorded onto the tape, not sent straight to the speakers (when recording in fragments, the fragments being recorded are also played until the first one comes back from the tape). Stations come from radio-browser.info. Settings let you record in fragments, prefer talk stations, skip music, skip political stations and skip religious stations (all on at first). Even without music, broadcasts have rights holders, so take care when sharing recordings.",
       },
     },
     "#radio-level": {
@@ -609,8 +609,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#radio-fragments": {
       title: { ja: "断片で録る", en: "Record in fragments" },
       text: {
-        ja: "放送を流し続けて録るのでなく、短い断片を、間を空けて録ります。1 局で 1〜3 個録ると、ほかの局へ移ります。断片はテープのあちこちに散らばり、局も変わっていくので、同じ並びは二度と現れません。オフにすると、放送をそのまま録り続けます。",
-        en: "Instead of recording the broadcast continuously, record short fragments with gaps between them. After 1–3 fragments it moves to another station. The fragments end up scattered around the tape and the stations keep changing, so the same collage never comes back. Turn it off to record the broadcast continuously.",
+        ja: "放送を流し続けて録るのでなく、短い断片を、間を空けて録ります。1 局で 1〜3 個録ると、ほかの局へ移ります。断片はテープのあちこちに散らばり、局も変わっていくので、同じ並びは二度と現れません。最初の断片がテープを 1 周して戻ってくるまでは、録っている断片をそのままスピーカーからも鳴らします（1 周が長くても、すぐに音が聞こえるように）。クリアすると、また最初から同じようにします。オフにすると、放送をそのまま録り続けます。",
+        en: "Instead of recording the broadcast continuously, record short fragments with gaps between them. After 1–3 fragments it moves to another station. The fragments end up scattered around the tape and the stations keep changing, so the same collage never comes back. Until the first fragment has gone round the tape and come back, the fragments being recorded are also played through the speakers, so you hear something straight away even with a long loop; Clear starts this over. Turn it off to record the broadcast continuously.",
       },
     },
     "#radio-fragment-length": {
