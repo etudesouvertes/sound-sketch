@@ -685,22 +685,22 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     '[data-section="ensemble"] h2': {
       title: { ja: "みんなで鳴らす", en: "Play together" },
       text: {
-        ja: "何台ものスマホで、1 つの楽譜を一緒に演奏します（ケージ『Imaginary Landscape No. 4』の、楽譜に従って 12 台のラジオを鳴らすやり方）。楽譜は、いつダイヤルをどこへ回し、音量をどうするか（ときどき休む）を決めたもので、パートは 4 つあります。楽譜を作って「QR」で配ると、開いた人のスマホがランダムに選ばれた 1 つのパートを鳴らします。局の位置はどのスマホでも同じですが、そこで鳴る局はスマホごとに違うので、同じ動きで違う声が重なります。楽譜は時刻で進むので、通信はせず、途中から開いてもその時刻の箇所から入ります（時計は、このサイトのサーバーの時刻で合わせます）。楽譜に終わりはありません。",
-        en: "Play one score together on many phones (the way John Cage's Imaginary Landscape No. 4 has twelve radios follow a score). The score says when to turn each dial, where to, and how loud to play, with rests now and then; there are four parts. Make a score and share it with “QR”: each phone that opens it plays one randomly chosen part. The stations sit at the same places on every phone, but which station plays there differs from phone to phone, so the same moves bring different voices. The score runs by the clock, so there is no network connection between phones, and anyone joining later comes in at that moment of the score (clocks are matched to this site's server time). The score never ends.",
+        ja: "何台ものスマホで、1 つの楽譜を一緒に演奏します（ケージ『Imaginary Landscape No. 4』の、楽譜に従って 12 台のラジオを鳴らすやり方）。楽譜は、いつダイヤルをどこへ回し、音量をどうするか（ときどき休む）を決めたもので、パートは 12 あり（12 台のラジオと同じ数）、パート 1 の 120 m からパート 12 の 13 m まで、周波数の低い順に 1 つずつバンドを受け持ちます。楽譜を作って「QR」で配ると、開いた人のスマホがランダムに選ばれた 1 つのパートを鳴らします。局の位置はどのスマホでも同じですが、そこで鳴る局はスマホごとに違うので、同じ動きで違う声が重なります。楽譜は時刻で進むので、通信はせず、途中から開いてもその時刻の箇所から入ります（時計は、このサイトのサーバーの時刻で合わせます）。楽譜に終わりはありません。",
+        en: "Play one score together on many phones (the way John Cage's Imaginary Landscape No. 4 has twelve radios follow a score). The score says when to turn each dial, where to, and how loud to play, with rests now and then; there are twelve parts (as many as the twelve radios), each on its own band, from part 1 on 120 m up to part 12 on 13 m. Make a score and share it with “QR”: each phone that opens it plays one randomly chosen part. The stations sit at the same places on every phone, but which station plays there differs from phone to phone, so the same moves bring different voices. The score runs by the clock, so there is no network connection between phones, and anyone joining later comes in at that moment of the score (clocks are matched to this site's server time). The score never ends.",
       },
     },
     "#ensemble-toggle": {
       title: { ja: "楽譜を作って始める", en: "Make a score" },
       text: {
-        ja: "新しい楽譜を作り、このページで全パートを鳴らします（受信機の台数だけ）。もう一度押すと、楽譜をやめてふつうの Radio に戻ります。楽譜は URL に入るので、「QR」で配れます。",
-        en: "Makes a new score and plays all parts on this page (as many as there are receivers). Press again to stop the score and go back to the usual Radio. The score is in the URL, so you can share it with “QR”.",
+        ja: "新しい楽譜を作り、このページで全パートを鳴らします（受信機の台数だけ、真ん中のバンドのパートから。3 台ならパート 5〜7）。もう一度押すと、楽譜をやめてふつうの Radio に戻ります。楽譜は URL に入るので、「QR」で配れます。",
+        en: "Makes a new score and plays all parts on this page (as many as there are receivers, starting from the middle bands: parts 5–7 with three). Press again to stop the score and go back to the usual Radio. The score is in the URL, so you can share it with “QR”.",
       },
     },
     "#ensemble-part": {
       title: { ja: "パート", en: "Part" },
       text: {
-        ja: "この端末が鳴らすパートです。楽譜の QR を開くとランダムに選ばれます。「全パート」では、受信機の台数だけのパートを鳴らします。ダイヤルは手でも回せて、離して 4 秒ほどすると楽譜の位置へ戻ります。点線は、楽譜で向かっている位置です。",
-        en: "The part this device plays. Opening a score's QR picks one at random. “All parts” plays as many parts as there are receivers. You can still turn the dial by hand; about 4 seconds after you let go, it returns to the score. The dashed line shows where the score is heading.",
+        ja: "この端末が鳴らすパートです。楽譜の QR を開くとランダムに選ばれます。「全パート」では、受信機の台数だけ、真ん中のバンドのパートを鳴らします。ダイヤルは手でも回せて、離して 4 秒ほどすると楽譜の位置へ戻ります。点線は、楽譜で向かっている位置です。",
+        en: "The part this device plays. Opening a score's QR picks one at random. “All parts” plays as many parts as there are receivers, from the middle bands. You can still turn the dial by hand; about 4 seconds after you let go, it returns to the score. The dashed line shows where the score is heading.",
       },
     },
     "#new-dial": {
@@ -738,8 +738,8 @@ export const HELP_BY_PAGE: Record<string, Record<string, HelpText>> = {
     "#receivers": {
       title: { ja: "台数", en: "Number" },
       text: {
-        ja: "受信機（ダイヤル）の数です（1〜4）。台ごとに違う短波のバンドで、左右に広げて鳴らします。変えると、局は新しく置き直します。",
-        en: "How many receivers (dials) there are (1–4). Each covers a different shortwave band, spread from left to right. Changing it puts new stations on the dials.",
+        ja: "受信機（ダイヤル）の数です（1〜12。スマホでは 6 まで。はじめは一番多い台数）。台ごとに違う短波のバンド（120 m〜13 m。少ないときは真ん中の 49 m あたりから）で、左右に広げて鳴らします。台数が増えると、全体の音量は少し下げます。変えると、局は新しく置き直します。",
+        en: "How many receivers (dials) there are (1–12; up to 6 on a phone; the most to begin with). Each covers a different shortwave band (120 m to 13 m; fewer receivers use the middle bands around 49 m), spread from left to right. With more receivers, the overall volume is turned down a little. Changing it puts new stations on the dials.",
       },
     },
     "#broadcast-level": {

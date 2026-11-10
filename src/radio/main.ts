@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import { pitchAt } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
+import { runLoop } from "../loop";
 import { NEUTRAL_MOOD, type Mood } from "../weather";
 import { onLangChange, tk } from "../i18n";
 import { RadioStream } from "../broadcast/stream";
@@ -30,7 +31,6 @@ type Slot = {
   pos: number; // ダイヤルの上の位置 (0〜1)
   kind: "station" | "carrier"; // 放送のある局か、放送のない搬送波か
   degree: number; // うなりの、いちばん低い音（スケールの度数）
-  hue: number;
   station: Station | null; // まだ決めていない（一度も近づいていない）ときは null
   heard: string | null; // 聞いたことのある局の名前（ダイヤルに書く）
   dead: boolean; // つながる局が見つからなかった（搬送波として扱う）
@@ -39,7 +39,7 @@ type Slot = {
 type Receiver = {
   index: number; // 画面の上から何番目か
   band: number; // どのバンドか（BANDS の番号。みんなで鳴らすときはパートの番号 - 1）
-  part: number | null; // みんなで鳴らすときのパート（1〜4）。そうでなければ null
+  part: number | null; // みんなで鳴らすときのパート（1〜12）。そうでなければ null
   manualUntil: number; // 手で回したあと、楽譜に戻るまでの時刻 (秒)
   scoreTarget: number | null; // 楽譜で向かっている位置（描くため）
   volume: number; // 楽譜の音量
@@ -87,13 +87,28 @@ type Receiver = {
   whistleAmount: number;
 };
 
-// 受信機ごとのバンド（短波放送のバンドの名前と範囲。ダイヤルの目盛りに使う）
+// 受信機ごとのバンド（短波放送のバンドの名前と範囲。ダイヤルの目盛りに使う）。周波数の低い順
 const BANDS = [
+  { name: "120 m", from: 2.3, to: 2.495 },
+  { name: "90 m", from: 3.2, to: 3.4 },
+  { name: "75 m", from: 3.9, to: 4.0 },
+  { name: "60 m", from: 4.75, to: 5.06 },
   { name: "49 m", from: 5.9, to: 6.2 },
   { name: "41 m", from: 7.2, to: 7.45 },
   { name: "31 m", from: 9.4, to: 9.9 },
   { name: "25 m", from: 11.6, to: 12.1 },
+  { name: "22 m", from: 13.57, to: 13.87 },
+  { name: "19 m", from: 15.1, to: 15.8 },
+  { name: "16 m", from: 17.48, to: 17.9 },
+  { name: "13 m", from: 21.45, to: 21.85 },
 ];
+// パートの番号は、周波数の低い順（パート 1 が 120 m、パート 12 が 13 m）。
+// 台数が少ないときは、真ん中のバンドから使う（3 台なら 49・41・31 m）
+const firstBand = (count: number) => Math.floor((BANDS.length - count) / 2);
+// バンドの色。光と同じく、周波数の低いほうを赤、高いほうを紫にする（同じ色のバンドがないように）
+const bandHue = (band: number) => (280 * band) / (BANDS.length - 1);
+// スマホ 1 台で鳴らせる受信機の数（パソコンは BANDS の数まで）
+const PHONE_RECEIVERS = 6;
 const STATIONS_PER_BAND = 5;
 const CARRIERS_PER_BAND = 2;
 const SLOT_EDGE = 0.04; // ダイヤルの端から、これだけ内側に局を置く
@@ -132,6 +147,9 @@ const clamp = (v: number, low: number, high: number) => Math.min(high, Math.max(
 const canvas = document.querySelector<HTMLCanvasElement>("#canvas")!;
 const receiversEl = document.querySelector<HTMLInputElement>("#receivers")!;
 const receiversValueEl = document.querySelector<HTMLOutputElement>("#receivers-value")!;
+// スマホでは、音を作る処理が追いつく台数までにする。はじめは、どちらも鳴らせるだけの台数
+if (matchMedia("(pointer: coarse)").matches) receiversEl.max = String(PHONE_RECEIVERS);
+receiversEl.value = receiversEl.max;
 const broadcastLevelEl = document.querySelector<HTMLInputElement>("#broadcast-level")!;
 const broadcastLevelValueEl = document.querySelector<HTMLOutputElement>("#broadcast-level-value")!;
 const whistleLevelEl = document.querySelector<HTMLInputElement>("#whistle-level")!;
@@ -154,7 +172,7 @@ const ensembleStatusEl = document.querySelector<HTMLElement>("#ensemble-status")
 
 // 楽譜の種（URL の score）と、この端末のパート（URL の part。"all" はすべてのパートを、受信機の台数だけ鳴らす）。
 // part のない URL（QR で配った URL）を開いたら、パートをランダムに選ぶ
-const PARTS = 4;
+const PARTS = BANDS.length;
 const params = new URLSearchParams(location.search);
 let scoreSeed: string | null = params.get("score");
 let ensemblePart: "all" | number = "all";
@@ -286,14 +304,13 @@ function makeSlots(random: () => number = Math.random): Slot[] {
       pos,
       kind: carriers.has(i) ? "carrier" : "station",
       degree: Math.floor(random() * 5),
-      hue: (i / positions.length) * 300 + random() * 30,
       station: null,
       heard: null,
       dead: false,
     }));
 }
 
-function makeReceiver(index: number, count: number, part: number | null): Receiver {
+function makeReceiver(index: number, count: number, part: number | null, band: number): Receiver {
   const out = new Tone.Gain(1);
   const panner = new Tone.Panner(count === 1 ? 0 : -0.6 + (1.2 * index) / (count - 1));
   out.chain(panner, master);
@@ -329,7 +346,7 @@ function makeReceiver(index: number, count: number, part: number | null): Receiv
   const start = Math.random();
   const r: Receiver = {
     index,
-    band: part !== null ? part - 1 : index,
+    band,
     part,
     manualUntil: 0,
     scoreTarget: null,
@@ -426,14 +443,14 @@ let receivers: Receiver[] = [];
 
 function buildReceivers() {
   for (const r of receivers) disposeReceiver(r);
-  // みんなで鳴らすときは、受け持つパートの数だけ（全パートなら台数の設定だけ）
-  const parts: (number | null)[] = !ensembleOn()
-    ? Array.from({ length: Number(receiversEl.value) }, () => null)
-    : ensemblePart === "all"
-      ? Array.from({ length: Number(receiversEl.value) }, (_, i) => i + 1)
-      : [ensemblePart];
-  const count = parts.length;
-  receivers = parts.map((part, i) => makeReceiver(i, count, part));
+  // 台数の設定だけ、真ん中のバンドから使う。みんなで鳴らすときは、そのバンドのパート（1 つのパートだけなら、そのパートのバンド）
+  const n = Number(receiversEl.value);
+  const bands =
+    ensembleOn() && ensemblePart !== "all" ? [ensemblePart - 1] : Array.from({ length: n }, (_, i) => firstBand(n) + i);
+  const count = bands.length;
+  receivers = bands.map((band, i) => makeReceiver(i, count, ensembleOn() ? band + 1 : null, band));
+  // 台数が増えても、全体の大きさがあまり変わらないようにする（3 台までは今のまま）
+  master.gain.rampTo(Math.min(1, Math.sqrt(3 / count)), 0.1);
   // 楽譜の途中から入るので、針ははじめから楽譜の位置に置く
   for (const r of receivers) {
     const state = scoreOf(r);
@@ -683,9 +700,13 @@ const posOf = (x: number) => clamp((x - SIDE) / (width - 2 * SIDE), 0, 1);
 
 function drawReceiver(r: Receiver) {
   const band = BANDS[r.band];
+  const hue = bandHue(r.band);
   const top = bandTop(r.index) + 6;
-  const h = bandHeight() - 12;
+  const h = bandHeight() - (receivers.length > 6 ? 6 : 12);
   const bottom = top + h;
+  // 台数が多くて帯が低いときは、文字と目盛りを詰めて描く
+  const compact = h < 96;
+  const head = compact ? 17 : 24; // 帯の上の、バンドの名前の行の高さ
   const left = xOf(0);
   const right = xOf(1);
 
@@ -695,18 +716,19 @@ function drawReceiver(r: Receiver) {
   g.fill();
 
   // バンドの名前と、今聞こえている局
-  g.font = "11px system-ui, sans-serif";
+  g.font = `${compact ? 10 : 11}px system-ui, sans-serif`;
+  const textY = top + (compact ? 12 : 16);
   g.textAlign = "left";
   g.fillStyle = "rgba(255, 255, 255, 0.4)";
   const partLabel = r.part !== null ? `🎼 ${tk("ensemble.part")} ${r.part}  ·  ` : "";
-  g.fillText(`${partLabel}${band.name}  ${band.from.toFixed(2)}–${band.to.toFixed(2)} MHz`, left, top + 16);
+  g.fillText(`${partLabel}${band.name}  ${band.from.toFixed(2)}–${band.to.toFixed(2)} MHz`, left, textY);
   // 楽譜で黙っているあいだは、帯を暗くして「休み」と出す
   if (r.part !== null && r.volume < 0.05) {
     g.fillStyle = "rgba(27, 29, 35, 0.6)";
-    g.fillRect(left - 12, top + 22, right - left + 24, h - 22);
+    g.fillRect(left - 12, top + head - 2, right - left + 24, h - head + 2);
     g.fillStyle = "rgba(255, 255, 255, 0.35)";
     g.textAlign = "center";
-    g.fillText(tk("ensemble.rest"), (left + right) / 2, top + h / 2);
+    g.fillText(tk("ensemble.rest"), (left + right) / 2, top + (h + head) / 2);
   }
   const mhz = band.from + r.pos * (band.to - band.from);
   const { slot } = nearestSlot(r);
@@ -717,15 +739,15 @@ function drawReceiver(r: Receiver) {
   }
   g.textAlign = "right";
   g.fillStyle = `rgba(255, 255, 255, ${0.35 + 0.5 * r.strength})`;
-  g.fillText(label, right, top + 16);
+  g.fillText(label, right, textY);
 
   // 目盛り
-  const scaleY = bottom - 22;
+  const scaleY = bottom - (compact ? 13 : 22);
   g.strokeStyle = "rgba(255, 255, 255, 0.15)";
   g.fillStyle = "rgba(255, 255, 255, 0.25)";
   g.lineWidth = 1;
   g.textAlign = "center";
-  g.font = "9px system-ui, sans-serif";
+  g.font = `${compact ? 8 : 9}px system-ui, sans-serif`;
   const step = 0.01;
   for (let f = Math.ceil(band.from / step) * step; f <= band.to + 1e-9; f += step) {
     const x = xOf((f - band.from) / (band.to - band.from));
@@ -734,14 +756,14 @@ function drawReceiver(r: Receiver) {
     g.moveTo(x, scaleY);
     g.lineTo(x, scaleY - (major ? 8 : 4));
     g.stroke();
-    if (major && Math.round(f * 100) % 10 === 0) g.fillText(f.toFixed(1), x, scaleY + 11);
+    if (major && Math.round(f * 100) % 10 === 0) g.fillText(f.toFixed(1), x, scaleY + (compact ? 9 : 11));
   }
 
   // 局と搬送波の印。聞いたことのある局は名前を添える
   for (const s of r.slots) {
     const x = xOf(s.pos);
     const live = s.kind === "station" && !s.dead;
-    g.fillStyle = live ? `hsla(${s.hue}, 70%, 65%, 0.7)` : "rgba(255, 255, 255, 0.3)";
+    g.fillStyle = live ? `hsla(${hue}, 70%, 65%, 0.7)` : "rgba(255, 255, 255, 0.3)";
     g.beginPath();
     g.moveTo(x, scaleY - 10);
     g.lineTo(x - 3, scaleY - 16);
@@ -749,7 +771,7 @@ function drawReceiver(r: Receiver) {
     g.closePath();
     g.fill();
     if (s.heard && live && s !== slot) {
-      g.fillStyle = `hsla(${s.hue}, 40%, 70%, 0.35)`;
+      g.fillStyle = `hsla(${hue}, 40%, 70%, 0.35)`;
       g.font = "9px system-ui, sans-serif";
       g.fillText(s.heard.length > 22 ? `${s.heard.slice(0, 21)}…` : s.heard, x, scaleY - 20);
     }
@@ -757,10 +779,13 @@ function drawReceiver(r: Receiver) {
 
   // 受信機の音の波形
   const values = r.waveform.getValue();
-  const mid = top + 24 + (scaleY - 30 - top - 24) / 2;
-  const amp = (scaleY - 30 - top - 24) / 2;
-  const hue = slot.kind === "station" ? slot.hue : 0;
-  g.strokeStyle = `hsla(${hue}, ${Math.round(70 * r.strength)}%, 70%, ${0.25 + 0.5 * Math.max(r.strength, r.whistleAmount)})`;
+  const waveTop = top + head;
+  // 低い帯では、波形を局の印に少し重ねて、振れ幅を確保する
+  const waveBottom = scaleY - (compact ? 8 : 30);
+  const mid = (waveTop + waveBottom) / 2;
+  const amp = Math.max(2, (waveBottom - waveTop) / 2);
+  // 合っていなくてもバンドの色がうっすら分かるようにし、合うほど色を濃くする
+  g.strokeStyle = `hsla(${hue}, ${Math.round(35 + 40 * r.strength)}%, 65%, ${0.3 + 0.5 * Math.max(r.strength, r.whistleAmount)})`;
   g.lineWidth = 1.2;
   g.beginPath();
   values.forEach((v, i) => {
@@ -778,7 +803,7 @@ function drawReceiver(r: Receiver) {
     g.lineWidth = 1;
     g.setLineDash([3, 4]);
     g.beginPath();
-    g.moveTo(tx, top + 24);
+    g.moveTo(tx, top + head);
     g.lineTo(tx, bottom - 4);
     g.stroke();
     g.setLineDash([]);
@@ -789,7 +814,7 @@ function drawReceiver(r: Receiver) {
   g.strokeStyle = `rgba(255, 122, 89, ${0.6 + 0.4 * r.strength})`;
   g.lineWidth = 2;
   g.beginPath();
-  g.moveTo(x, top + 24);
+  g.moveTo(x, top + head);
   g.lineTo(x, bottom - 4);
   g.stroke();
   // うなりの音名
@@ -797,7 +822,7 @@ function drawReceiver(r: Receiver) {
     g.fillStyle = `rgba(255, 200, 150, ${Math.min(1, r.whistleAmount * 2)})`;
     g.font = "10px system-ui, sans-serif";
     g.textAlign = "left";
-    g.fillText(pitchAt(page.pitches(), r.whistleIndex).label, x + 6, top + 34);
+    g.fillText(pitchAt(page.pitches(), r.whistleIndex).label, x + 6, top + head + 10);
   }
 }
 
@@ -810,12 +835,10 @@ function draw() {
 
 // --- 操作 ---
 
-let last = performance.now();
 let idle = 0;
 
-function frame(nowMs: number) {
-  const dt = Math.min((nowMs - last) / 1000, 0.05);
-  last = nowMs;
+// 音にかかわる動き（画面が隠れていても進める。src/loop.ts）
+function step(dt: number, nowMs: number) {
   const now = nowMs / 1000;
   idle += dt;
   const auto = page.playing() && autoEl.checked && idle >= IDLE_BEFORE_AUTO && !ensembleOn();
@@ -828,8 +851,6 @@ function frame(nowMs: number) {
       if (state) r.pos = r.target = state.pos;
     }
   }
-  draw();
-  requestAnimationFrame(frame);
 }
 
 function receiverAt(y: number): Receiver | null {
@@ -964,4 +985,4 @@ if (scoreSeed) writeEnsembleUrl();
 showEnsemble();
 
 buildReceivers();
-requestAnimationFrame(frame);
+runLoop(step, draw);
