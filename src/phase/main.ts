@@ -3,6 +3,7 @@ import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
 import { steppedRamp } from "../audio";
 import { setupCanvas, setupGenerativePage } from "../generative";
+import { runLoop } from "../loop";
 
 // 置いた音が、それぞれ少しずつ違う周期でループする。
 // 周期のわずかな差で音どうしの重なり方がゆっくりずれていく（スティーヴ・ライヒのフェイジング）。
@@ -226,13 +227,11 @@ function draw() {
 
 // --- 画面とループ ---
 
-let last = performance.now();
 let idle = 0;
 let untilAuto = 0;
 
-function frame(now: number) {
-  const dt = Math.min((now - last) / 1000, 0.05);
-  last = now;
+// 音にかかわる動き（画面が隠れていても進める。src/loop.ts）
+function step(dt: number, now: number) {
 
   idle += dt;
   if (page.playing() && autoEl.checked && idle >= IDLE_BEFORE_AUTO) {
@@ -246,8 +245,6 @@ function frame(now: number) {
   for (const b of blooms) b.life -= dt * 0.6;
   blooms = blooms.filter((b) => b.life > 0);
 
-  draw();
-  requestAnimationFrame(frame);
 }
 
 canvas.addEventListener("pointerdown", async (e) => {
@@ -261,4 +258,4 @@ clearEl.addEventListener("click", () => {
   blooms = [];
 });
 
-requestAnimationFrame(frame);
+runLoop(step, draw);

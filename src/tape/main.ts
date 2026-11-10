@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt, type Pitch } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
+import { runLoop } from "../loop";
 import { onLangChange, tk } from "../i18n";
 import { setupLevel } from "../levels";
 import { RECORD } from "../record";
@@ -1581,12 +1582,10 @@ function flipMarks(turn: number) {
   }
 }
 
-let last = performance.now();
 let lastFrameTape: number | null = null;
 
-function frame(t: number) {
-  const dt = Math.min((t - last) / 1000, 0.05);
-  last = t;
+// 音にかかわる動き（画面が隠れていても進める。src/loop.ts）
+function step(dt: number, t: number) {
   const tape = tapeAt(Tone.immediate());
   const pitches = page.pitches();
 
@@ -1627,9 +1626,6 @@ function frame(t: number) {
 
   for (const glow of glows) glow.life -= dt * 1.2;
   glows = glows.filter((glow) => glow.life > 0);
-
-  draw(tape);
-  requestAnimationFrame(frame);
 }
 
-requestAnimationFrame(frame);
+runLoop(step, () => draw(tapeAt(Tone.immediate())));

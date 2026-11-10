@@ -2,6 +2,7 @@ import * as Tone from "tone";
 import "../ripples/style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
 import { setupCanvas, setupGenerativePage } from "../generative";
+import { runLoop } from "../loop";
 import { getLang, tk } from "../i18n";
 
 // 長さが大きく違うテープループを重ねる（イーノ『Music for Airports』の手法）。
@@ -298,13 +299,11 @@ function draw() {
 
 // --- 画面とループ ---
 
-let last = performance.now();
 let idle = 0;
 let untilAuto = 0;
 
-function frame(now: number) {
-  const dt = Math.min((now - last) / 1000, 0.05);
-  last = now;
+// 音にかかわる動き（画面が隠れていても進める。src/loop.ts）
+function step(dt: number, now: number) {
 
   if (recording) {
     idle = 0;
@@ -329,8 +328,6 @@ function frame(now: number) {
   for (const gl of glows) gl.life -= dt / (gl.loop.kind === "note" ? NOTE_LENGTH : 1.2);
   glows = glows.filter((gl) => gl.life > 0);
 
-  draw();
-  requestAnimationFrame(frame);
 }
 
 canvas.addEventListener("pointerdown", async (e) => {
@@ -352,4 +349,4 @@ clearEl.addEventListener("click", () => {
   glows = [];
 });
 
-requestAnimationFrame(frame);
+runLoop(step, draw);

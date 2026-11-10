@@ -3,6 +3,7 @@ import "./style.css";
 import { drawPitchGuides, pitchAt, pitchIndexAt } from "../scales";
 import { steppedRamp } from "../audio";
 import { setupCanvas, setupGenerativePage } from "../generative";
+import { runLoop } from "../loop";
 
 // クリックした場所から波紋が広がり、画面の端や他の波紋にぶつかると音が鳴る。
 // 発音は Transport の 16 分音符に揃えるので、どこを叩いてもリズムが崩れない。
@@ -193,12 +194,10 @@ function draw() {
 
 // --- 画面とループ ---
 
-let last = performance.now();
 let untilAuto = AUTO_INTERVAL;
 
-function frame(now: number) {
-  const dt = Math.min((now - last) / 1000, 0.05);
-  last = now;
+// 音にかかわる動き（画面が隠れていても進める。src/loop.ts）
+function step(dt: number, now: number) {
 
   if (page.playing() && autoEl.checked) {
     untilAuto -= dt;
@@ -210,8 +209,6 @@ function frame(now: number) {
 
   // 一時停止のあいだは、波紋も止める（ぶつかって鳴る音が、再開したときにまとめて鳴らないように）
   if (!page.started() || page.playing()) update(dt);
-  draw();
-  requestAnimationFrame(frame);
 }
 
 canvas.addEventListener("pointerdown", async (e) => {
@@ -224,4 +221,4 @@ clearEl.addEventListener("click", () => {
   flashes = [];
 });
 
-requestAnimationFrame(frame);
+runLoop(step, draw);
