@@ -1,4 +1,4 @@
-// 公開しているページの名前と説明。リンクカード（OGP、vite.config.ts）と、投稿用の動画の説明（record.ts）で使う。
+// 公開しているページの名前と説明。検索結果の説明とリンクカード（description・OGP、vite.config.ts）と、投稿用の動画の説明（record.ts）で使う。
 // 新しいページを公開するときは、ここに足す
 export const SITE_URL = "https://etudesouvertes.github.io/sound-sketch/";
 
@@ -33,6 +33,6 @@ export const OGP_PAGES: Record<string, { title: string; description: string }> =
   },
   "duo.html": {
     title: "Duo - sound-sketch",
-    description: "二人のギタリストが、2 台のピアノで連弾したら。As if two guitarists sat down at two pianos.",
+    description: "二人の弦楽器奏者、ドラマー、ギタリスト、録音技師、コラ奏者が、左右 2 台のピアノで連弾したら。As if two string players, drummers, guitarists, recording engineers or kora players sat down at two pianos, left and right.",
   },
 };
