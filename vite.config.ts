@@ -35,7 +35,8 @@ function stripUnpublished(): Plugin {
   };
 }
 
-// SNS でリンクを貼ったときのカード（OGP）。画像は public/og.png、URL は公開先の絶対 URL にする
+// 検索結果に出る説明（description）と、SNS でリンクを貼ったときのカード（OGP）。文は src/pages.ts から取る。
+// 画像は public/og.png、URL は公開先の絶対 URL にする
 function ogp(): Plugin {
   return {
     name: "ogp",
@@ -51,6 +52,7 @@ function ogp(): Plugin {
         injectTo: "head" as const,
       });
       return [
+        meta("name", "description", page.description),
         meta("property", "og:type", "website"),
         meta("property", "og:site_name", "sound-sketch"),
         meta("property", "og:title", page.title),
