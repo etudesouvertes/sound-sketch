@@ -45,9 +45,37 @@ const synth = new Tone.PolySynth(Tone.FMSynth, {
   envelope: { attack: 0.01, decay: 2, sustain: 0, release: 2 },
   modulationEnvelope: { attack: 0.01, decay: 0.8, sustain: 0, release: 1 },
 }).connect(reverb);
-synth.maxPolyphony = 64; // フレーズモードでは 1 周に複数の音が重なる
 synth.volume.value = -16;
 const rampBrightness = steppedRamp(2.5, (modulationIndex) => synth.set({ modulationIndex }));
+
+// 1 音の響きの長さ。天気の空模様で伸び縮みし、混み具合で縮める。
+// FM の音を同時にたくさん鳴らすと処理が間に合わず、音がブチブチ欠けたり鳴らなくなったりする
+// （種 16 個・テンポ 240・8 音で同時に約 60 音。響き 2 秒のままだと、10 秒分の計算に 10 秒以上かかっていた）。
+// そこで、同時に鳴る音の数（毎秒の音数 × 1 音の長さ）が VOICE_BUDGET 前後に収まるよう、響きを短くする。
+// 音はほとんど捨てずに（重なりが 32 を超えた瞬間だけ捨てる）、混むほど 1 音が短い粒になる。種が少ないときや遅いテンポでは今までどおりの響き
+const VOICE_BUDGET = 24;
+const MIN_RING = 0.1;
+synth.maxPolyphony = 32; // 一時的な重なりの余裕。これを超えた音は捨てられる
+let moodSustain = 1;
+let ringLength = 0; // いま設定している響きの長さ
+// 種とフレーズはここで宣言する。applyParams（→ applyEnvelope）は setupGenerativePage の中ですぐ呼ばれるため
+let seeds: Seed[] = [];
+let phrase: number[] = []; // すべての種が鳴らすフレーズ（下の「フレーズ」を参照）
+function notesPerSecond(): number {
+  const perLoop = modeEl.value === "phrase" ? phrase.length : 1;
+  // 減衰しきって、もう鳴らない（消されるのを待っている）種は数えない
+  const sounding = seeds.filter((s) => !fadeEl.checked || s.plays < FADE_PLAYS);
+  return sounding.reduce((sum, s) => sum + perLoop / periodOf(s), 0);
+}
+// 1 音は NOTE_LENGTH だけ押さえてから響きに入るので、その分も差し引く
+const NOTE_LENGTH = "16n";
+function applyEnvelope() {
+  const crowded = VOICE_BUDGET / Math.max(notesPerSecond(), 1e-6) - Tone.Time(NOTE_LENGTH).toSeconds();
+  const length = Math.max(MIN_RING, Math.min(2 * moodSustain, crowded));
+  if (Math.abs(ringLength - length) < 0.01) return;
+  ringLength = length;
+  synth.set({ envelope: { decay: length, release: length } });
+}
 
 // 種は縦位置だけを持ち、鳴るたびに今のスケールで音を決める。
 // そのためスケールを変えると、置いてある種もその場で新しいスケールの音に置き換わる。
@@ -66,7 +94,8 @@ const page = setupGenerativePage({
   reverb: { node: reverb, wet: 0.25, decay: 8 },
   applyParams: (params) => {
     rampBrightness(2.5 * 2 ** (params.drift.brightness + params.mood.brightness), params.ramp);
-    synth.set({ envelope: { decay: 2 * params.mood.sustain, release: 2 * params.mood.sustain } });
+    moodSustain = params.mood.sustain;
+    applyEnvelope();
   },
 });
 const { transport } = page;
@@ -79,7 +108,6 @@ const g = setupCanvas(canvas, (w, h) => {
   width = w;
   height = h;
 });
-let seeds: Seed[] = [];
 let blooms: Bloom[] = [];
 
 // degree はフレーズ内の音の、出だしからのスケール上の度数
@@ -92,8 +120,6 @@ function pitchOf(seed: Seed, degree = 0) {
 
 // すべての種が同じフレーズを鳴らす（ライヒ『Piano Phase』のように、同じフレーズが周期の差でずれていく）。
 // 出だしは種の高さの音で、そこから 0〜5 度上の音を、直前と同じ音にならないように選ぶ
-let phrase: number[] = [];
-
 function generatePhrase() {
   const length = Number(phraseLengthEl.value);
   phrase = [0];
@@ -123,6 +149,7 @@ function periodOf(seed: Seed): number {
 // モード・音数・テンポが変わったら、置いてある種のループの長さも合わせる
 function retime() {
   for (const s of seeds) s.loop.interval = periodOf(s);
+  applyEnvelope();
 }
 
 modeEl.addEventListener("change", updatePhraseControls);
@@ -145,6 +172,7 @@ function periodAt(x: number): number {
 function removeSeed(seed: Seed) {
   seed.loop.dispose();
   seeds = seeds.filter((s) => s !== seed);
+  applyEnvelope();
 }
 
 function plant(x: number, y: number) {
@@ -170,7 +198,7 @@ function plant(x: number, y: number) {
     degrees.forEach((degree, i) => {
       const at = time + i * step;
       const velocity = (0.3 + 0.7 * strength) * (i === 0 ? 1 : 0.75);
-      synth.triggerAttackRelease(pitchOf(seed, degree).freq, "16n", at, velocity);
+      synth.triggerAttackRelease(pitchOf(seed, degree).freq, NOTE_LENGTH, at, velocity);
       const bloomStrength = i === 0 ? strength : strength * 0.4;
       Tone.getDraw().schedule(
         () => blooms.push({ x: seed.x, y: seed.y, life: 1, hue: seed.hue, strength: bloomStrength }),
@@ -181,6 +209,7 @@ function plant(x: number, y: number) {
 
   seeds.push(seed);
   if (seeds.length > MAX_SEEDS) removeSeed(seeds[0]);
+  applyEnvelope();
 }
 
 function draw() {
