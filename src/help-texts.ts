@@ -73,11 +73,18 @@ export const HELP_COMMON: Record<string, HelpText> = {
       en: "Settings for letting sounds place themselves and keep playing without you.",
     },
   },
+  "#scale-group": {
+    title: { ja: "系統", en: "Family" },
+    text: {
+      ja: "スケールの系統です。日本、中国、中近東、インド、バリ島、西洋、ハンドパンから選ぶと、下のスケールにその系統の音階が並びます。",
+      en: "The family the scale belongs to. Choose Japan, China, the Middle East, India, Bali, Western or Handpan, and the scale menu below lists its scales.",
+    },
+  },
   "#scale": {
     title: { ja: "スケール", en: "Scale" },
     text: {
-      ja: "音の高さの選び方（音階）です。日本、中国、中近東、インド、バリ島、西洋から選べます。四分音やガムランの調律のように、ピアノの鍵盤にない音を含むものもあります。",
-      en: "The set of pitches to use. Choose from Japan, China, the Middle East, India, Bali and the West. Some include notes that a piano can't play, such as quarter tones or gamelan tunings.",
+      ja: "音の高さの選び方（音階）です。四分音やガムランの調律のように、ピアノの鍵盤にない音を含むものもあります。",
+      en: "The set of pitches to use. Some include notes that a piano can't play, such as quarter tones or gamelan tunings.",
     },
   },
   "#root": {

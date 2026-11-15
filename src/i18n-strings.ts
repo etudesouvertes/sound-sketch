@@ -62,6 +62,7 @@ export const STRINGS: Record<string, { ja: string; en: string }> = {
   "sec.repeat": { ja: "反復", en: "Repetition" },
 
   // 設定パネルの項目
+  scaleGroup: { ja: "系統", en: "Family" },
   scale: { ja: "スケール", en: "Scale" },
   root: { ja: "主音", en: "Root" },
   register: { ja: "音域", en: "Register" },

@@ -104,6 +104,7 @@ export function setupGenerativePage(options: {
   const scalePicker = fixed
     ? null
     : setupScalePicker(
+        document.querySelector<HTMLSelectElement>("#scale-group")!,
         document.querySelector<HTMLSelectElement>("#scale")!,
         document.querySelector<HTMLSelectElement>("#root")!,
         options.defaults!,
